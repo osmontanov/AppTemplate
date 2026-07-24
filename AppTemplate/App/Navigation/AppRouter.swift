@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 import OSLog
 
@@ -90,5 +91,66 @@ final class AppRouter {
             browse.replacePath(with: [.item(id: id)])
             return .applied
         }
+    }
+}
+
+extension AppRouter {
+    var snapshot: NavigationSnapshot {
+        NavigationSnapshot(
+            selectedSection: selectedSection,
+            homePath: home.path,
+            browsePath: browse.path,
+            settingsPath: settings.path
+        )
+    }
+
+    @discardableResult
+    func restore(
+        from data: Data?,
+        resolver: (any BrowseItemResolving)? = nil
+    ) -> NavigationRestorationResult {
+        guard let data else {
+            return .noState
+        }
+
+        let decoded: NavigationSnapshot
+        do {
+            decoded = try NavigationSnapshotCodec.decode(data)
+        } catch {
+            resetNavigation()
+            Logger.navigation.error(
+                "Reset corrupt navigation snapshot: \(String(describing: error), privacy: .public)"
+            )
+            return .reset(.corruptData)
+        }
+
+        guard decoded.schemaVersion == NavigationSnapshot.currentSchemaVersion else {
+            resetNavigation()
+            Logger.navigation.error(
+                "Reset unsupported navigation schema: \(decoded.schemaVersion)"
+            )
+            return .reset(.unsupportedSchema(decoded.schemaVersion))
+        }
+
+        let resolver = resolver ?? SampleBrowseCatalog()
+        let validBrowsePath = decoded.browsePath.filter { route in
+            switch route {
+            case let .item(id):
+                resolver.item(id: id) != nil
+            }
+        }
+
+        selectedSection = decoded.selectedSection
+        home.replacePath(with: decoded.homePath)
+        browse.replacePath(with: validBrowsePath)
+        settings.replacePath(with: decoded.settingsPath)
+        return .restored
+    }
+
+    func resetNavigation() {
+        selectedSection = .home
+        home.popToRoot()
+        browse.popToRoot()
+        settings.popToRoot()
     }
 }
