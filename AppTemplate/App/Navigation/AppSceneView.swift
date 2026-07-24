@@ -2,39 +2,25 @@ import OSLog
 import SwiftUI
 
 struct AppSceneView: View {
-    @State private var router = AppRouter()
+    @State private var lifecycle = AppSceneNavigationLifecycle()
     @SceneStorage("AppTemplate.NavigationSnapshot") private var encodedSnapshot: Data?
-    @State private var hasRestored = false
 
     var body: some View {
-        AppRootView(router: router)
+        AppRootView(router: lifecycle.router)
             .task {
-                guard !hasRestored else {
-                    return
-                }
-
-                let result = router.restore(from: encodedSnapshot)
-                hasRestored = true
-
-                if case .reset = result {
-                    persist(router.snapshot)
+                if let snapshot = lifecycle.restore(from: encodedSnapshot) {
+                    persist(snapshot)
                 }
             }
-            .onChange(of: router.snapshot) { _, snapshot in
-                guard hasRestored else {
+            .onChange(of: lifecycle.router.snapshot) { _, snapshot in
+                guard lifecycle.hasRestored else {
                     return
                 }
                 persist(snapshot)
             }
             .onOpenURL { url in
-                switch DeepLinkParser().parse(url) {
-                case let .success(intent):
-                    _ = router.handle(intent)
-                case let .failure(error):
-                    router.resetNavigation()
-                    Logger.navigation.error(
-                        "Rejected deep link: \(String(describing: error), privacy: .public)"
-                    )
+                if let snapshot = lifecycle.receive(url) {
+                    persist(snapshot)
                 }
             }
     }
