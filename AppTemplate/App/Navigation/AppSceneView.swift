@@ -27,7 +27,13 @@ struct AppSceneView: View {
 
     private func persist(_ snapshot: NavigationSnapshot) {
         do {
-            encodedSnapshot = try NavigationSnapshotCodec.encode(snapshot)
+            guard let encoding = try NavigationSnapshotCodec.encodingIfChanged(
+                snapshot,
+                comparedTo: encodedSnapshot
+            ) else {
+                return
+            }
+            encodedSnapshot = encoding
         } catch {
             Logger.navigation.error(
                 "Failed to encode navigation snapshot: \(String(describing: error), privacy: .public)"

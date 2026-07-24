@@ -21,6 +21,22 @@
 - The implementation adds no third-party navigation or application-architecture dependency.
 - Production networking, database, and authentication implementations remain outside this milestone.
 
+## Final Review Clarifications
+
+- A rejected deep link opens the nearest valid section root and clears only that
+  section's path. Malformed Home, Browse, and Settings URLs use their respective
+  roots; unknown hosts and unsupported schemes use Home. Other feature histories
+  remain intact.
+- An unavailable Browse item returns its rejection outcome while selecting the
+  Browse root and preserving Home and Settings histories.
+- Deep-link path segments are split while still percent encoded and decoded
+  exactly once.
+- Snapshot restoration reports when unavailable records were pruned so the
+  sanitized snapshot is persisted even when it equals the router's initial
+  default. Equivalent stored snapshots are not encoded or written again.
+- Router and resolver dependencies use nonoptional designated APIs. Convenience
+  overloads construct sample defaults inside the main-actor context.
+
 ---
 
 ## File Map
@@ -42,6 +58,8 @@
 - `AppTemplate/App/Navigation/AppRouter.swift`: root flow, selected section, intent application, authentication gating.
 - `AppTemplate/App/Navigation/NavigationSnapshot.swift`: versioned Codable state and codec.
 - `AppTemplate/App/Navigation/NavigationLogger.swift`: navigation-specific `Logger`.
+- `AppTemplate/App/Navigation/AppSceneNavigationLifecycle.swift`: restoration-first
+  URL ordering and shared warm/cold handling.
 - `AppTemplate/App/Navigation/AppSceneView.swift`: scene storage, URL handling, and per-scene router lifetime.
 - `AppTemplate/App/Navigation/AppRootView.swift`: root-flow switch.
 - `AppTemplate/App/Navigation/AppShellView.swift`: adaptive tab/sidebar shell.
@@ -69,6 +87,8 @@
 - `AppTemplateTests/DeepLinkParserTests.swift`: supported and rejected URL grammar.
 - `AppTemplateTests/AppRouterTests.swift`: intent application and root-flow gating.
 - `AppTemplateTests/NavigationSnapshotTests.swift`: encoding, restoration, schema rejection, and record pruning.
+- `AppTemplateTests/AppSceneNavigationLifecycleTests.swift`: cold/warm URL
+  ordering, contextual fallback, and sanitized persistence decisions.
 - `README.md`: supported platforms, architecture, deep-link grammar, and replacement guide.
 
 ---
@@ -606,6 +626,15 @@ enum DeepLinkError: Error, Equatable, Sendable {
 import Foundation
 
 struct DeepLinkParser: Sendable {
+    func fallbackSection(for url: URL) -> AppSection {
+        guard url.scheme?.lowercased() == "apptemplate",
+              let host = url.host?.lowercased(),
+              let section = AppSection(rawValue: host) else {
+            return .home
+        }
+        return section
+    }
+
     func parse(_ url: URL) -> Result<NavigationIntent, DeepLinkError> {
         guard url.scheme?.lowercased() == "apptemplate" else {
             return .failure(.unsupportedScheme)
@@ -614,7 +643,14 @@ struct DeepLinkParser: Sendable {
         guard let host = url.host?.lowercased() else {
             return .failure(.unknownDestination)
         }
-        let segments = url.pathComponents.filter { $0 != "/" }
+        let encodedSegments = url.path(percentEncoded: true).split(separator: "/")
+        var segments: [String] = []
+        for encodedSegment in encodedSegments {
+            guard let segment = String(encodedSegment).removingPercentEncoding else {
+                return .failure(.unknownDestination)
+            }
+            segments.append(segment)
+        }
 
         switch host {
         case "home" where segments.isEmpty:
@@ -624,8 +660,8 @@ struct DeepLinkParser: Sendable {
         case "settings" where segments.isEmpty:
             return .success(.selectSection(.settings))
         case "browse" where segments.count == 2 && segments[0] == "item":
-            let encodedID = segments[1]
-            guard let id = encodedID.removingPercentEncoding, !id.isEmpty else {
+            let id = segments[1]
+            guard !id.isEmpty else {
                 return .failure(.unknownDestination)
             }
             return .success(.browseItem(id: id))
@@ -686,13 +722,19 @@ struct AppRouterTests {
     }
 
     @Test
-    func missingBrowseRecordIsRejectedWithoutMutation() {
-        let router = AppRouter()
+    func missingBrowseRecordFallsBackToBrowseRootAndPreservesOtherHistories() {
+        let router = AppRouter(selectedSection: .settings)
+        router.home.push(.details)
+        router.browse.push(.item(id: "swiftui"))
+        router.settings.push(.about)
+
         let outcome = router.handle(.browseItem(id: "missing"))
 
         #expect(outcome == .rejected(.missingBrowseItem("missing")))
-        #expect(router.selectedSection == .home)
+        #expect(router.selectedSection == .browse)
+        #expect(router.home.path == [.details])
         #expect(router.browse.path.isEmpty)
+        #expect(router.settings.path == [.about])
     }
 
     @Test
@@ -772,6 +814,7 @@ extension Logger {
 - [ ] **Step 4: Implement `AppRouter`**
 
 ```swift
+import Foundation
 import Observation
 import OSLog
 
@@ -786,11 +829,11 @@ final class AppRouter {
     private(set) var pendingIntent: NavigationIntent?
 
     init(
-        flow: AppFlow = .main,
-        selectedSection: AppSection = .home,
-        home: HomeRouter = HomeRouter(),
-        browse: BrowseRouter = BrowseRouter(),
-        settings: SettingsRouter = SettingsRouter()
+        flow: AppFlow,
+        selectedSection: AppSection,
+        home: HomeRouter,
+        browse: BrowseRouter,
+        settings: SettingsRouter
     ) {
         self.flow = flow
         self.selectedSection = selectedSection
@@ -799,9 +842,26 @@ final class AppRouter {
         self.settings = settings
     }
 
+    convenience init(
+        flow: AppFlow = .main,
+        selectedSection: AppSection = .home
+    ) {
+        self.init(
+            flow: flow,
+            selectedSection: selectedSection,
+            home: HomeRouter(),
+            browse: BrowseRouter(),
+            settings: SettingsRouter()
+        )
+    }
+
+    func handle(_ intent: NavigationIntent) -> NavigationOutcome {
+        handle(intent, resolver: SampleBrowseCatalog())
+    }
+
     func handle(
         _ intent: NavigationIntent,
-        resolver: any BrowseItemResolving = SampleBrowseCatalog()
+        resolver: any BrowseItemResolving
     ) -> NavigationOutcome {
         guard flow == .main else {
             pendingIntent = intent
@@ -810,9 +870,16 @@ final class AppRouter {
         return apply(intent, resolver: resolver)
     }
 
+    func finishLaunching(isAuthenticated: Bool) -> NavigationOutcome? {
+        finishLaunching(
+            isAuthenticated: isAuthenticated,
+            resolver: SampleBrowseCatalog()
+        )
+    }
+
     func finishLaunching(
         isAuthenticated: Bool,
-        resolver: any BrowseItemResolving = SampleBrowseCatalog()
+        resolver: any BrowseItemResolving
     ) -> NavigationOutcome? {
         flow = isAuthenticated ? .main : .authentication
         guard isAuthenticated else {
@@ -821,9 +888,16 @@ final class AppRouter {
         return replayPendingIntent(resolver: resolver)
     }
 
+    func completeAuthentication(succeeded: Bool) -> NavigationOutcome? {
+        completeAuthentication(
+            succeeded: succeeded,
+            resolver: SampleBrowseCatalog()
+        )
+    }
+
     func completeAuthentication(
         succeeded: Bool,
-        resolver: any BrowseItemResolving = SampleBrowseCatalog()
+        resolver: any BrowseItemResolving
     ) -> NavigationOutcome? {
         guard succeeded else {
             pendingIntent = nil
@@ -855,6 +929,7 @@ final class AppRouter {
             return .applied
         case let .browseItem(id):
             guard resolver.item(id: id) != nil else {
+                openDefaultDestination(for: .browse)
                 Logger.navigation.error(
                     "Rejected unavailable Browse identifier: \(id, privacy: .public)"
                 )
@@ -863,6 +938,18 @@ final class AppRouter {
             selectedSection = .browse
             browse.replacePath(with: [.item(id: id)])
             return .applied
+        }
+    }
+
+    func openDefaultDestination(for section: AppSection) {
+        selectedSection = section
+        switch section {
+        case .home:
+            home.popToRoot()
+        case .browse:
+            browse.popToRoot()
+        case .settings:
+            settings.popToRoot()
         }
     }
 }
@@ -930,7 +1017,7 @@ struct NavigationSnapshotTests {
         let router = AppRouter()
         let data = try NavigationSnapshotCodec.encode(snapshot)
 
-        #expect(router.restore(from: data) == .restored)
+        #expect(router.restore(from: data) == .restoredAfterPruning)
         #expect(router.browse.path == [.item(id: "swiftui")])
     }
 
@@ -990,7 +1077,6 @@ Expected: compile failure for missing `NavigationSnapshot`.
 
 ```swift
 import Foundation
-import OSLog
 
 struct NavigationSnapshot: Codable, Equatable, Sendable {
     static let currentSchemaVersion = 1
@@ -1024,6 +1110,18 @@ enum NavigationSnapshotCodec {
     static func decode(_ data: Data) throws -> NavigationSnapshot {
         try JSONDecoder().decode(NavigationSnapshot.self, from: data)
     }
+
+    static func encodingIfChanged(
+        _ snapshot: NavigationSnapshot,
+        comparedTo existingData: Data?
+    ) throws -> Data? {
+        if let existingData,
+           let existingSnapshot = try? decode(existingData),
+           existingSnapshot == snapshot {
+            return nil
+        }
+        return try encode(snapshot)
+    }
 }
 
 enum NavigationRestorationFailure: Equatable, Sendable {
@@ -1034,6 +1132,7 @@ enum NavigationRestorationFailure: Equatable, Sendable {
 enum NavigationRestorationResult: Equatable, Sendable {
     case noState
     case restored
+    case restoredAfterPruning
     case reset(NavigationRestorationFailure)
 }
 ```
@@ -1052,9 +1151,14 @@ extension AppRouter {
     }
 
     @discardableResult
+    func restore(from data: Data?) -> NavigationRestorationResult {
+        restore(from: data, resolver: SampleBrowseCatalog())
+    }
+
+    @discardableResult
     func restore(
         from data: Data?,
-        resolver: any BrowseItemResolving = SampleBrowseCatalog()
+        resolver: any BrowseItemResolving
     ) -> NavigationRestorationResult {
         guard let data else {
             return .noState
@@ -1090,7 +1194,9 @@ extension AppRouter {
         home.replacePath(with: decoded.homePath)
         browse.replacePath(with: validBrowsePath)
         settings.replacePath(with: decoded.settingsPath)
-        return .restored
+        return validBrowsePath.count == decoded.browsePath.count
+            ? .restored
+            : .restoredAfterPruning
     }
 
     func resetNavigation() {
@@ -1471,11 +1577,13 @@ git commit -m "feat: add adaptive navigation interface"
 ### Task 7: Wire scene restoration and external URL handling
 
 **Files:**
+- Create: `AppTemplate/App/Navigation/AppSceneNavigationLifecycle.swift`
 - Create: `AppTemplate/App/Navigation/AppSceneView.swift`
 - Create: `AppTemplate/Info.plist`
 - Modify: `AppTemplate/AppTemplateApp.swift`
 - Modify: `AppTemplate.xcodeproj/project.pbxproj`
 - Modify: `AppTemplateTests/ProjectConfigurationTests.swift`
+- Create: `AppTemplateTests/AppSceneNavigationLifecycleTests.swift`
 
 **Interfaces:**
 - Consumes: `AppRouter`, `NavigationSnapshotCodec`, `DeepLinkParser`, `AppRootView`.
@@ -1542,46 +1650,38 @@ import OSLog
 import SwiftUI
 
 struct AppSceneView: View {
-    @State private var router = AppRouter()
+    @State private var lifecycle = AppSceneNavigationLifecycle()
     @SceneStorage("AppTemplate.NavigationSnapshot") private var encodedSnapshot: Data?
-    @State private var hasRestored = false
 
     var body: some View {
-        AppRootView(router: router)
+        AppRootView(router: lifecycle.router)
             .task {
-                guard !hasRestored else {
-                    return
-                }
-
-                let result = router.restore(from: encodedSnapshot)
-                hasRestored = true
-
-                if case .reset = result {
-                    persist(router.snapshot)
+                if let snapshot = lifecycle.restore(from: encodedSnapshot) {
+                    persist(snapshot)
                 }
             }
-            .onChange(of: router.snapshot) { _, snapshot in
-                guard hasRestored else {
+            .onChange(of: lifecycle.router.snapshot) { _, snapshot in
+                guard lifecycle.hasRestored else {
                     return
                 }
                 persist(snapshot)
             }
             .onOpenURL { url in
-                switch DeepLinkParser().parse(url) {
-                case let .success(intent):
-                    _ = router.handle(intent)
-                case let .failure(error):
-                    router.resetNavigation()
-                    Logger.navigation.error(
-                        "Rejected deep link: \(String(describing: error), privacy: .public)"
-                    )
+                if let snapshot = lifecycle.receive(url) {
+                    persist(snapshot)
                 }
             }
     }
 
     private func persist(_ snapshot: NavigationSnapshot) {
         do {
-            encodedSnapshot = try NavigationSnapshotCodec.encode(snapshot)
+            guard let encoding = try NavigationSnapshotCodec.encodingIfChanged(
+                snapshot,
+                comparedTo: encodedSnapshot
+            ) else {
+                return
+            }
+            encodedSnapshot = encoding
         } catch {
             Logger.navigation.error(
                 "Failed to encode navigation snapshot: \(String(describing: error), privacy: .public)"

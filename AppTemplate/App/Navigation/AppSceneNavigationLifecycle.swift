@@ -40,6 +40,9 @@ final class AppSceneNavigationLifecycle {
         if !urls.isEmpty {
             return router.snapshot
         }
+        if restorationResult == .restoredAfterPruning {
+            return router.snapshot
+        }
         if case .reset = restorationResult {
             return router.snapshot
         }
@@ -62,7 +65,7 @@ final class AppSceneNavigationLifecycle {
         case let .success(intent):
             _ = router.handle(intent)
         case let .failure(error):
-            router.resetNavigation()
+            router.openDefaultDestination(for: parser.fallbackSection(for: url))
             Logger.navigation.error(
                 "Rejected deep link: \(String(describing: error), privacy: .public)"
             )

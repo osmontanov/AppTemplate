@@ -27,4 +27,29 @@ struct DeepLinkParserTests {
         let url = try #require(URL(string: rawURL))
         #expect(parser.parse(url) == .failure(.unknownDestination))
     }
+
+    @Test(arguments: [
+        ("apptemplate://browse/item/%25", "%"),
+        ("apptemplate://browse/item/%2F", "/"),
+        ("apptemplate://browse/item/%252F", "%2F")
+    ])
+    func decodesEachPercentEncodedPathSegmentExactlyOnce(
+        rawURL: String,
+        expectedID: String
+    ) throws {
+        let url = try #require(URL(string: rawURL))
+        #expect(parser.parse(url) == .success(.browseItem(id: expectedID)))
+    }
+
+    @Test(arguments: [
+        ("apptemplate://browse/item/%", "%"),
+        ("apptemplate://browse/item/%2", "%2")
+    ])
+    func parsesMalformedEscapesAfterFoundationCanonicalizesThem(
+        rawURL: String,
+        expectedID: String
+    ) throws {
+        let url = try #require(URL(string: rawURL))
+        #expect(parser.parse(url) == .success(.browseItem(id: expectedID)))
+    }
 }

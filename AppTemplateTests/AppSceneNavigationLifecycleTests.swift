@@ -28,7 +28,7 @@ struct AppSceneNavigationLifecycleTests {
     }
 
     @Test
-    func invalidColdLaunchURLResetsRestoredNavigation() throws {
+    func unknownColdLaunchURLFallsBackToHomeAndPreservesOtherHistories() throws {
         let router = AppRouter()
         let lifecycle = AppSceneNavigationLifecycle(router: router)
         let storedSnapshot = NavigationSnapshot(
@@ -39,6 +39,81 @@ struct AppSceneNavigationLifecycleTests {
         )
 
         lifecycle.receive(try #require(URL(string: "apptemplate://unknown")))
+        let snapshotToPersist = lifecycle.restore(
+            from: try NavigationSnapshotCodec.encode(storedSnapshot)
+        )
+
+        #expect(router.snapshot == NavigationSnapshot(
+            selectedSection: .home,
+            homePath: [],
+            browsePath: [.item(id: "swiftui")],
+            settingsPath: [.about]
+        ))
+        #expect(snapshotToPersist == router.snapshot)
+    }
+
+    @Test(arguments: [
+        ("apptemplate://home/not-a-route", AppSection.home),
+        ("apptemplate://browse/not-a-route", AppSection.browse),
+        ("apptemplate://settings/not-a-route", AppSection.settings),
+        ("apptemplate://unknown", AppSection.home),
+        ("https://example.com/browse", AppSection.home)
+    ])
+    func rejectedWarmURLFallsBackContextuallyAndPreservesUnrelatedHistories(
+        rawURL: String,
+        expectedSection: AppSection
+    ) throws {
+        let router = AppRouter()
+        let lifecycle = AppSceneNavigationLifecycle(router: router)
+        _ = lifecycle.restore(from: nil)
+        router.home.push(.details)
+        router.browse.push(.item(id: "swiftui"))
+        router.settings.push(.about)
+
+        _ = lifecycle.receive(try #require(URL(string: rawURL)))
+
+        #expect(router.selectedSection == expectedSection)
+        #expect(router.home.path == (expectedSection == .home ? [] : [.details]))
+        #expect(router.browse.path == (
+            expectedSection == .browse ? [] : [.item(id: "swiftui")]
+        ))
+        #expect(router.settings.path == (expectedSection == .settings ? [] : [.about]))
+    }
+
+    @Test
+    func unavailableBrowseRecordColdLaunchFallsBackWithoutErasingOtherHistories() throws {
+        let router = AppRouter()
+        let lifecycle = AppSceneNavigationLifecycle(router: router)
+        let storedSnapshot = NavigationSnapshot(
+            selectedSection: .settings,
+            homePath: [.details],
+            browsePath: [.item(id: "swiftui")],
+            settingsPath: [.about]
+        )
+
+        lifecycle.receive(try #require(URL(string: "apptemplate://browse/item/deleted")))
+        let snapshotToPersist = lifecycle.restore(
+            from: try NavigationSnapshotCodec.encode(storedSnapshot)
+        )
+
+        #expect(router.selectedSection == .browse)
+        #expect(router.home.path == [.details])
+        #expect(router.browse.path.isEmpty)
+        #expect(router.settings.path == [.about])
+        #expect(snapshotToPersist == router.snapshot)
+    }
+
+    @Test
+    func defaultStateProducedByPruningRequestsSanitizedPersistence() throws {
+        let router = AppRouter()
+        let lifecycle = AppSceneNavigationLifecycle(router: router)
+        let storedSnapshot = NavigationSnapshot(
+            selectedSection: .home,
+            homePath: [],
+            browsePath: [.item(id: "deleted")],
+            settingsPath: []
+        )
+
         let snapshotToPersist = lifecycle.restore(
             from: try NavigationSnapshotCodec.encode(storedSnapshot)
         )

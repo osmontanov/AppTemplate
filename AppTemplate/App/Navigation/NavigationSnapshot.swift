@@ -1,5 +1,4 @@
 import Foundation
-import OSLog
 
 struct NavigationSnapshot: Codable, Equatable, Sendable {
     static let currentSchemaVersion = 1
@@ -33,6 +32,18 @@ enum NavigationSnapshotCodec {
     static func decode(_ data: Data) throws -> NavigationSnapshot {
         try JSONDecoder().decode(NavigationSnapshot.self, from: data)
     }
+
+    static func encodingIfChanged(
+        _ snapshot: NavigationSnapshot,
+        comparedTo existingData: Data?
+    ) throws -> Data? {
+        if let existingData,
+           let existingSnapshot = try? decode(existingData),
+           existingSnapshot == snapshot {
+            return nil
+        }
+        return try encode(snapshot)
+    }
 }
 
 enum NavigationRestorationFailure: Equatable, Sendable {
@@ -43,5 +54,6 @@ enum NavigationRestorationFailure: Equatable, Sendable {
 enum NavigationRestorationResult: Equatable, Sendable {
     case noState
     case restored
+    case restoredAfterPruning
     case reset(NavigationRestorationFailure)
 }

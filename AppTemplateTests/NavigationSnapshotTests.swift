@@ -18,6 +18,48 @@ struct NavigationSnapshotTests {
     }
 
     @Test
+    func unchangedSnapshotDoesNotRequestAnotherEncoding() throws {
+        let snapshot = NavigationSnapshot(
+            selectedSection: .home,
+            homePath: [.details],
+            browsePath: [],
+            settingsPath: []
+        )
+        let storedData = try NavigationSnapshotCodec.encode(snapshot)
+
+        #expect(
+            try NavigationSnapshotCodec.encodingIfChanged(
+                snapshot,
+                comparedTo: storedData
+            ) == nil
+        )
+    }
+
+    @Test
+    func changedSnapshotProducesReplacementEncoding() throws {
+        let storedSnapshot = NavigationSnapshot(
+            selectedSection: .home,
+            homePath: [],
+            browsePath: [],
+            settingsPath: []
+        )
+        let changedSnapshot = NavigationSnapshot(
+            selectedSection: .browse,
+            homePath: [],
+            browsePath: [.item(id: "swiftui")],
+            settingsPath: []
+        )
+        let storedData = try NavigationSnapshotCodec.encode(storedSnapshot)
+        let candidate = try NavigationSnapshotCodec.encodingIfChanged(
+            changedSnapshot,
+            comparedTo: storedData
+        )
+        let replacement = try #require(candidate)
+
+        #expect(try NavigationSnapshotCodec.decode(replacement) == changedSnapshot)
+    }
+
+    @Test
     func restorePrunesUnavailableBrowseRecords() throws {
         let snapshot = NavigationSnapshot(
             selectedSection: .browse,
@@ -28,7 +70,7 @@ struct NavigationSnapshotTests {
         let router = AppRouter()
         let data = try NavigationSnapshotCodec.encode(snapshot)
 
-        #expect(router.restore(from: data) == .restored)
+        #expect(router.restore(from: data) == .restoredAfterPruning)
         #expect(router.browse.path == [.item(id: "swiftui")])
     }
 

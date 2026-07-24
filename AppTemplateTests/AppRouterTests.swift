@@ -4,6 +4,27 @@ import Testing
 @MainActor
 struct AppRouterTests {
     @Test
+    func designatedInitializerKeepsInjectedFeatureRouters() {
+        let home = HomeRouter(path: [.details])
+        let browse = BrowseRouter(path: [.item(id: "swiftui")])
+        let settings = SettingsRouter(path: [.about])
+
+        let router = AppRouter(
+            flow: .launching,
+            selectedSection: .settings,
+            home: home,
+            browse: browse,
+            settings: settings
+        )
+
+        #expect(router.flow == .launching)
+        #expect(router.selectedSection == .settings)
+        #expect(router.home === home)
+        #expect(router.browse === browse)
+        #expect(router.settings === settings)
+    }
+
+    @Test
     func browseIntentSelectsBrowseAndBuildsPath() {
         let router = AppRouter()
         let outcome = router.handle(.browseItem(id: "swiftui"))
@@ -14,13 +35,19 @@ struct AppRouterTests {
     }
 
     @Test
-    func missingBrowseRecordIsRejectedWithoutMutation() {
-        let router = AppRouter()
+    func missingBrowseRecordFallsBackToBrowseRootAndPreservesOtherHistories() {
+        let router = AppRouter(selectedSection: .settings)
+        router.home.push(.details)
+        router.browse.push(.item(id: "swiftui"))
+        router.settings.push(.about)
+
         let outcome = router.handle(.browseItem(id: "missing"))
 
         #expect(outcome == .rejected(.missingBrowseItem("missing")))
-        #expect(router.selectedSection == .home)
+        #expect(router.selectedSection == .browse)
+        #expect(router.home.path == [.details])
         #expect(router.browse.path.isEmpty)
+        #expect(router.settings.path == [.about])
     }
 
     @Test
