@@ -18,7 +18,22 @@ struct DeepLinkParser: Sendable {
         guard let host = url.host?.lowercased() else {
             return .failure(.unknownDestination)
         }
-        let encodedSegments = url.path(percentEncoded: true).split(separator: "/")
+        let encodedPath = url.path(percentEncoded: true)
+        let encodedSegments: [Substring]
+        if encodedPath.isEmpty {
+            encodedSegments = []
+        } else {
+            guard encodedPath.first == "/" else {
+                return .failure(.unknownDestination)
+            }
+            encodedSegments = encodedPath
+                .dropFirst()
+                .split(separator: "/", omittingEmptySubsequences: false)
+            guard encodedSegments.allSatisfy({ !$0.isEmpty }) else {
+                return .failure(.unknownDestination)
+            }
+        }
+
         var segments: [String] = []
         segments.reserveCapacity(encodedSegments.count)
         for encodedSegment in encodedSegments {

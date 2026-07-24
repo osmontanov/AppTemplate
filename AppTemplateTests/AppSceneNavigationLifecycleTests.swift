@@ -138,4 +138,44 @@ struct AppSceneNavigationLifecycleTests {
         #expect(router.pendingIntent == .browseItem(id: "swiftui"))
         #expect(router.selectedSection == .home)
     }
+
+    @Test
+    func invalidURLAfterValidURLWinsAuthenticationQueueWithoutErasingOtherHistories() throws {
+        let router = AppRouter(flow: .authentication)
+        let lifecycle = AppSceneNavigationLifecycle(router: router)
+        _ = lifecycle.restore(from: nil)
+        router.home.push(.details)
+        router.browse.push(.item(id: "observation"))
+        router.settings.push(.about)
+
+        lifecycle.receive(try #require(URL(string: "apptemplate://browse/item/swiftui")))
+        lifecycle.receive(try #require(URL(string: "apptemplate://settings/not-a-route")))
+        let outcome = router.completeAuthentication(succeeded: true)
+
+        #expect(outcome == .applied)
+        #expect(router.selectedSection == .settings)
+        #expect(router.home.path == [.details])
+        #expect(router.browse.path == [.item(id: "observation")])
+        #expect(router.settings.path.isEmpty)
+    }
+
+    @Test
+    func validURLAfterInvalidURLWinsAuthenticationQueueWithoutApplyingOlderFallback() throws {
+        let router = AppRouter(flow: .authentication)
+        let lifecycle = AppSceneNavigationLifecycle(router: router)
+        _ = lifecycle.restore(from: nil)
+        router.home.push(.details)
+        router.browse.push(.item(id: "observation"))
+        router.settings.push(.about)
+
+        lifecycle.receive(try #require(URL(string: "apptemplate://settings/not-a-route")))
+        lifecycle.receive(try #require(URL(string: "apptemplate://browse/item/swiftui")))
+        let outcome = router.completeAuthentication(succeeded: true)
+
+        #expect(outcome == .applied)
+        #expect(router.selectedSection == .browse)
+        #expect(router.home.path == [.details])
+        #expect(router.browse.path == [.item(id: "swiftui")])
+        #expect(router.settings.path == [.about])
+    }
 }

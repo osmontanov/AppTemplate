@@ -65,7 +65,7 @@ final class AppSceneNavigationLifecycle {
         case let .success(intent):
             _ = router.handle(intent)
         case let .failure(error):
-            router.openDefaultDestination(for: parser.fallbackSection(for: url))
+            _ = router.handle(.openSectionRoot(parser.fallbackSection(for: url)))
             Logger.navigation.error(
                 "Rejected deep link: \(String(describing: error), privacy: .public)"
             )

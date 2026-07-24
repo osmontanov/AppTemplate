@@ -111,6 +111,9 @@ final class AppRouter {
         case let .selectSection(section):
             selectedSection = section
             return .applied
+        case let .openSectionRoot(section):
+            openDefaultDestination(for: section)
+            return .applied
         case let .browseItem(id):
             guard resolver.item(id: id) != nil else {
                 openDefaultDestination(for: .browse)

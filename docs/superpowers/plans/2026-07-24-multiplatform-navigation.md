@@ -26,11 +26,12 @@
 - A rejected deep link opens the nearest valid section root and clears only that
   section's path. Malformed Home, Browse, and Settings URLs use their respective
   roots; unknown hosts and unsupported schemes use Home. Other feature histories
-  remain intact.
+  remain intact. The fallback is a typed intent, so authentication gating keeps
+  last-URL-wins ordering across valid and rejected URLs.
 - An unavailable Browse item returns its rejection outcome while selecting the
   Browse root and preserving Home and Settings histories.
 - Deep-link path segments are split while still percent encoded and decoded
-  exactly once.
+  exactly once. Empty and trailing segments are rejected rather than collapsed.
 - Snapshot restoration reports when unavailable records were pruned so the
   sanitized snapshot is persisted even when it equals the router's initial
   default. Equivalent stored snapshots are not encoded or written again.
@@ -611,6 +612,7 @@ Expected: compile failure for missing `DeepLinkParser`.
 ```swift
 enum NavigationIntent: Equatable, Sendable {
     case selectSection(AppSection)
+    case openSectionRoot(AppSection)
     case browseItem(id: BrowseItem.ID)
 }
 
@@ -643,7 +645,22 @@ struct DeepLinkParser: Sendable {
         guard let host = url.host?.lowercased() else {
             return .failure(.unknownDestination)
         }
-        let encodedSegments = url.path(percentEncoded: true).split(separator: "/")
+        let encodedPath = url.path(percentEncoded: true)
+        let encodedSegments: [Substring]
+        if encodedPath.isEmpty {
+            encodedSegments = []
+        } else {
+            guard encodedPath.first == "/" else {
+                return .failure(.unknownDestination)
+            }
+            encodedSegments = encodedPath
+                .dropFirst()
+                .split(separator: "/", omittingEmptySubsequences: false)
+            guard encodedSegments.allSatisfy({ !$0.isEmpty }) else {
+                return .failure(.unknownDestination)
+            }
+        }
+
         var segments: [String] = []
         for encodedSegment in encodedSegments {
             guard let segment = String(encodedSegment).removingPercentEncoding else {
@@ -926,6 +943,9 @@ final class AppRouter {
         switch intent {
         case let .selectSection(section):
             selectedSection = section
+            return .applied
+        case let .openSectionRoot(section):
+            openDefaultDestination(for: section)
             return .applied
         case let .browseItem(id):
             guard resolver.item(id: id) != nil else {
@@ -1643,7 +1663,178 @@ Create `Info.plist` containing:
 
 Set `INFOPLIST_FILE = AppTemplate/Info.plist;` in both application target configurations while retaining generated Info.plist support for the existing platform keys.
 
-- [ ] **Step 4: Implement the per-scene host**
+- [ ] **Step 4: Add failing lifecycle and URL-ordering tests**
+
+Create `AppTemplateTests/AppSceneNavigationLifecycleTests.swift`:
+
+```swift
+import Foundation
+import Testing
+@testable import AppTemplate
+
+@MainActor
+struct AppSceneNavigationLifecycleTests {
+    @Test
+    func coldLaunchURLAppliesAfterRestoration() throws {
+        let router = AppRouter()
+        let lifecycle = AppSceneNavigationLifecycle(router: router)
+        let storedSnapshot = NavigationSnapshot(
+            selectedSection: .home,
+            homePath: [.details],
+            browsePath: [],
+            settingsPath: []
+        )
+
+        lifecycle.receive(
+            try #require(URL(string: "apptemplate://browse/item/swiftui"))
+        )
+        let snapshotToPersist = lifecycle.restore(
+            from: try NavigationSnapshotCodec.encode(storedSnapshot)
+        )
+
+        #expect(router.selectedSection == .browse)
+        #expect(router.home.path == [.details])
+        #expect(router.browse.path == [.item(id: "swiftui")])
+        #expect(snapshotToPersist == router.snapshot)
+    }
+
+    @Test
+    func invalidURLAfterValidURLWinsAuthenticationQueue() throws {
+        let router = AppRouter(flow: .authentication)
+        let lifecycle = AppSceneNavigationLifecycle(router: router)
+        _ = lifecycle.restore(from: nil)
+        router.browse.push(.item(id: "observation"))
+        router.settings.push(.about)
+
+        lifecycle.receive(
+            try #require(URL(string: "apptemplate://browse/item/swiftui"))
+        )
+        lifecycle.receive(
+            try #require(URL(string: "apptemplate://settings/not-a-route"))
+        )
+        _ = router.completeAuthentication(succeeded: true)
+
+        #expect(router.selectedSection == .settings)
+        #expect(router.browse.path == [.item(id: "observation")])
+        #expect(router.settings.path.isEmpty)
+    }
+
+    @Test
+    func validURLAfterInvalidURLDoesNotApplyOlderFallback() throws {
+        let router = AppRouter(flow: .authentication)
+        let lifecycle = AppSceneNavigationLifecycle(router: router)
+        _ = lifecycle.restore(from: nil)
+        router.settings.push(.about)
+
+        lifecycle.receive(
+            try #require(URL(string: "apptemplate://settings/not-a-route"))
+        )
+        lifecycle.receive(
+            try #require(URL(string: "apptemplate://browse/item/swiftui"))
+        )
+        _ = router.completeAuthentication(succeeded: true)
+
+        #expect(router.selectedSection == .browse)
+        #expect(router.browse.path == [.item(id: "swiftui")])
+        #expect(router.settings.path == [.about])
+    }
+}
+```
+
+- [ ] **Step 5: Run lifecycle tests to verify the missing coordinator**
+
+Run the iOS test command with
+`-only-testing:AppTemplateTests/AppSceneNavigationLifecycleTests`.
+
+Expected: compile failure because `AppSceneNavigationLifecycle` is absent.
+
+- [ ] **Step 6: Implement restoration-first URL coordination**
+
+Create `AppTemplate/App/Navigation/AppSceneNavigationLifecycle.swift`:
+
+```swift
+import Foundation
+import OSLog
+
+@MainActor
+final class AppSceneNavigationLifecycle {
+    let router: AppRouter
+    private(set) var hasRestored = false
+
+    private let parser: DeepLinkParser
+    private var queuedURLs: [URL] = []
+
+    init() {
+        router = AppRouter()
+        parser = DeepLinkParser()
+    }
+
+    init(router: AppRouter) {
+        self.router = router
+        parser = DeepLinkParser()
+    }
+
+    init(router: AppRouter, parser: DeepLinkParser) {
+        self.router = router
+        self.parser = parser
+    }
+
+    @discardableResult
+    func restore(from data: Data?) -> NavigationSnapshot? {
+        guard !hasRestored else {
+            return nil
+        }
+
+        let restorationResult = router.restore(from: data)
+        hasRestored = true
+
+        let urls = queuedURLs
+        queuedURLs.removeAll()
+        urls.forEach(handle)
+
+        if !urls.isEmpty || restorationResult == .restoredAfterPruning {
+            return router.snapshot
+        }
+        if case .reset = restorationResult {
+            return router.snapshot
+        }
+        return nil
+    }
+
+    @discardableResult
+    func receive(_ url: URL) -> NavigationSnapshot? {
+        guard hasRestored else {
+            queuedURLs.append(url)
+            return nil
+        }
+
+        handle(url)
+        return router.snapshot
+    }
+
+    private func handle(_ url: URL) {
+        switch parser.parse(url) {
+        case let .success(intent):
+            _ = router.handle(intent)
+        case let .failure(error):
+            _ = router.handle(
+                .openSectionRoot(parser.fallbackSection(for: url))
+            )
+            Logger.navigation.error(
+                "Rejected deep link: \(String(describing: error), privacy: .public)"
+            )
+        }
+    }
+}
+```
+
+- [ ] **Step 7: Run lifecycle tests**
+
+Run the focused lifecycle suite again.
+
+Expected: lifecycle tests pass, including both authentication URL orders.
+
+- [ ] **Step 8: Implement the per-scene host**
 
 ```swift
 import OSLog
@@ -1691,7 +1882,7 @@ struct AppSceneView: View {
 }
 ```
 
-- [ ] **Step 5: Update the app entry point**
+- [ ] **Step 9: Update the app entry point**
 
 ```swift
 import SwiftUI
@@ -1706,13 +1897,13 @@ struct AppTemplateApp: App {
 }
 ```
 
-- [ ] **Step 6: Run URL and full unit tests**
+- [ ] **Step 10: Run URL and full unit tests**
 
 Run the Task 1 test command.
 
 Expected: URL registration and every navigation test pass.
 
-- [ ] **Step 7: Exercise the registered URL in Simulator**
+- [ ] **Step 11: Exercise the registered URL in Simulator**
 
 Build and launch on iPhone 17 Pro, then run:
 
@@ -1722,11 +1913,13 @@ xcrun simctl openurl booted 'apptemplate://browse/item/swiftui'
 
 Expected: the Browse tab becomes selected and the SwiftUI detail screen is visible.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 12: Commit**
 
 ```bash
-git add AppTemplate/Info.plist AppTemplate/App/Navigation/AppSceneView.swift \
-  AppTemplate/AppTemplateApp.swift AppTemplate.xcodeproj \
+git add AppTemplate/Info.plist \
+  AppTemplate/App/Navigation/AppSceneNavigationLifecycle.swift \
+  AppTemplate/App/Navigation/AppSceneView.swift AppTemplate/AppTemplateApp.swift \
+  AppTemplate.xcodeproj AppTemplateTests/AppSceneNavigationLifecycleTests.swift \
   AppTemplateTests/ProjectConfigurationTests.swift
 git commit -m "feat: restore navigation per scene"
 ```

@@ -29,6 +29,20 @@ struct DeepLinkParserTests {
     }
 
     @Test(arguments: [
+        "apptemplate://browse//item/swiftui",
+        "apptemplate://browse/item//swiftui",
+        "apptemplate://home/",
+        "apptemplate://browse/",
+        "apptemplate://settings/",
+        "apptemplate://browse/item/",
+        "apptemplate://browse/item/swiftui/"
+    ])
+    func rejectsEmptyPathSegments(rawURL: String) throws {
+        let url = try #require(URL(string: rawURL))
+        #expect(parser.parse(url) == .failure(.unknownDestination))
+    }
+
+    @Test(arguments: [
         ("apptemplate://browse/item/%25", "%"),
         ("apptemplate://browse/item/%2F", "/"),
         ("apptemplate://browse/item/%252F", "%2F")
