@@ -26,8 +26,12 @@ struct SessionStoreTests {
         let first = Task { await store.start() }
         await service.waitForCalls(restores: 1)
 
-        let second = Task { await store.start() }
-        await Task.yield()
+        let secondEntry = MainActorEntryBarrier()
+        let second = Task { @MainActor in
+            secondEntry.enter()
+            await store.start()
+        }
+        await secondEntry.wait()
         first.cancel()
         await service.resumeRestore(at: 0, returning: session)
 
@@ -128,8 +132,12 @@ struct SessionStoreTests {
 
         let firstRetry = Task { await store.retryStart() }
         await service.waitForCalls(restores: 2)
-        let secondRetry = Task { await store.retryStart() }
-        await Task.yield()
+        let secondEntry = MainActorEntryBarrier()
+        let secondRetry = Task { @MainActor in
+            secondEntry.enter()
+            await store.retryStart()
+        }
+        await secondEntry.wait()
 
         await service.resumeRestore(at: 1, returning: nil)
         await firstRetry.value
@@ -232,6 +240,33 @@ struct SessionStoreTests {
 
         #expect(store.phase == .authenticated(session))
         #expect(store.failure == .signOut)
+    }
+}
+
+@MainActor
+private final class MainActorEntryBarrier {
+    // A resumed waiter cannot run until the current MainActor job reaches its
+    // next suspension. Tests call enter() immediately before the store call,
+    // so wait() returns only after that call has reached its shared-task await.
+    private var hasEntered = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func enter() {
+        hasEntered = true
+        let waiters = waiters
+        self.waiters.removeAll()
+        for waiter in waiters {
+            waiter.resume()
+        }
+    }
+
+    func wait() async {
+        guard !hasEntered else {
+            return
+        }
+        await withCheckedContinuation { continuation in
+            waiters.append(continuation)
+        }
     }
 }
 

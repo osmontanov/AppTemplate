@@ -41,6 +41,22 @@ struct BrowseStoreTests {
     }
 
     @Test
+    func cancelledListLoadTreatsOrdinaryRepositoryErrorAsCancellation() async {
+        let repository = ControlledBrowseRepository()
+        let store = BrowseListStore(repository: repository)
+
+        let load = Task { await store.load() }
+        await repository.waitForCalls(lists: 1)
+        load.cancel()
+        await repository.failItems(at: 0)
+        await load.value
+        let loadWasCancelled = await repository.listWasCancelled(at: 0)
+
+        #expect(loadWasCancelled)
+        #expect(store.state == .idle)
+    }
+
+    @Test
     func replacementListLoadCancelsAndRejectsStaleResponse() async {
         let old = BrowseItem(id: "old", title: "Old", summary: "Slow")
         let new = BrowseItem(id: "new", title: "New", summary: "Current")
@@ -133,6 +149,22 @@ struct BrowseStoreTests {
         await repository.resumeItem(at: 0, returning: item)
         await load.value
 
+        #expect(store.state == .idle)
+    }
+
+    @Test
+    func cancelledDetailLoadTreatsOrdinaryRepositoryErrorAsCancellation() async {
+        let repository = ControlledBrowseRepository()
+        let store = BrowseDetailStore(id: "one", repository: repository)
+
+        let load = Task { await store.load() }
+        await repository.waitForCalls(details: 1)
+        load.cancel()
+        await repository.failItem(at: 0)
+        await load.value
+        let loadWasCancelled = await repository.detailWasCancelled(at: 0)
+
+        #expect(loadWasCancelled)
         #expect(store.state == .idle)
     }
 
@@ -242,6 +274,12 @@ private actor ControlledBrowseRepository: BrowseRepository {
     ) {
         detailContinuations.removeValue(forKey: index)?.resume(
             returning: item
+        )
+    }
+
+    func failItems(at index: Int) {
+        listContinuations.removeValue(forKey: index)?.resume(
+            throwing: BrowseRepositoryTestError.failed
         )
     }
 

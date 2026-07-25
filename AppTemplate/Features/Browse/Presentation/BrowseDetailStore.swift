@@ -53,7 +53,11 @@ final class BrowseDetailStore {
             } catch is CancellationError {
                 self?.finishCancellation(version: version)
             } catch {
-                self?.finishFailure(version: version)
+                if Task.isCancelled {
+                    self?.finishCancellation(version: version)
+                } else {
+                    self?.finishFailure(version: version)
+                }
             }
         }
         loadTask = task
