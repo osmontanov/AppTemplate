@@ -38,7 +38,7 @@ struct BrowseNavigationView: View {
                         Text(failure.message)
                     } actions: {
                         Button("Retry") {
-                            Task { await store.load() }
+                            store.retry()
                         }
                     }
                 }
@@ -46,6 +46,9 @@ struct BrowseNavigationView: View {
             .navigationTitle("Browse")
             .task {
                 await store.load()
+            }
+            .onDisappear {
+                store.cancel()
             }
             .navigationDestination(for: BrowseRoute.self) { route in
                 switch route {
@@ -93,13 +96,16 @@ private struct BrowseDetailView: View {
                     Text(failure.message)
                 } actions: {
                     Button("Retry") {
-                        Task { await store.load() }
+                        store.retry()
                     }
                 }
             }
         }
         .task(id: store.id) {
             await store.load()
+        }
+        .onDisappear {
+            store.cancel()
         }
     }
 }

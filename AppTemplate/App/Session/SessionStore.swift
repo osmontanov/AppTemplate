@@ -31,67 +31,148 @@ final class SessionStore {
     private(set) var failure: SessionFailure?
 
     private let service: any SessionService
-    private var hasStarted = false
+    private var commandVersion = 0
+    private var stablePhase: SessionPhase = .idle
+    private var startupTask: Task<Void, Never>?
+    private var activeRestoration: ActiveRestoration?
+
+    private struct ActiveRestoration {
+        let version: Int
+        let task: Task<Void, Never>
+    }
+
+    private enum RestorationOutcome {
+        case restored(UserSession?)
+        case cancelled
+        case failed
+    }
 
     init(service: any SessionService) {
         self.service = service
     }
 
     func start() async {
-        guard !hasStarted else {
+        if let startupTask {
+            await startupTask.value
             return
         }
-        hasStarted = true
-        phase = .loading
-        failure = nil
 
-        do {
-            if let session = try await service.currentSession() {
-                phase = .authenticated(session)
-            } else {
-                phase = .unauthenticated
-            }
-        } catch is CancellationError {
-            hasStarted = false
-            phase = .idle
-        } catch {
-            phase = .unauthenticated
-            failure = .restoration
-        }
+        let task = beginRestoration()
+        startupTask = task
+        await task.value
     }
 
     func retryStart() async {
-        hasStarted = false
-        await start()
+        if let activeRestoration,
+           activeRestoration.version == commandVersion {
+            await activeRestoration.task.value
+            return
+        }
+
+        await beginRestoration().value
     }
 
     func signIn() async {
-        hasStarted = true
-        phase = .loading
-        failure = nil
+        let version = beginCommand()
+
         do {
-            phase = .authenticated(try await service.signIn())
+            let session = try await service.signIn()
+            guard version == commandVersion else {
+                return
+            }
+            publish(.authenticated(session))
         } catch is CancellationError {
-            phase = .unauthenticated
+            guard version == commandVersion else {
+                return
+            }
+            publish(.unauthenticated)
         } catch {
-            phase = .unauthenticated
+            guard version == commandVersion else {
+                return
+            }
+            publish(.unauthenticated)
             failure = .signIn
         }
     }
 
     func signOut() async {
-        hasStarted = true
-        let previousPhase = phase
-        phase = .loading
-        failure = nil
+        let previousPhase = stablePhase
+        let version = beginCommand()
+
         do {
             try await service.signOut()
-            phase = .unauthenticated
+            guard version == commandVersion else {
+                return
+            }
+            publish(.unauthenticated)
         } catch is CancellationError {
-            phase = previousPhase
+            guard version == commandVersion else {
+                return
+            }
+            publish(previousPhase)
         } catch {
-            phase = previousPhase
+            guard version == commandVersion else {
+                return
+            }
+            publish(previousPhase)
             failure = .signOut
         }
+    }
+
+    private func beginRestoration() -> Task<Void, Never> {
+        let version = beginCommand()
+        let service = service
+        let task = Task { @MainActor [weak self, service] in
+            let outcome: RestorationOutcome
+            do {
+                outcome = .restored(try await service.currentSession())
+            } catch is CancellationError {
+                outcome = .cancelled
+            } catch {
+                outcome = .failed
+            }
+
+            self?.finishRestoration(outcome, version: version)
+        }
+        activeRestoration = ActiveRestoration(version: version, task: task)
+        return task
+    }
+
+    private func beginCommand() -> Int {
+        commandVersion += 1
+        phase = .loading
+        failure = nil
+        return commandVersion
+    }
+
+    private func finishRestoration(
+        _ outcome: RestorationOutcome,
+        version: Int
+    ) {
+        if activeRestoration?.version == version {
+            activeRestoration = nil
+        }
+        guard version == commandVersion else {
+            return
+        }
+
+        switch outcome {
+        case let .restored(session):
+            if let session {
+                publish(.authenticated(session))
+            } else {
+                publish(.unauthenticated)
+            }
+        case .cancelled:
+            publish(.idle)
+        case .failed:
+            publish(.unauthenticated)
+            failure = .restoration
+        }
+    }
+
+    private func publish(_ phase: SessionPhase) {
+        stablePhase = phase
+        self.phase = phase
     }
 }

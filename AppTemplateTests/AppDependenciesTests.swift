@@ -31,16 +31,68 @@ struct AppDependenciesTests {
 
     @Test
     func testGraphKeepsInjectedServices() async throws {
-        let repository = InMemoryBrowseRepository(items: [])
-        let service = InMemorySessionService(initialSession: nil)
+        let item = BrowseItem(
+            id: "injected-item",
+            title: "Injected",
+            summary: "Unique repository behavior"
+        )
+        let session = UserSession(
+            id: "injected-user",
+            displayName: "Injected User"
+        )
+        let repository = InjectedBrowseRepository(item: item)
+        let service = InjectedSessionService(session: session)
         let dependencies = AppDependencies.test(
             browseRepository: repository,
             sessionService: service
         )
         let items = try await dependencies.browseRepository.items()
+        let restoredSession = try await dependencies.sessionService.currentSession()
+        let resolvedRepository = try #require(
+            dependencies.browseRepository as? InjectedBrowseRepository
+        )
+        let resolvedService = try #require(
+            dependencies.sessionService as? InjectedSessionService
+        )
 
-        #expect(dependencies.browseRepository is InMemoryBrowseRepository)
-        #expect(dependencies.sessionService is InMemorySessionService)
-        #expect(items.isEmpty)
+        #expect(resolvedRepository === repository)
+        #expect(resolvedService === service)
+        #expect(items == [item])
+        #expect(restoredSession == session)
+    }
+}
+
+private actor InjectedBrowseRepository: BrowseRepository {
+    private let item: BrowseItem
+
+    init(item: BrowseItem) {
+        self.item = item
+    }
+
+    func items() -> [BrowseItem] {
+        [item]
+    }
+
+    func item(id: BrowseItem.ID) -> BrowseItem? {
+        id == item.id ? item : nil
+    }
+}
+
+private actor InjectedSessionService: SessionService {
+    private let session: UserSession
+
+    init(session: UserSession) {
+        self.session = session
+    }
+
+    func currentSession() -> UserSession? {
+        session
+    }
+
+    func signIn() -> UserSession {
+        session
+    }
+
+    func signOut() {
     }
 }
