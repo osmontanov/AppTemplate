@@ -1,7 +1,7 @@
 # Type-Safe Dependency Injection Design
 
 Date: 2026-07-25
-Status: Design approved; pending written-spec review
+Status: Approved for implementation planning
 
 ## Context
 
