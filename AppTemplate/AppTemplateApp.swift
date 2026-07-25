@@ -9,9 +9,11 @@ import SwiftUI
 
 @main
 struct AppTemplateApp: App {
+    private let dependencies = AppDependencies.live()
+
     var body: some Scene {
         WindowGroup {
-            AppSceneView()
+            AppSceneView(dependencies: dependencies)
         }
     }
 }

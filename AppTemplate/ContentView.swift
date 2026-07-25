@@ -9,12 +9,24 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var router = AppRouter()
+    let dependencies: AppDependencies
 
     var body: some View {
-        AppRootView(router: router)
+        AppRootView(router: router, dependencies: dependencies)
     }
 }
 
 #Preview {
-    ContentView()
+    ContentView(
+        dependencies: .preview(
+            browseItems: [
+                BrowseItem(
+                    id: "preview",
+                    title: "Preview",
+                    summary: "Deterministic preview content."
+                )
+            ],
+            session: nil
+        )
+    )
 }

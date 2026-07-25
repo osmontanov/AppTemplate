@@ -12,8 +12,18 @@ struct ProjectConfigurationTests {
     @Test
     func navigationRootCanBeConstructed() {
         let router = AppRouter()
-        _ = AppRootView(router: router)
-        _ = AppShellView(router: router)
+        let dependencies = AppDependencies.preview(
+            browseItems: [],
+            session: nil
+        )
+
+        _ = AppSceneView(dependencies: dependencies)
+        _ = AppRootView(router: router, dependencies: dependencies)
+        _ = AppShellView(router: router, dependencies: dependencies)
+        _ = BrowseNavigationView(
+            router: router.browse,
+            repository: dependencies.browseRepository
+        )
     }
 }
 

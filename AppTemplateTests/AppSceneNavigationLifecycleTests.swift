@@ -81,7 +81,7 @@ struct AppSceneNavigationLifecycleTests {
     }
 
     @Test
-    func unavailableBrowseRecordColdLaunchFallsBackWithoutErasingOtherHistories() throws {
+    func unknownBrowseRecordColdLaunchKeepsRouteAndOtherHistories() throws {
         let router = AppRouter()
         let lifecycle = AppSceneNavigationLifecycle(router: router)
         let storedSnapshot = NavigationSnapshot(
@@ -98,32 +98,8 @@ struct AppSceneNavigationLifecycleTests {
 
         #expect(router.selectedSection == .browse)
         #expect(router.home.path == [.details])
-        #expect(router.browse.path.isEmpty)
+        #expect(router.browse.path == [.item(id: "deleted")])
         #expect(router.settings.path == [.about])
-        #expect(snapshotToPersist == router.snapshot)
-    }
-
-    @Test
-    func defaultStateProducedByPruningRequestsSanitizedPersistence() throws {
-        let router = AppRouter()
-        let lifecycle = AppSceneNavigationLifecycle(router: router)
-        let storedSnapshot = NavigationSnapshot(
-            selectedSection: .home,
-            homePath: [],
-            browsePath: [.item(id: "deleted")],
-            settingsPath: []
-        )
-
-        let snapshotToPersist = lifecycle.restore(
-            from: try NavigationSnapshotCodec.encode(storedSnapshot)
-        )
-
-        #expect(router.snapshot == NavigationSnapshot(
-            selectedSection: .home,
-            homePath: [],
-            browsePath: [],
-            settingsPath: []
-        ))
         #expect(snapshotToPersist == router.snapshot)
     }
 

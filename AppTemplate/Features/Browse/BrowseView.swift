@@ -2,33 +2,55 @@ import SwiftUI
 
 struct BrowseNavigationView: View {
     @Bindable var router: BrowseRouter
-    private let catalog = SampleBrowseCatalog()
+    @State private var store: BrowseListStore
+    private let repository: any BrowseRepository
+
+    init(router: BrowseRouter, repository: any BrowseRepository) {
+        self.router = router
+        self.repository = repository
+        _store = State(initialValue: BrowseListStore(repository: repository))
+    }
 
     var body: some View {
         NavigationStack(path: $router.path) {
-            List(SampleBrowseCatalog.items) { item in
-                NavigationLink(value: BrowseRoute.item(id: item.id)) {
-                    VStack(alignment: .leading) {
-                        Text(item.title)
-                        Text(item.summary)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+            Group {
+                switch store.state {
+                case .idle, .loading:
+                    ProgressView("Loading Browse…")
+                case let .content(items):
+                    List(items) { item in
+                        NavigationLink(value: BrowseRoute.item(id: item.id)) {
+                            VStack(alignment: .leading) {
+                                Text(item.title)
+                                Text(item.summary)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                case let .failed(failure):
+                    ContentUnavailableView {
+                        Label(
+                            "Browse Unavailable",
+                            systemImage: "exclamationmark.triangle"
+                        )
+                    } description: {
+                        Text(failure.message)
+                    } actions: {
+                        Button("Retry") {
+                            Task { await store.load() }
+                        }
                     }
                 }
             }
             .navigationTitle("Browse")
+            .task {
+                await store.load()
+            }
             .navigationDestination(for: BrowseRoute.self) { route in
                 switch route {
                 case let .item(id):
-                    if let item = catalog.item(id: id) {
-                        BrowseDetailView(item: item)
-                    } else {
-                        ContentUnavailableView(
-                            "Item Unavailable",
-                            systemImage: "questionmark.folder",
-                            description: Text("This item no longer exists.")
-                        )
-                    }
+                    BrowseDetailView(id: id, repository: repository)
                 }
             }
         }
@@ -36,13 +58,48 @@ struct BrowseNavigationView: View {
 }
 
 private struct BrowseDetailView: View {
-    let item: BrowseItem
+    @State private var store: BrowseDetailStore
+
+    init(id: BrowseItem.ID, repository: any BrowseRepository) {
+        _store = State(
+            initialValue: BrowseDetailStore(id: id, repository: repository)
+        )
+    }
 
     var body: some View {
-        Form {
-            LabeledContent("Identifier", value: item.id)
-            Text(item.summary)
+        Group {
+            switch store.state {
+            case .idle, .loading:
+                ProgressView("Loading Item…")
+            case let .content(item):
+                Form {
+                    LabeledContent("Identifier", value: item.id)
+                    Text(item.summary)
+                }
+                .navigationTitle(item.title)
+            case .notFound:
+                ContentUnavailableView(
+                    "Item Unavailable",
+                    systemImage: "questionmark.folder",
+                    description: Text("This item no longer exists.")
+                )
+            case let .failed(failure):
+                ContentUnavailableView {
+                    Label(
+                        "Item Unavailable",
+                        systemImage: "exclamationmark.triangle"
+                    )
+                } description: {
+                    Text(failure.message)
+                } actions: {
+                    Button("Retry") {
+                        Task { await store.load() }
+                    }
+                }
+            }
         }
-        .navigationTitle(item.title)
+        .task(id: store.id) {
+            await store.load()
+        }
     }
 }

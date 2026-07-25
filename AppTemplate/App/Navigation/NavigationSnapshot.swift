@@ -54,6 +54,5 @@ enum NavigationRestorationFailure: Equatable, Sendable {
 enum NavigationRestorationResult: Equatable, Sendable {
     case noState
     case restored
-    case restoredAfterPruning
     case reset(NavigationRestorationFailure)
 }

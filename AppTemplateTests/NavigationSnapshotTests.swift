@@ -60,7 +60,7 @@ struct NavigationSnapshotTests {
     }
 
     @Test
-    func restorePrunesUnavailableBrowseRecords() throws {
+    func restorePreservesStructurallyValidUnknownBrowseIdentifiers() throws {
         let snapshot = NavigationSnapshot(
             selectedSection: .browse,
             homePath: [.details],
@@ -68,10 +68,11 @@ struct NavigationSnapshotTests {
             settingsPath: [.about]
         )
         let router = AppRouter()
-        let data = try NavigationSnapshotCodec.encode(snapshot)
 
-        #expect(router.restore(from: data) == .restoredAfterPruning)
-        #expect(router.browse.path == [.item(id: "swiftui")])
+        let result = router.restore(from: try NavigationSnapshotCodec.encode(snapshot))
+
+        #expect(result == .restored)
+        #expect(router.snapshot == snapshot)
     }
 
     @Test

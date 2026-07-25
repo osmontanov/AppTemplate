@@ -4,9 +4,10 @@ import SwiftUI
 struct AppSceneView: View {
     @State private var lifecycle = AppSceneNavigationLifecycle()
     @SceneStorage("AppTemplate.NavigationSnapshot") private var encodedSnapshot: Data?
+    let dependencies: AppDependencies
 
     var body: some View {
-        AppRootView(router: lifecycle.router)
+        AppRootView(router: lifecycle.router, dependencies: dependencies)
             .task {
                 if let snapshot = lifecycle.restore(from: encodedSnapshot) {
                     persist(snapshot)

@@ -40,9 +40,6 @@ final class AppSceneNavigationLifecycle {
         if !urls.isEmpty {
             return router.snapshot
         }
-        if restorationResult == .restoredAfterPruning {
-            return router.snapshot
-        }
         if case .reset = restorationResult {
             return router.snapshot
         }

@@ -35,18 +35,17 @@ struct AppRouterTests {
     }
 
     @Test
-    func missingBrowseRecordFallsBackToBrowseRootAndPreservesOtherHistories() {
+    func unknownBrowseIdentifierStillBuildsTypedRoute() {
         let router = AppRouter(selectedSection: .settings)
         router.home.push(.details)
-        router.browse.push(.item(id: "swiftui"))
         router.settings.push(.about)
 
         let outcome = router.handle(.browseItem(id: "missing"))
 
-        #expect(outcome == .rejected(.missingBrowseItem("missing")))
+        #expect(outcome == .applied)
         #expect(router.selectedSection == .browse)
+        #expect(router.browse.path == [.item(id: "missing")])
         #expect(router.home.path == [.details])
-        #expect(router.browse.path.isEmpty)
         #expect(router.settings.path == [.about])
     }
 

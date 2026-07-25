@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AppRootView: View {
     @Bindable var router: AppRouter
+    let dependencies: AppDependencies
 
     var body: some View {
         switch router.flow {
@@ -17,7 +18,7 @@ struct AppRootView: View {
                 }
             )
         case .main:
-            AppShellView(router: router)
+            AppShellView(router: router, dependencies: dependencies)
         }
     }
 }

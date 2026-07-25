@@ -40,49 +40,22 @@ final class AppRouter {
     }
 
     func handle(_ intent: NavigationIntent) -> NavigationOutcome {
-        handle(intent, resolver: SampleBrowseCatalog())
-    }
-
-    func handle(
-        _ intent: NavigationIntent,
-        resolver: any BrowseItemResolving
-    ) -> NavigationOutcome {
         guard flow == .main else {
             pendingIntent = intent
             return .deferred
         }
-        return apply(intent, resolver: resolver)
+        return apply(intent)
     }
 
     func finishLaunching(isAuthenticated: Bool) -> NavigationOutcome? {
-        finishLaunching(
-            isAuthenticated: isAuthenticated,
-            resolver: SampleBrowseCatalog()
-        )
-    }
-
-    func finishLaunching(
-        isAuthenticated: Bool,
-        resolver: any BrowseItemResolving
-    ) -> NavigationOutcome? {
         flow = isAuthenticated ? .main : .authentication
         guard isAuthenticated else {
             return nil
         }
-        return replayPendingIntent(resolver: resolver)
+        return replayPendingIntent()
     }
 
     func completeAuthentication(succeeded: Bool) -> NavigationOutcome? {
-        completeAuthentication(
-            succeeded: succeeded,
-            resolver: SampleBrowseCatalog()
-        )
-    }
-
-    func completeAuthentication(
-        succeeded: Bool,
-        resolver: any BrowseItemResolving
-    ) -> NavigationOutcome? {
         guard succeeded else {
             pendingIntent = nil
             flow = .authentication
@@ -90,23 +63,18 @@ final class AppRouter {
         }
 
         flow = .main
-        return replayPendingIntent(resolver: resolver)
+        return replayPendingIntent()
     }
 
-    private func replayPendingIntent(
-        resolver: any BrowseItemResolving
-    ) -> NavigationOutcome? {
+    private func replayPendingIntent() -> NavigationOutcome? {
         guard let intent = pendingIntent else {
             return nil
         }
         pendingIntent = nil
-        return apply(intent, resolver: resolver)
+        return apply(intent)
     }
 
-    private func apply(
-        _ intent: NavigationIntent,
-        resolver: any BrowseItemResolving
-    ) -> NavigationOutcome {
+    private func apply(_ intent: NavigationIntent) -> NavigationOutcome {
         switch intent {
         case let .selectSection(section):
             selectedSection = section
@@ -115,13 +83,6 @@ final class AppRouter {
             openDefaultDestination(for: section)
             return .applied
         case let .browseItem(id):
-            guard resolver.item(id: id) != nil else {
-                openDefaultDestination(for: .browse)
-                Logger.navigation.error(
-                    "Rejected unavailable Browse identifier: \(id, privacy: .public)"
-                )
-                return .rejected(.missingBrowseItem(id))
-            }
             selectedSection = .browse
             browse.replacePath(with: [.item(id: id)])
             return .applied
@@ -153,14 +114,6 @@ extension AppRouter {
 
     @discardableResult
     func restore(from data: Data?) -> NavigationRestorationResult {
-        restore(from: data, resolver: SampleBrowseCatalog())
-    }
-
-    @discardableResult
-    func restore(
-        from data: Data?,
-        resolver: any BrowseItemResolving
-    ) -> NavigationRestorationResult {
         guard let data else {
             return .noState
         }
@@ -184,20 +137,11 @@ extension AppRouter {
             return .reset(.unsupportedSchema(decoded.schemaVersion))
         }
 
-        let validBrowsePath = decoded.browsePath.filter { route in
-            switch route {
-            case let .item(id):
-                resolver.item(id: id) != nil
-            }
-        }
-
         selectedSection = decoded.selectedSection
         home.replacePath(with: decoded.homePath)
-        browse.replacePath(with: validBrowsePath)
+        browse.replacePath(with: decoded.browsePath)
         settings.replacePath(with: decoded.settingsPath)
-        return validBrowsePath.count == decoded.browsePath.count
-            ? .restored
-            : .restoredAfterPruning
+        return .restored
     }
 
     func resetNavigation() {
