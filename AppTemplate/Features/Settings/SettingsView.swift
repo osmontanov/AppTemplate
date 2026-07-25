@@ -1,11 +1,31 @@
 import SwiftUI
 
 struct SettingsNavigationView: View {
+    @Environment(SessionStore.self) private var sessionStore
     @Bindable var router: SettingsRouter
 
     var body: some View {
         NavigationStack(path: $router.path) {
             List {
+                Section("Session") {
+                    switch sessionStore.phase {
+                    case let .authenticated(session):
+                        LabeledContent("Signed in", value: session.displayName)
+                        Button("Sign Out") {
+                            Task { await sessionStore.signOut() }
+                        }
+                    case .idle, .loading:
+                        ProgressView()
+                    case .unauthenticated:
+                        Text("Not signed in")
+                    }
+
+                    if let failure = sessionStore.failure {
+                        Text(failure.message)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
                 NavigationLink("About this template", value: SettingsRoute.about)
             }
             .navigationTitle("Settings")

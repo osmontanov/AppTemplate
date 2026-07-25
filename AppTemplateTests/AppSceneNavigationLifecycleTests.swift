@@ -154,4 +154,44 @@ struct AppSceneNavigationLifecycleTests {
         #expect(router.browse.path == [.item(id: "swiftui")])
         #expect(router.settings.path == [.about])
     }
+
+    @Test
+    func sharedAuthenticatedPhaseReplaysEachScenesOwnPendingIntent() {
+        let firstRouter = AppRouter(flow: .authentication)
+        let secondRouter = AppRouter(flow: .authentication)
+        let first = AppSceneNavigationLifecycle(router: firstRouter)
+        let second = AppSceneNavigationLifecycle(router: secondRouter)
+
+        _ = firstRouter.handle(.browseItem(id: "swiftui"))
+        _ = secondRouter.handle(.selectSection(.settings))
+        let session = UserSession(id: "one", displayName: "One")
+
+        first.synchronizeSession(.authenticated(session))
+        second.synchronizeSession(.authenticated(session))
+
+        #expect(firstRouter.browse.path == [.item(id: "swiftui")])
+        #expect(firstRouter.selectedSection == .browse)
+        #expect(secondRouter.browse.path.isEmpty)
+        #expect(secondRouter.selectedSection == .settings)
+    }
+
+    @Test
+    func unauthenticatedPhaseMovesEverySceneToAuthentication() {
+        let first = AppSceneNavigationLifecycle(router: AppRouter())
+        let second = AppSceneNavigationLifecycle(router: AppRouter())
+
+        first.synchronizeSession(.unauthenticated)
+        second.synchronizeSession(.unauthenticated)
+
+        #expect(first.router.flow == .authentication)
+        #expect(second.router.flow == .authentication)
+        #expect(first.router !== second.router)
+    }
+
+    @Test
+    func defaultLifecycleStartsInLaunchingFlow() {
+        let lifecycle = AppSceneNavigationLifecycle()
+
+        #expect(lifecycle.router.flow == .launching)
+    }
 }

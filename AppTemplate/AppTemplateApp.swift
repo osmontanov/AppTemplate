@@ -9,11 +9,21 @@ import SwiftUI
 
 @main
 struct AppTemplateApp: App {
-    private let dependencies = AppDependencies.live()
+    private let dependencies: AppDependencies
+    @State private var sessionStore: SessionStore
+
+    init() {
+        let dependencies = AppDependencies.live()
+        self.dependencies = dependencies
+        _sessionStore = State(
+            initialValue: SessionStore(service: dependencies.sessionService)
+        )
+    }
 
     var body: some Scene {
         WindowGroup {
             AppSceneView(dependencies: dependencies)
+                .environment(sessionStore)
         }
     }
 }

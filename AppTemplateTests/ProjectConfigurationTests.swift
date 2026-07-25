@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Testing
 @testable import AppTemplate
 
@@ -16,10 +17,14 @@ struct ProjectConfigurationTests {
             browseItems: [],
             session: nil
         )
+        let sessionStore = SessionStore(service: dependencies.sessionService)
 
         _ = AppSceneView(dependencies: dependencies)
+            .environment(sessionStore)
         _ = AppRootView(router: router, dependencies: dependencies)
+            .environment(sessionStore)
         _ = AppShellView(router: router, dependencies: dependencies)
+            .environment(sessionStore)
         _ = BrowseNavigationView(
             router: router.browse,
             repository: dependencies.browseRepository

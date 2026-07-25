@@ -2,6 +2,7 @@ import OSLog
 import SwiftUI
 
 struct AppSceneView: View {
+    @Environment(SessionStore.self) private var sessionStore
     @State private var lifecycle = AppSceneNavigationLifecycle()
     @SceneStorage("AppTemplate.NavigationSnapshot") private var encodedSnapshot: Data?
     let dependencies: AppDependencies
@@ -12,12 +13,17 @@ struct AppSceneView: View {
                 if let snapshot = lifecycle.restore(from: encodedSnapshot) {
                     persist(snapshot)
                 }
+                await sessionStore.start()
+                lifecycle.synchronizeSession(sessionStore.phase)
             }
             .onChange(of: lifecycle.router.snapshot) { _, snapshot in
                 guard lifecycle.hasRestored else {
                     return
                 }
                 persist(snapshot)
+            }
+            .onChange(of: sessionStore.phase) { _, phase in
+                lifecycle.synchronizeSession(phase)
             }
             .onOpenURL { url in
                 if let snapshot = lifecycle.receive(url) {

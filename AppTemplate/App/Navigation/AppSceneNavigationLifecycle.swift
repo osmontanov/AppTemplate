@@ -10,7 +10,7 @@ final class AppSceneNavigationLifecycle {
     private var queuedURLs: [URL] = []
 
     init() {
-        router = AppRouter()
+        router = AppRouter(flow: .launching)
         parser = DeepLinkParser()
     }
 
@@ -22,6 +22,21 @@ final class AppSceneNavigationLifecycle {
     init(router: AppRouter, parser: DeepLinkParser) {
         self.router = router
         self.parser = parser
+    }
+
+    func synchronizeSession(_ phase: SessionPhase) {
+        switch phase {
+        case .idle, .loading:
+            router.flow = .launching
+        case .unauthenticated:
+            if router.flow == .launching {
+                _ = router.finishLaunching(isAuthenticated: false)
+            } else {
+                router.flow = .authentication
+            }
+        case .authenticated:
+            _ = router.completeAuthentication(succeeded: true)
+        }
     }
 
     @discardableResult
