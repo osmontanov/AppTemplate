@@ -1,28 +1,28 @@
 import SwiftUI
 
 struct HomeNavigationView: View {
-    @Bindable var router: HomeRouter
+    @State private var viewModel: HomeViewModel
 
-    private var isResetAlertPresented: Binding<Bool> {
-        Binding(
-            get: { router.alert != nil },
-            set: { isPresented in
-                if !isPresented {
-                    router.alert = nil
-                }
-            }
+    init(router: HomeRouter) {
+        _viewModel = State(
+            initialValue: HomeViewModel(router: router)
         )
     }
 
     var body: some View {
+        @Bindable var router = viewModel.router
+        @Bindable var bindableViewModel = viewModel
+
         NavigationStack(path: $router.path) {
             List {
-                NavigationLink("Navigation details", value: HomeRoute.details)
+                Button("Navigation details") {
+                    viewModel.openDetails()
+                }
                 Button("Open navigation guide") {
-                    router.sheet = .navigationGuide
+                    viewModel.openNavigationGuide()
                 }
                 Button("Reset Home navigation", role: .destructive) {
-                    router.alert = .resetNavigation
+                    viewModel.requestNavigationReset()
                 }
             }
             .navigationTitle("Home")
@@ -41,47 +41,18 @@ struct HomeNavigationView: View {
                 }
             }
         }
-        .alert("Reset Home navigation?", isPresented: isResetAlertPresented) {
+        .alert(
+            "Reset Home navigation?",
+            isPresented: $bindableViewModel.isResetAlertPresented
+        ) {
             Button("Reset", role: .destructive) {
-                router.popToRoot()
-                router.alert = nil
+                viewModel.confirmNavigationReset()
             }
             Button("Cancel", role: .cancel) {
-                router.alert = nil
+                viewModel.cancelNavigationReset()
             }
         } message: {
             Text("This clears only the Home navigation history.")
-        }
-    }
-}
-
-private struct HomeDetailsView: View {
-    var body: some View {
-        ContentUnavailableView(
-            "Typed Destination",
-            systemImage: "point.topleft.down.to.point.bottomright.curvepath",
-            description: Text("HomeRoute.details produced this screen.")
-        )
-        .navigationTitle("Details")
-    }
-}
-
-private struct NavigationGuideView: View {
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        List {
-            Label("Typed paths", systemImage: "list.bullet.rectangle")
-            Label("Independent tabs", systemImage: "square.3.layers.3d")
-            Label("Scene restoration", systemImage: "arrow.clockwise")
-        }
-        .navigationTitle("Navigation Guide")
-        .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
-                Button("Done") {
-                    dismiss()
-                }
-            }
         }
     }
 }
