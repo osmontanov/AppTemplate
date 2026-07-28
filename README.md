@@ -27,7 +27,7 @@ for the architectural decisions and implementation details.
 `dependencies.browse.repository` and `dependencies.session.service` are
 app-wide `Sendable` services. `SessionStore` is shared app-wide through typed
 SwiftUI Environment. `AppRouter` is scene-scoped; `BrowseListViewModel` and
-`BrowseDetailViewModel` are feature-scoped. Feature dependencies are required
+`BrowseDetailViewModel` are screen-owned. Feature dependencies are required
 initializer arguments.
 
 To replace a template service:
