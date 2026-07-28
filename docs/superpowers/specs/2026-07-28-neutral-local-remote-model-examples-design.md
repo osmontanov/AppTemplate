@@ -125,11 +125,15 @@ Remote tests will:
 Local tests will:
 
 - encode and decode `ExampleRecord`, verifying a complete persistence
-  round trip;
-- verify that `ExampleQuery` preserves optional and non-optional criteria.
+  round trip.
 
 These tests exercise the intended serialization boundaries rather than
 connecting the examples to app features.
+
+`ExampleQuery` receives no dedicated unit test. It is a passive value
+container with only a synthesized initializer and `Equatable` conformance;
+asserting that it reproduces its own constructor arguments would be a
+tautological change-detector rather than a behavioral test.
 
 ## Alternatives Considered
 

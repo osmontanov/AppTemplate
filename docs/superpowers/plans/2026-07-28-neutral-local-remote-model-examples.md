@@ -17,6 +17,8 @@
 - Give `ExampleRequest` only `Encodable`; do not add `Decodable`.
 - Give `ExampleResponse` only `Decodable`; do not add `Encodable`.
 - Give `ExampleQuery` no serialization conformance.
+- Do not add a dedicated `ExampleQuery` unit test: it has no behavior beyond
+  its synthesized initializer and equality.
 - Give `ExampleRecord` `Codable`.
 - Do not reference domain models, state models, services, dependency injection, view models, views, navigation, or another example model.
 - Do not add protocols, generic base models, mappers, conversion initializers, validation, or service methods.
@@ -200,7 +202,7 @@ git commit -m "feat: add remote model examples"
 - Produces: `ExampleRecord(id: String, payload: String)` conforming to `Codable`, `Equatable`, and `Sendable`.
 - Dependency boundary: neither type references the other or any existing application type.
 
-- [ ] **Step 1: Write the failing Local model tests**
+- [ ] **Step 1: Write the failing Local persistence test**
 
 Create `AppTemplateTests/App/Models/Local/ExampleLocalModelTests.swift`:
 
@@ -224,25 +226,6 @@ struct ExampleLocalModelTests {
         )
 
         #expect(restored == original)
-    }
-
-    @Test
-    func queryPreservesOptionalAndRequiredCriteria() {
-        let filtered = ExampleQuery(searchText: "cached", limit: 25)
-        let unfiltered = ExampleQuery(searchText: nil, limit: 10)
-
-        #expect(
-            filtered == ExampleQuery(
-                searchText: "cached",
-                limit: 25
-            )
-        )
-        #expect(
-            unfiltered == ExampleQuery(
-                searchText: nil,
-                limit: 10
-            )
-        )
     }
 }
 ```
@@ -298,7 +281,7 @@ xcodebuild test -quiet \
   -only-testing:AppTemplateTests/ExampleLocalModelTests
 ```
 
-Expected: exit 0 and both Local tests pass.
+Expected: exit 0 and the Local persistence test passes.
 
 - [ ] **Step 5: Verify the Local examples remain independent**
 
