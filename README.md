@@ -2,6 +2,28 @@
 
 SwiftUI boilerplate for iOS 26, iPadOS 26, and macOS 26.
 
+## Project Structure
+
+- `App/Entry` owns application startup.
+- `App/Composition` owns the explicit dependency graph.
+- `App/Navigation` owns app-wide navigation infrastructure.
+- `App/Services` owns app-wide service modules such as Session.
+- `Features/<Feature>` owns Screens, ViewModels, Navigation, Dependencies,
+  Domain, Data, Services, and feature UI components.
+- `Shared` is reserved for genuinely cross-feature UI, extensions, and
+  utilities.
+- `Resources` owns the asset catalog and Info.plist.
+
+Every feature exposes the same folder scaffold. Empty compile-safe types mark
+future extension points but are not registered in DI or instantiated at
+runtime. Existing real types replace placeholders for their roles.
+
+Future shared network transports belong in `App/Services/Network`; database
+engines belong in `App/Services/Database`. Feature-specific adapters, DTOs,
+mappers, and repositories remain inside that feature's `Data` folder.
+
+Tests mirror production ownership under `AppTemplateTests`.
+
 ## Navigation
 
 - `TabView(.sidebarAdaptable)` provides the platform shell.
