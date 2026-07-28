@@ -25,9 +25,14 @@ struct ProjectConfigurationTests {
             .environment(sessionStore)
         _ = AppShellView(router: router, dependencies: dependencies)
             .environment(sessionStore)
+        _ = HomeNavigationView(router: router.home)
         _ = BrowseNavigationView(
             router: router.browse,
             dependencies: dependencies.browse
+        )
+        _ = SettingsNavigationView(
+            router: router.settings,
+            sessionStore: sessionStore
         )
     }
 }

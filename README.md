@@ -23,11 +23,11 @@ for the architectural decisions and implementation details.
 
 ## Dependency Injection
 
-`AppDependencies` is the composition root. `BrowseRepository` and
-`SessionService` are app-wide `Sendable` services. `SessionStore` is shared
-app-wide through typed SwiftUI Environment. `AppRouter` and Browse presentation
-stores are scene- or feature-scoped. Feature dependencies are required
-initializer arguments.
+`AppDependencies` is the composition root.
+`dependencies.browse.repository` and `dependencies.session.service` are
+app-wide `Sendable` services. `SessionStore` is shared app-wide through typed
+SwiftUI Environment. `AppRouter` and Browse presentation stores are scene- or
+feature-scoped. Feature dependencies are required initializer arguments.
 
 To replace a template service:
 
@@ -44,3 +44,27 @@ See the
 [DI design](docs/superpowers/specs/2026-07-25-type-safe-dependency-injection-design.md)
 and
 [implementation plan](docs/superpowers/plans/2026-07-25-type-safe-dependency-injection.md).
+
+## Views and ViewModels
+
+Every full user-facing screen owns one concrete `@MainActor @Observable`
+ViewModel in private `@State`. Infrastructure containers and small stateless
+subviews remain plain SwiftUI Views.
+
+`AppDependencies` exposes immutable feature scopes such as
+`BrowseDependencies`. A screen initializer receives its feature scope, shared
+store, and router only when needed. No ViewModel receives the whole application
+container or reads SwiftUI Environment.
+
+Routers remain scene-scoped and own typed navigation state. ViewModels own
+presentation state and async screen behavior. Repositories and services own
+domain and infrastructure work.
+
+Example:
+
+```swift
+BrowseNavigationView(
+    router: router.browse,
+    dependencies: dependencies.browse
+)
+```
