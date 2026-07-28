@@ -6,9 +6,8 @@ struct SettingsViewModelTests {
     @Test
     func settingsReflectsAndMutatesTheSharedSession() async {
         let session = UserSession(id: "user", displayName: "User")
-        let store = SessionStore(
-            service: InMemorySessionService(initialSession: session)
-        )
+        let service = SessionService(initialSession: session)
+        let store = SessionStore(service: service)
         await store.start()
         let viewModel = SettingsViewModel(sessionStore: store)
 
@@ -55,9 +54,8 @@ struct SettingsViewModelTests {
 
     @Test
     func everySettingsScreenCanBeConstructed() {
-        let store = SessionStore(
-            service: InMemorySessionService(initialSession: nil)
-        )
+        let service = SessionService(initialSession: nil)
+        let store = SessionStore(service: service)
 
         _ = SettingsNavigationView(
             router: SettingsRouter(),
@@ -71,7 +69,7 @@ private nonisolated enum SettingsViewModelTestError: Error {
     case signOut
 }
 
-private nonisolated struct FailingSettingsSessionService: SessionService {
+private nonisolated struct FailingSettingsSessionService: ISessionService {
     let session: UserSession
 
     func currentSession() -> UserSession? {

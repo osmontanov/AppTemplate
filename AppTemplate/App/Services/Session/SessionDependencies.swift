@@ -1,7 +1,7 @@
 nonisolated struct SessionDependencies: Sendable {
-    let service: any SessionService
+    let service: any ISessionService
 
-    init(service: any SessionService) {
+    init(service: any ISessionService) {
         self.service = service
     }
 }

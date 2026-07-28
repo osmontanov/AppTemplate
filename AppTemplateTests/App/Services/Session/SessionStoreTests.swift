@@ -68,9 +68,8 @@ struct SessionStoreTests {
 
     @Test
     func startupWithoutSessionBecomesUnauthenticated() async {
-        let store = SessionStore(
-            service: InMemorySessionService(initialSession: nil)
-        )
+        let service = SessionService(initialSession: nil)
+        let store = SessionStore(service: service)
 
         await store.start()
 
@@ -80,9 +79,8 @@ struct SessionStoreTests {
 
     @Test
     func signInAndSignOutUpdatePhase() async {
-        let store = SessionStore(
-            service: InMemorySessionService(initialSession: nil)
-        )
+        let service = SessionService(initialSession: nil)
+        let store = SessionStore(service: service)
 
         await store.signIn()
         #expect(store.phase == .authenticated(
@@ -270,7 +268,7 @@ private final class MainActorEntryBarrier {
     }
 }
 
-private actor ControlledSessionService: SessionService {
+private actor ControlledSessionService: ISessionService {
     private(set) var restoreCount = 0
     private(set) var signInCount = 0
     private(set) var signOutCount = 0
@@ -375,7 +373,7 @@ private actor ControlledSessionService: SessionService {
     }
 }
 
-private actor CountingSessionService: SessionService {
+private actor CountingSessionService: ISessionService {
     private(set) var restoreCount = 0
     private var session: UserSession?
 
@@ -399,7 +397,7 @@ private actor CountingSessionService: SessionService {
     }
 }
 
-private actor FailingSessionService: SessionService {
+private actor FailingSessionService: ISessionService {
     func currentSession() throws -> UserSession? {
         throw SessionServiceTestError.failed
     }
@@ -413,7 +411,7 @@ private actor FailingSessionService: SessionService {
     }
 }
 
-private actor RecoveringSessionService: SessionService {
+private actor RecoveringSessionService: ISessionService {
     private(set) var restoreCount = 0
 
     func currentSession() throws -> UserSession? {
@@ -432,7 +430,7 @@ private actor RecoveringSessionService: SessionService {
     }
 }
 
-private actor SignOutFailingSessionService: SessionService {
+private actor SignOutFailingSessionService: ISessionService {
     private let session: UserSession
 
     init(session: UserSession) {

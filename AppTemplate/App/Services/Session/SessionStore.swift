@@ -30,7 +30,7 @@ final class SessionStore {
     private(set) var phase: SessionPhase = .idle
     private(set) var failure: SessionFailure?
 
-    private let service: any SessionService
+    private let service: any ISessionService
     private var commandVersion = 0
     private var stablePhase: SessionPhase = .idle
     private var startupTask: Task<Void, Never>?
@@ -47,7 +47,7 @@ final class SessionStore {
         case failed
     }
 
-    init(service: any SessionService) {
+    init(service: any ISessionService) {
         self.service = service
     }
 

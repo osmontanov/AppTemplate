@@ -3,13 +3,13 @@ import Testing
 
 struct AppDependenciesTests {
     @Test
-    func liveGraphUsesDeclaredInMemoryServices() async throws {
+    func liveGraphUsesDeclaredServices() async throws {
         let dependencies = AppDependencies.live()
         let items = try await dependencies.browse.service.items()
         let session = try await dependencies.session.service.currentSession()
 
         #expect(dependencies.browse.service is BrowseService)
-        #expect(dependencies.session.service is InMemorySessionService)
+        #expect(dependencies.session.service is SessionService)
         #expect(items.map(\.id) == ["swiftui", "observation", "routing"])
         #expect(session == nil)
     }
@@ -78,7 +78,7 @@ private actor InjectedBrowseService: IBrowseService {
     }
 }
 
-private actor InjectedSessionService: SessionService {
+private actor InjectedSessionService: ISessionService {
     private let session: UserSession
 
     init(session: UserSession) {

@@ -26,9 +26,8 @@ struct AuthenticationViewModelTests {
 
     @Test
     func cancellationClearsTheScenePendingIntent() {
-        let store = SessionStore(
-            service: InMemorySessionService(initialSession: nil)
-        )
+        let service = SessionService(initialSession: nil)
+        let store = SessionStore(service: service)
         let router = AppRouter(flow: .authentication)
         _ = router.handle(.browseItem(id: "swiftui"))
         let viewModel = AuthenticationViewModel(
@@ -89,9 +88,8 @@ struct AuthenticationViewModelTests {
 
     @Test
     func authenticationScreenCanBeConstructed() {
-        let store = SessionStore(
-            service: InMemorySessionService(initialSession: nil)
-        )
+        let service = SessionService(initialSession: nil)
+        let store = SessionStore(service: service)
 
         _ = AuthenticationView(
             sessionStore: store,
@@ -104,7 +102,7 @@ private nonisolated enum AuthenticationTestError: Error {
     case restoration
 }
 
-private nonisolated struct AuthenticationSessionService: SessionService {
+private nonisolated struct AuthenticationSessionService: ISessionService {
     let restoredSession: UserSession?
     let signedInSession: UserSession
     let restorationFails: Bool
@@ -124,7 +122,7 @@ private nonisolated struct AuthenticationSessionService: SessionService {
     }
 }
 
-private actor RetryingAuthenticationSessionService: SessionService {
+private actor RetryingAuthenticationSessionService: ISessionService {
     private var attempts = 0
 
     func currentSession() throws -> UserSession? {

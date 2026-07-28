@@ -1,4 +1,4 @@
-actor InMemorySessionService: SessionService {
+actor SessionService: ISessionService {
     private var session: UserSession?
 
     init(initialSession: UserSession?) {
@@ -10,7 +10,10 @@ actor InMemorySessionService: SessionService {
     }
 
     func signIn() -> UserSession {
-        let session = UserSession(id: "template-user", displayName: "Template User")
+        let session = UserSession(
+            id: "template-user",
+            displayName: "Template User"
+        )
         self.session = session
         return session
     }
