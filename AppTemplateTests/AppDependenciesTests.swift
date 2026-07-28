@@ -5,11 +5,11 @@ struct AppDependenciesTests {
     @Test
     func liveGraphUsesDeclaredInMemoryServices() async throws {
         let dependencies = AppDependencies.live()
-        let items = try await dependencies.browseRepository.items()
-        let session = try await dependencies.sessionService.currentSession()
+        let items = try await dependencies.browse.repository.items()
+        let session = try await dependencies.session.service.currentSession()
 
-        #expect(dependencies.browseRepository is InMemoryBrowseRepository)
-        #expect(dependencies.sessionService is InMemorySessionService)
+        #expect(dependencies.browse.repository is InMemoryBrowseRepository)
+        #expect(dependencies.session.service is InMemorySessionService)
         #expect(items.map(\.id) == ["swiftui", "observation", "routing"])
         #expect(session == nil)
     }
@@ -22,8 +22,8 @@ struct AppDependenciesTests {
             browseItems: [item],
             session: session
         )
-        let items = try await dependencies.browseRepository.items()
-        let restoredSession = try await dependencies.sessionService.currentSession()
+        let items = try await dependencies.browse.repository.items()
+        let restoredSession = try await dependencies.session.service.currentSession()
 
         #expect(items == [item])
         #expect(restoredSession == session)
@@ -46,13 +46,13 @@ struct AppDependenciesTests {
             browseRepository: repository,
             sessionService: service
         )
-        let items = try await dependencies.browseRepository.items()
-        let restoredSession = try await dependencies.sessionService.currentSession()
+        let items = try await dependencies.browse.repository.items()
+        let restoredSession = try await dependencies.session.service.currentSession()
         let resolvedRepository = try #require(
-            dependencies.browseRepository as? InjectedBrowseRepository
+            dependencies.browse.repository as? InjectedBrowseRepository
         )
         let resolvedService = try #require(
-            dependencies.sessionService as? InjectedSessionService
+            dependencies.session.service as? InjectedSessionService
         )
 
         #expect(resolvedRepository === repository)

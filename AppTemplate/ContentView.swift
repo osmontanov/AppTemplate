@@ -24,7 +24,7 @@ private struct PreviewRoot: View {
     init(dependencies: AppDependencies) {
         self.dependencies = dependencies
         _sessionStore = State(
-            initialValue: SessionStore(service: dependencies.sessionService)
+            initialValue: SessionStore(service: dependencies.session.service)
         )
     }
 

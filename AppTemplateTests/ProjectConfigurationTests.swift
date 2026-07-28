@@ -17,7 +17,7 @@ struct ProjectConfigurationTests {
             browseItems: [],
             session: nil
         )
-        let sessionStore = SessionStore(service: dependencies.sessionService)
+        let sessionStore = SessionStore(service: dependencies.session.service)
 
         _ = AppSceneView(dependencies: dependencies)
             .environment(sessionStore)
@@ -27,7 +27,7 @@ struct ProjectConfigurationTests {
             .environment(sessionStore)
         _ = BrowseNavigationView(
             router: router.browse,
-            repository: dependencies.browseRepository
+            repository: dependencies.browse.repository
         )
     }
 }

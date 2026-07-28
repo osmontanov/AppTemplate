@@ -1,19 +1,23 @@
 nonisolated struct AppDependencies: Sendable {
-    let browseRepository: any BrowseRepository
-    let sessionService: any SessionService
+    let browse: BrowseDependencies
+    let session: SessionDependencies
 
     init(
-        browseRepository: any BrowseRepository,
-        sessionService: any SessionService
+        browse: BrowseDependencies,
+        session: SessionDependencies
     ) {
-        self.browseRepository = browseRepository
-        self.sessionService = sessionService
+        self.browse = browse
+        self.session = session
     }
 
     static func live() -> AppDependencies {
         AppDependencies(
-            browseRepository: InMemoryBrowseRepository.live(),
-            sessionService: InMemorySessionService(initialSession: nil)
+            browse: BrowseDependencies(
+                repository: InMemoryBrowseRepository.live()
+            ),
+            session: SessionDependencies(
+                service: InMemorySessionService(initialSession: nil)
+            )
         )
     }
 
@@ -22,8 +26,12 @@ nonisolated struct AppDependencies: Sendable {
         session: UserSession?
     ) -> AppDependencies {
         AppDependencies(
-            browseRepository: InMemoryBrowseRepository(items: browseItems),
-            sessionService: InMemorySessionService(initialSession: session)
+            browse: BrowseDependencies(
+                repository: InMemoryBrowseRepository(items: browseItems)
+            ),
+            session: SessionDependencies(
+                service: InMemorySessionService(initialSession: session)
+            )
         )
     }
 
@@ -32,8 +40,12 @@ nonisolated struct AppDependencies: Sendable {
         sessionService: any SessionService
     ) -> AppDependencies {
         AppDependencies(
-            browseRepository: browseRepository,
-            sessionService: sessionService
+            browse: BrowseDependencies(
+                repository: browseRepository
+            ),
+            session: SessionDependencies(
+                service: sessionService
+            )
         )
     }
 }

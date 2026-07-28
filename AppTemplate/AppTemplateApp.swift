@@ -16,7 +16,7 @@ struct AppTemplateApp: App {
         let dependencies = AppDependencies.live()
         self.dependencies = dependencies
         _sessionStore = State(
-            initialValue: SessionStore(service: dependencies.sessionService)
+            initialValue: SessionStore(service: dependencies.session.service)
         )
     }
 
