@@ -1,18 +1,30 @@
 import SwiftUI
 
 struct SettingsNavigationView: View {
-    @Environment(SessionStore.self) private var sessionStore
     @Bindable var router: SettingsRouter
+    @State private var viewModel: SettingsViewModel
+
+    init(
+        router: SettingsRouter,
+        sessionStore: SessionStore
+    ) {
+        self.router = router
+        _viewModel = State(
+            initialValue: SettingsViewModel(
+                sessionStore: sessionStore
+            )
+        )
+    }
 
     var body: some View {
         NavigationStack(path: $router.path) {
             List {
                 Section("Session") {
-                    switch sessionStore.phase {
+                    switch viewModel.phase {
                     case let .authenticated(session):
                         LabeledContent("Signed in", value: session.displayName)
                         Button("Sign Out") {
-                            Task { await sessionStore.signOut() }
+                            Task { await viewModel.signOut() }
                         }
                     case .idle, .loading:
                         ProgressView()
@@ -20,8 +32,8 @@ struct SettingsNavigationView: View {
                         Text("Not signed in")
                     }
 
-                    if let failure = sessionStore.failure {
-                        Text(failure.message)
+                    if let failureMessage = viewModel.failureMessage {
+                        Text(failureMessage)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -32,25 +44,9 @@ struct SettingsNavigationView: View {
             .navigationDestination(for: SettingsRoute.self) { route in
                 switch route {
                 case .about:
-                    AboutTemplateView()
+                    AboutView()
                 }
             }
         }
-    }
-}
-
-private struct AboutTemplateView: View {
-    var body: some View {
-        List {
-            Section("Platforms") {
-                Text("iOS 26")
-                Text("iPadOS 26")
-                Text("macOS 26")
-            }
-            Section("Examples") {
-                Text("Home, Browse, and Settings are replaceable feature examples.")
-            }
-        }
-        .navigationTitle("About")
     }
 }
