@@ -1,0 +1,1 @@
+nonisolated protocol SettingsRepository: Sendable {}
