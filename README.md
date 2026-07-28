@@ -26,8 +26,9 @@ for the architectural decisions and implementation details.
 `AppDependencies` is the composition root.
 `dependencies.browse.repository` and `dependencies.session.service` are
 app-wide `Sendable` services. `SessionStore` is shared app-wide through typed
-SwiftUI Environment. `AppRouter` and Browse presentation stores are scene- or
-feature-scoped. Feature dependencies are required initializer arguments.
+SwiftUI Environment. `AppRouter` is scene-scoped; `BrowseListViewModel` and
+`BrowseDetailViewModel` are feature-scoped. Feature dependencies are required
+initializer arguments.
 
 To replace a template service:
 
@@ -38,7 +39,7 @@ To replace a template service:
    fallback to fixtures.
 
 Structurally valid restored and deep-linked Browse IDs remain routed.
-`BrowseDetailStore` displays `notFound` when the repository returns `nil`.
+`BrowseDetailViewModel` displays `notFound` when the repository returns `nil`.
 
 See the
 [DI design](docs/superpowers/specs/2026-07-25-type-safe-dependency-injection-design.md)
