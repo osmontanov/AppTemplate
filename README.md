@@ -62,7 +62,7 @@ To replace a template service:
    fallback to fixtures.
 
 Structurally valid restored and deep-linked Browse IDs remain routed.
-`BrowseDetailViewModel` displays `notFound` when the repository returns `nil`.
+`BrowseDetailViewModel` displays `notFound` when the service returns `nil`.
 
 See the
 [DI design](docs/superpowers/specs/2026-07-25-type-safe-dependency-injection-design.md)
