@@ -49,23 +49,7 @@ struct HomeViewModelTests {
     }
 
     @Test
-    func staticHomeScreensExposePresentationModels() {
-        let details = HomeDetailsViewModel()
-        let guide = NavigationGuideViewModel()
-
-        #expect(details.title == "Typed Destination")
-        #expect(details.message == "HomeRoute.details produced this screen.")
-        #expect(guide.items.map(\.title) == [
-            "Typed paths",
-            "Independent tabs",
-            "Scene restoration"
-        ])
-    }
-
-    @Test
-    func everyHomeScreenCanBeConstructed() {
+    func homeScreenCanBeConstructed() {
         _ = HomeNavigationView(router: HomeRouter())
-        _ = HomeDetailsView()
-        _ = NavigationGuideView()
     }
 }
