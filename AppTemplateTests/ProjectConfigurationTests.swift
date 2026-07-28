@@ -27,7 +27,7 @@ struct ProjectConfigurationTests {
             .environment(sessionStore)
         _ = BrowseNavigationView(
             router: router.browse,
-            repository: dependencies.browse.repository
+            dependencies: dependencies.browse
         )
     }
 }

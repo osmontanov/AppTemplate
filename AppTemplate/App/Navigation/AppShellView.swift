@@ -13,7 +13,7 @@ struct AppShellView: View {
             Tab("Browse", systemImage: "square.grid.2x2", value: AppSection.browse) {
                 BrowseNavigationView(
                     router: router.browse,
-                    repository: dependencies.browse.repository
+                    dependencies: dependencies.browse
                 )
             }
 

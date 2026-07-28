@@ -3,49 +3,59 @@ import Testing
 @testable import AppTemplate
 
 @MainActor
-struct BrowseStoreTests {
+struct BrowseViewModelTests {
     @Test
     func listLoadsRepositoryItems() async {
         let item = BrowseItem(id: "one", title: "One", summary: "First")
-        let store = BrowseListStore(
-            repository: InMemoryBrowseRepository(items: [item])
+        let viewModel = BrowseListViewModel(
+            dependencies: BrowseDependencies(
+                repository: InMemoryBrowseRepository(items: [item])
+            )
         )
 
-        await store.load()
+        await viewModel.load()
 
-        #expect(store.state == .content([item]))
+        #expect(viewModel.state == .content([item]))
     }
 
     @Test
     func listFailureProducesDisplaySafeFailure() async {
-        let store = BrowseListStore(repository: FailingBrowseRepository())
+        let viewModel = BrowseListViewModel(
+            dependencies: BrowseDependencies(
+                repository: FailingBrowseRepository()
+            )
+        )
 
-        await store.load()
+        await viewModel.load()
 
-        #expect(store.state == .failed(.load))
+        #expect(viewModel.state == .failed(.load))
     }
 
     @Test
     func cancelledListLoadDoesNotPublishNonCooperativeResponse() async {
         let item = BrowseItem(id: "one", title: "One", summary: "Late")
         let repository = ControlledBrowseRepository()
-        let store = BrowseListStore(repository: repository)
+        let viewModel = BrowseListViewModel(
+            dependencies: BrowseDependencies(repository: repository)
+        )
 
-        let load = Task { await store.load() }
+        let load = Task { await viewModel.load() }
         await repository.waitForCalls(lists: 1)
         load.cancel()
         await repository.resumeItems(at: 0, returning: [item])
         await load.value
 
-        #expect(store.state == .idle)
+        #expect(viewModel.state == .idle)
     }
 
     @Test
     func cancelledListLoadTreatsOrdinaryRepositoryErrorAsCancellation() async {
         let repository = ControlledBrowseRepository()
-        let store = BrowseListStore(repository: repository)
+        let viewModel = BrowseListViewModel(
+            dependencies: BrowseDependencies(repository: repository)
+        )
 
-        let load = Task { await store.load() }
+        let load = Task { await viewModel.load() }
         await repository.waitForCalls(lists: 1)
         load.cancel()
         await repository.failItems(at: 0)
@@ -53,7 +63,7 @@ struct BrowseStoreTests {
         let loadWasCancelled = await repository.listWasCancelled(at: 0)
 
         #expect(loadWasCancelled)
-        #expect(store.state == .idle)
+        #expect(viewModel.state == .idle)
     }
 
     @Test
@@ -61,12 +71,14 @@ struct BrowseStoreTests {
         let old = BrowseItem(id: "old", title: "Old", summary: "Slow")
         let new = BrowseItem(id: "new", title: "New", summary: "Current")
         let repository = ControlledBrowseRepository()
-        let store = BrowseListStore(repository: repository)
+        let viewModel = BrowseListViewModel(
+            dependencies: BrowseDependencies(repository: repository)
+        )
 
-        let first = Task { await store.load() }
+        let first = Task { await viewModel.load() }
         await repository.waitForCalls(lists: 1)
 
-        let second = Task { await store.load() }
+        let second = Task { await viewModel.load() }
         await repository.waitForCalls(lists: 2)
         await repository.resumeItems(at: 1, returning: [new])
         await second.value
@@ -75,44 +87,50 @@ struct BrowseStoreTests {
         let firstWasCancelled = await repository.listWasCancelled(at: 0)
 
         #expect(firstWasCancelled)
-        #expect(store.state == .content([new]))
+        #expect(viewModel.state == .content([new]))
     }
 
     @Test
     func detailLoadsByStableIdentifier() async {
         let item = BrowseItem(id: "one", title: "One", summary: "First")
-        let store = BrowseDetailStore(
+        let viewModel = BrowseDetailViewModel(
             id: item.id,
-            repository: InMemoryBrowseRepository(items: [item])
+            dependencies: BrowseDependencies(
+                repository: InMemoryBrowseRepository(items: [item])
+            )
         )
 
-        await store.load()
+        await viewModel.load()
 
-        #expect(store.state == .content(item))
+        #expect(viewModel.state == .content(item))
     }
 
     @Test
     func missingDetailProducesNotFound() async {
-        let store = BrowseDetailStore(
+        let viewModel = BrowseDetailViewModel(
             id: "missing",
-            repository: InMemoryBrowseRepository(items: [])
+            dependencies: BrowseDependencies(
+                repository: InMemoryBrowseRepository(items: [])
+            )
         )
 
-        await store.load()
+        await viewModel.load()
 
-        #expect(store.state == .notFound)
+        #expect(viewModel.state == .notFound)
     }
 
     @Test
     func repositoryFailureProducesDisplaySafeFailure() async {
-        let store = BrowseDetailStore(
+        let viewModel = BrowseDetailViewModel(
             id: "one",
-            repository: FailingBrowseRepository()
+            dependencies: BrowseDependencies(
+                repository: FailingBrowseRepository()
+            )
         )
 
-        await store.load()
+        await viewModel.load()
 
-        #expect(store.state == .failed(.load))
+        #expect(viewModel.state == .failed(.load))
     }
 
     @Test
@@ -120,12 +138,15 @@ struct BrowseStoreTests {
         let old = BrowseItem(id: "one", title: "Old", summary: "Slow")
         let new = BrowseItem(id: "one", title: "New", summary: "Fast")
         let repository = ControlledBrowseRepository()
-        let store = BrowseDetailStore(id: "one", repository: repository)
+        let viewModel = BrowseDetailViewModel(
+            id: "one",
+            dependencies: BrowseDependencies(repository: repository)
+        )
 
-        let first = Task { await store.load() }
+        let first = Task { await viewModel.load() }
         await repository.waitForCalls(details: 1)
 
-        let second = Task { await store.load() }
+        let second = Task { await viewModel.load() }
         await repository.waitForCalls(details: 2)
         await repository.resumeItem(at: 1, returning: new)
         await second.value
@@ -134,30 +155,36 @@ struct BrowseStoreTests {
         let firstWasCancelled = await repository.detailWasCancelled(at: 0)
 
         #expect(firstWasCancelled)
-        #expect(store.state == .content(new))
+        #expect(viewModel.state == .content(new))
     }
 
     @Test
     func cancelledDetailLoadDoesNotPublishNonCooperativeResponse() async {
         let item = BrowseItem(id: "one", title: "One", summary: "Late")
         let repository = ControlledBrowseRepository()
-        let store = BrowseDetailStore(id: "one", repository: repository)
+        let viewModel = BrowseDetailViewModel(
+            id: "one",
+            dependencies: BrowseDependencies(repository: repository)
+        )
 
-        let load = Task { await store.load() }
+        let load = Task { await viewModel.load() }
         await repository.waitForCalls(details: 1)
         load.cancel()
         await repository.resumeItem(at: 0, returning: item)
         await load.value
 
-        #expect(store.state == .idle)
+        #expect(viewModel.state == .idle)
     }
 
     @Test
     func cancelledDetailLoadTreatsOrdinaryRepositoryErrorAsCancellation() async {
         let repository = ControlledBrowseRepository()
-        let store = BrowseDetailStore(id: "one", repository: repository)
+        let viewModel = BrowseDetailViewModel(
+            id: "one",
+            dependencies: BrowseDependencies(repository: repository)
+        )
 
-        let load = Task { await store.load() }
+        let load = Task { await viewModel.load() }
         await repository.waitForCalls(details: 1)
         load.cancel()
         await repository.failItem(at: 0)
@@ -165,30 +192,49 @@ struct BrowseStoreTests {
         let loadWasCancelled = await repository.detailWasCancelled(at: 0)
 
         #expect(loadWasCancelled)
-        #expect(store.state == .idle)
+        #expect(viewModel.state == .idle)
     }
 
     @Test
     func retryThenDestinationCancellationCancelsOwnedLoad() async {
         let item = BrowseItem(id: "one", title: "One", summary: "Late")
         let repository = ControlledBrowseRepository()
-        let store = BrowseDetailStore(id: "one", repository: repository)
+        let viewModel = BrowseDetailViewModel(
+            id: "one",
+            dependencies: BrowseDependencies(repository: repository)
+        )
 
-        let initialLoad = Task { await store.load() }
+        let initialLoad = Task { await viewModel.load() }
         await repository.waitForCalls(details: 1)
         await repository.failItem(at: 0)
         await initialLoad.value
-        #expect(store.state == .failed(.load))
+        #expect(viewModel.state == .failed(.load))
 
-        let retry = store.retry()
+        let retry = viewModel.retry()
         await repository.waitForCalls(details: 2)
-        store.cancel()
+        viewModel.cancel()
         await repository.resumeItem(at: 1, returning: item)
         await retry.value
         let retryWasCancelled = await repository.detailWasCancelled(at: 1)
 
         #expect(retryWasCancelled)
-        #expect(store.state == .idle)
+        #expect(viewModel.state == .idle)
+    }
+
+    @Test
+    func browseScreensUseScopedDependencies() {
+        let dependencies = BrowseDependencies(
+            repository: InMemoryBrowseRepository(items: [])
+        )
+
+        _ = BrowseNavigationView(
+            router: BrowseRouter(),
+            dependencies: dependencies
+        )
+        _ = BrowseDetailView(
+            id: "swiftui",
+            dependencies: dependencies
+        )
     }
 }
 

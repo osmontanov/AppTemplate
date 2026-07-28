@@ -2,14 +2,14 @@ import Observation
 
 @MainActor
 @Observable
-final class BrowseListStore {
+final class BrowseListViewModel {
     private(set) var state: BrowseListState = .idle
-    private let repository: any BrowseRepository
+    private let dependencies: BrowseDependencies
     private var requestVersion = 0
     private var loadTask: Task<Void, Never>?
 
-    init(repository: any BrowseRepository) {
-        self.repository = repository
+    init(dependencies: BrowseDependencies) {
+        self.dependencies = dependencies
     }
 
     func load() async {
@@ -41,7 +41,7 @@ final class BrowseListStore {
         loadTask?.cancel()
         state = .loading
 
-        let repository = repository
+        let repository = dependencies.repository
         let task = Task { @MainActor [weak self, repository] in
             do {
                 let items = try await repository.items()
