@@ -20,21 +20,6 @@ struct SettingsViewModelTests {
     }
 
     @Test
-    func aboutProvidesSupportedPlatformPresentation() {
-        let viewModel = AboutViewModel()
-
-        #expect(viewModel.supportedPlatforms == [
-            "iOS 26",
-            "iPadOS 26",
-            "macOS 26"
-        ])
-        #expect(
-            viewModel.exampleDescription
-                == "Home, Browse, and Settings are replaceable feature examples."
-        )
-    }
-
-    @Test
     func failedSignOutExposesSafeFailureAndKeepsTheSession() async {
         let session = UserSession(id: "user", displayName: "User")
         let store = SessionStore(
@@ -53,7 +38,7 @@ struct SettingsViewModelTests {
     }
 
     @Test
-    func everySettingsScreenCanBeConstructed() {
+    func settingsScreenCanBeConstructed() {
         let service = SessionService(initialSession: nil)
         let store = SessionStore(service: service)
 
@@ -61,7 +46,6 @@ struct SettingsViewModelTests {
             router: SettingsRouter(),
             sessionStore: store
         )
-        _ = AboutView()
     }
 }
 
