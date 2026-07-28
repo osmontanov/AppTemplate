@@ -1,0 +1,1 @@
+nonisolated protocol HomeService: Sendable {}
