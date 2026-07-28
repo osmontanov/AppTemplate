@@ -7,20 +7,17 @@ SwiftUI boilerplate for iOS 26, iPadOS 26, and macOS 26.
 - `App/Entry` owns application startup.
 - `App/Composition` owns the explicit dependency graph.
 - `App/Navigation` owns app-wide navigation infrastructure.
-- `App/Services` owns app-wide service modules such as Session.
-- `Features/<Feature>` owns Screens, ViewModels, Navigation, Dependencies,
-  Domain, Data, Services, and feature UI components.
-- `Shared` is reserved for genuinely cross-feature UI, extensions, and
-  utilities.
+- `App/Models/Domain` owns shared application and presentation models.
+- `App/Models/Local` and `App/Models/Remote` are reserved for database records
+  and API DTOs.
+- `App/Services` owns `I<ServiceName>` contracts and concrete
+  `<ServiceName>` implementations.
+- `Features/<Feature>/Screens/<Screen>` owns each screen's View and ViewModel.
+- Feature Routers remain in `Features/<Feature>/Navigation`; Routes live with
+  the navigation-owning screen.
+- `Utilities/UIComponents` contains reusable UI independent from screens.
+- There is no Repository layer.
 - `Resources` owns the asset catalog and Info.plist.
-
-Every feature exposes the same folder scaffold. Empty compile-safe types mark
-future extension points but are not registered in DI or instantiated at
-runtime. Existing real types replace placeholders for their roles.
-
-Future shared network transports belong in `App/Services/Network`; database
-engines belong in `App/Services/Database`. Feature-specific adapters, DTOs,
-mappers, and repositories remain inside that feature's `Data` folder.
 
 Tests mirror production ownership under `AppTemplateTests`.
 
@@ -46,11 +43,15 @@ for the architectural decisions and implementation details.
 ## Dependency Injection
 
 `AppDependencies` is the composition root.
-`dependencies.browse.repository` and `dependencies.session.service` are
-app-wide `Sendable` services. `SessionStore` is shared app-wide through typed
-SwiftUI Environment. `AppRouter` is scene-scoped; `BrowseListViewModel` and
-`BrowseDetailViewModel` are screen-owned. Feature dependencies are required
-initializer arguments.
+`dependencies.browse.service` is an `any IBrowseService`; Session consumers
+receive an `any ISessionService`. `BrowseService` and `SessionService` are the
+concrete app-wide `Sendable` services. `SessionStore` is shared app-wide
+through typed SwiftUI Environment. `AppRouter` is scene-scoped;
+`BrowseListViewModel` and `BrowseDetailViewModel` are screen-owned. Feature
+dependencies are required initializer arguments.
+
+`ILocalDatabaseService` and `LocalDatabaseService` are inert template examples
+and are not registered in production dependency injection.
 
 To replace a template service:
 
@@ -80,8 +81,8 @@ store, and router only when needed. No ViewModel receives the whole application
 container or reads SwiftUI Environment.
 
 Routers remain scene-scoped and own typed navigation state. ViewModels own
-presentation state and async screen behavior. Repositories and services own
-domain and infrastructure work.
+presentation state and async screen behavior. Services own domain and
+infrastructure work.
 
 Example:
 
