@@ -26,7 +26,7 @@ struct BrowseDetailView: View {
                     Text(item.summary)
                 }
                 .navigationTitle(item.title)
-            case .notFound:
+            case .empty:
                 ContentUnavailableView(
                     "Item Unavailable",
                     systemImage: "questionmark.folder",

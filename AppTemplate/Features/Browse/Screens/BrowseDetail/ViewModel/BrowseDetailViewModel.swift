@@ -72,7 +72,7 @@ final class BrowseDetailViewModel {
             return
         }
         loadTask = nil
-        state = item.map(BrowseDetailState.content) ?? .notFound
+        state = item.map(BrowseDetailState.content) ?? .empty
     }
 
     private func finishCancellation(version: Int) {

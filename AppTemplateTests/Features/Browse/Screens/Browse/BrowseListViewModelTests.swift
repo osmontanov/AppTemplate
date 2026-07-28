@@ -19,6 +19,19 @@ struct BrowseListViewModelTests {
     }
 
     @Test
+    func emptyListProducesEmptyState() async {
+        let viewModel = BrowseListViewModel(
+            dependencies: BrowseDependencies(
+                service: BrowseService(items: [])
+            )
+        )
+
+        await viewModel.load()
+
+        #expect(viewModel.state == .empty)
+    }
+
+    @Test
     func listFailureProducesDisplaySafeFailure() async {
         let viewModel = BrowseListViewModel(
             dependencies: BrowseDependencies(

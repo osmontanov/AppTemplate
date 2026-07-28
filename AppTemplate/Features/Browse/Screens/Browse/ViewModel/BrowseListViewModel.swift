@@ -66,7 +66,7 @@ final class BrowseListViewModel {
             return
         }
         loadTask = nil
-        state = .content(items)
+        state = items.isEmpty ? .empty : .content(items)
     }
 
     private func finishCancellation(version: Int) {

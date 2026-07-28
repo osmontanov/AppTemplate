@@ -20,7 +20,7 @@ struct BrowseDetailViewModelTests {
     }
 
     @Test
-    func missingDetailProducesNotFound() async {
+    func missingDetailProducesEmptyState() async {
         let viewModel = BrowseDetailViewModel(
             id: "missing",
             dependencies: BrowseDependencies(
@@ -30,7 +30,7 @@ struct BrowseDetailViewModelTests {
 
         await viewModel.load()
 
-        #expect(viewModel.state == .notFound)
+        #expect(viewModel.state == .empty)
     }
 
     @Test

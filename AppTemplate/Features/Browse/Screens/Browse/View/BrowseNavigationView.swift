@@ -24,6 +24,12 @@ struct BrowseNavigationView: View {
                 switch viewModel.state {
                 case .idle, .loading:
                     ProgressView("Loading Browse…")
+                case .empty:
+                    ContentUnavailableView(
+                        "No Browse Items",
+                        systemImage: "tray",
+                        description: Text("There are no Browse items yet.")
+                    )
                 case let .content(items):
                     List(items) { item in
                         NavigationLink(value: BrowseRoute.item(id: item.id)) {
