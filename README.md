@@ -7,12 +7,15 @@ SwiftUI boilerplate for iOS 26, iPadOS 26, and macOS 26.
 - `App/Entry` owns application startup.
 - `App/Composition` owns the explicit dependency graph.
 - `App/Navigation` owns app-wide navigation infrastructure.
-- `App/Models/Domain` owns shared application and presentation models.
-- `App/Models/Local` and `App/Models/Remote` are reserved for database records
-  and API DTOs.
+- `App/Models/Domain` owns shared business entities.
+- `App/Models/State` owns shared application state.
+- `App/Models/Local` owns local queries and persisted records.
+- `App/Models/Remote` owns transport requests and responses.
 - `App/Services` owns `I<ServiceName>` contracts and concrete
   `<ServiceName>` implementations.
 - `Features/<Feature>/Screens/<Screen>` owns each screen's View and ViewModel.
+- `Features/<Feature>/Screens/<Screen>/Model` owns presentation models used
+  only by that screen.
 - Feature Routers remain in `Features/<Feature>/Navigation`; Routes live with
   the navigation-owning screen.
 - `Utilities/UIComponents` contains reusable UI independent from screens.
