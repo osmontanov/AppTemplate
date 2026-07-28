@@ -41,10 +41,10 @@ final class BrowseListViewModel {
         loadTask?.cancel()
         state = .loading
 
-        let repository = dependencies.repository
-        let task = Task { @MainActor [weak self, repository] in
+        let service = dependencies.service
+        let task = Task { @MainActor [weak self, service] in
             do {
-                let items = try await repository.items()
+                let items = try await service.items()
                 try Task.checkCancellation()
                 self?.finish(items, version: version)
             } catch is CancellationError {

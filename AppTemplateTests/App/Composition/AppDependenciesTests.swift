@@ -5,10 +5,10 @@ struct AppDependenciesTests {
     @Test
     func liveGraphUsesDeclaredInMemoryServices() async throws {
         let dependencies = AppDependencies.live()
-        let items = try await dependencies.browse.repository.items()
+        let items = try await dependencies.browse.service.items()
         let session = try await dependencies.session.service.currentSession()
 
-        #expect(dependencies.browse.repository is InMemoryBrowseRepository)
+        #expect(dependencies.browse.service is BrowseService)
         #expect(dependencies.session.service is InMemorySessionService)
         #expect(items.map(\.id) == ["swiftui", "observation", "routing"])
         #expect(session == nil)
@@ -22,7 +22,7 @@ struct AppDependenciesTests {
             browseItems: [item],
             session: session
         )
-        let items = try await dependencies.browse.repository.items()
+        let items = try await dependencies.browse.service.items()
         let restoredSession = try await dependencies.session.service.currentSession()
 
         #expect(items == [item])
@@ -40,29 +40,29 @@ struct AppDependenciesTests {
             id: "injected-user",
             displayName: "Injected User"
         )
-        let repository = InjectedBrowseRepository(item: item)
+        let browseService = InjectedBrowseService(item: item)
         let service = InjectedSessionService(session: session)
         let dependencies = AppDependencies.test(
-            browseRepository: repository,
+            browseService: browseService,
             sessionService: service
         )
-        let items = try await dependencies.browse.repository.items()
+        let items = try await dependencies.browse.service.items()
         let restoredSession = try await dependencies.session.service.currentSession()
-        let resolvedRepository = try #require(
-            dependencies.browse.repository as? InjectedBrowseRepository
+        let resolvedBrowseService = try #require(
+            dependencies.browse.service as? InjectedBrowseService
         )
         let resolvedService = try #require(
             dependencies.session.service as? InjectedSessionService
         )
 
-        #expect(resolvedRepository === repository)
+        #expect(resolvedBrowseService === browseService)
         #expect(resolvedService === service)
         #expect(items == [item])
         #expect(restoredSession == session)
     }
 }
 
-private actor InjectedBrowseRepository: BrowseRepository {
+private actor InjectedBrowseService: IBrowseService {
     private let item: BrowseItem
 
     init(item: BrowseItem) {

@@ -1,4 +1,4 @@
-actor InMemoryBrowseRepository: BrowseRepository {
+actor BrowseService: IBrowseService {
     private var orderedIDs: [BrowseItem.ID]
     private var itemsByID: [BrowseItem.ID: BrowseItem]
 
@@ -15,8 +15,8 @@ actor InMemoryBrowseRepository: BrowseRepository {
         itemsByID[id]
     }
 
-    nonisolated static func live() -> InMemoryBrowseRepository {
-        InMemoryBrowseRepository(items: [
+    nonisolated static func live() -> BrowseService {
+        BrowseService(items: [
             BrowseItem(id: "swiftui", title: "SwiftUI", summary: "Adaptive native interfaces."),
             BrowseItem(id: "observation", title: "Observation", summary: "Focused state tracking."),
             BrowseItem(id: "routing", title: "Typed Routing", summary: "Navigation represented as data.")

@@ -1,7 +1,7 @@
 nonisolated struct BrowseDependencies: Sendable {
-    let repository: any BrowseRepository
+    let service: any IBrowseService
 
-    init(repository: any BrowseRepository) {
-        self.repository = repository
+    init(service: any IBrowseService) {
+        self.service = service
     }
 }

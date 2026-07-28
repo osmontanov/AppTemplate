@@ -5,11 +5,11 @@ import Testing
 @MainActor
 struct BrowseViewModelTests {
     @Test
-    func listLoadsRepositoryItems() async {
+    func listLoadsServiceItems() async {
         let item = BrowseItem(id: "one", title: "One", summary: "First")
         let viewModel = BrowseListViewModel(
             dependencies: BrowseDependencies(
-                repository: InMemoryBrowseRepository(items: [item])
+                service: BrowseService(items: [item])
             )
         )
 
@@ -22,7 +22,7 @@ struct BrowseViewModelTests {
     func listFailureProducesDisplaySafeFailure() async {
         let viewModel = BrowseListViewModel(
             dependencies: BrowseDependencies(
-                repository: FailingBrowseRepository()
+                service: FailingBrowseService()
             )
         )
 
@@ -34,33 +34,33 @@ struct BrowseViewModelTests {
     @Test
     func cancelledListLoadDoesNotPublishNonCooperativeResponse() async {
         let item = BrowseItem(id: "one", title: "One", summary: "Late")
-        let repository = ControlledBrowseRepository()
+        let service = ControlledBrowseService()
         let viewModel = BrowseListViewModel(
-            dependencies: BrowseDependencies(repository: repository)
+            dependencies: BrowseDependencies(service: service)
         )
 
         let load = Task { await viewModel.load() }
-        await repository.waitForCalls(lists: 1)
+        await service.waitForCalls(lists: 1)
         load.cancel()
-        await repository.resumeItems(at: 0, returning: [item])
+        await service.resumeItems(at: 0, returning: [item])
         await load.value
 
         #expect(viewModel.state == .idle)
     }
 
     @Test
-    func cancelledListLoadTreatsOrdinaryRepositoryErrorAsCancellation() async {
-        let repository = ControlledBrowseRepository()
+    func cancelledListLoadTreatsOrdinaryServiceErrorAsCancellation() async {
+        let service = ControlledBrowseService()
         let viewModel = BrowseListViewModel(
-            dependencies: BrowseDependencies(repository: repository)
+            dependencies: BrowseDependencies(service: service)
         )
 
         let load = Task { await viewModel.load() }
-        await repository.waitForCalls(lists: 1)
+        await service.waitForCalls(lists: 1)
         load.cancel()
-        await repository.failItems(at: 0)
+        await service.failItems(at: 0)
         await load.value
-        let loadWasCancelled = await repository.listWasCancelled(at: 0)
+        let loadWasCancelled = await service.listWasCancelled(at: 0)
 
         #expect(loadWasCancelled)
         #expect(viewModel.state == .idle)
@@ -70,21 +70,21 @@ struct BrowseViewModelTests {
     func replacementListLoadCancelsAndRejectsStaleResponse() async {
         let old = BrowseItem(id: "old", title: "Old", summary: "Slow")
         let new = BrowseItem(id: "new", title: "New", summary: "Current")
-        let repository = ControlledBrowseRepository()
+        let service = ControlledBrowseService()
         let viewModel = BrowseListViewModel(
-            dependencies: BrowseDependencies(repository: repository)
+            dependencies: BrowseDependencies(service: service)
         )
 
         let first = Task { await viewModel.load() }
-        await repository.waitForCalls(lists: 1)
+        await service.waitForCalls(lists: 1)
 
         let second = Task { await viewModel.load() }
-        await repository.waitForCalls(lists: 2)
-        await repository.resumeItems(at: 1, returning: [new])
+        await service.waitForCalls(lists: 2)
+        await service.resumeItems(at: 1, returning: [new])
         await second.value
-        await repository.resumeItems(at: 0, returning: [old])
+        await service.resumeItems(at: 0, returning: [old])
         await first.value
-        let firstWasCancelled = await repository.listWasCancelled(at: 0)
+        let firstWasCancelled = await service.listWasCancelled(at: 0)
 
         #expect(firstWasCancelled)
         #expect(viewModel.state == .content([new]))
@@ -96,7 +96,7 @@ struct BrowseViewModelTests {
         let viewModel = BrowseDetailViewModel(
             id: item.id,
             dependencies: BrowseDependencies(
-                repository: InMemoryBrowseRepository(items: [item])
+                service: BrowseService(items: [item])
             )
         )
 
@@ -110,7 +110,7 @@ struct BrowseViewModelTests {
         let viewModel = BrowseDetailViewModel(
             id: "missing",
             dependencies: BrowseDependencies(
-                repository: InMemoryBrowseRepository(items: [])
+                service: BrowseService(items: [])
             )
         )
 
@@ -120,11 +120,11 @@ struct BrowseViewModelTests {
     }
 
     @Test
-    func repositoryFailureProducesDisplaySafeFailure() async {
+    func serviceFailureProducesDisplaySafeFailure() async {
         let viewModel = BrowseDetailViewModel(
             id: "one",
             dependencies: BrowseDependencies(
-                repository: FailingBrowseRepository()
+                service: FailingBrowseService()
             )
         )
 
@@ -137,22 +137,22 @@ struct BrowseViewModelTests {
     func replacementDetailLoadCancelsAndRejectsStaleResponse() async {
         let old = BrowseItem(id: "one", title: "Old", summary: "Slow")
         let new = BrowseItem(id: "one", title: "New", summary: "Fast")
-        let repository = ControlledBrowseRepository()
+        let service = ControlledBrowseService()
         let viewModel = BrowseDetailViewModel(
             id: "one",
-            dependencies: BrowseDependencies(repository: repository)
+            dependencies: BrowseDependencies(service: service)
         )
 
         let first = Task { await viewModel.load() }
-        await repository.waitForCalls(details: 1)
+        await service.waitForCalls(details: 1)
 
         let second = Task { await viewModel.load() }
-        await repository.waitForCalls(details: 2)
-        await repository.resumeItem(at: 1, returning: new)
+        await service.waitForCalls(details: 2)
+        await service.resumeItem(at: 1, returning: new)
         await second.value
-        await repository.resumeItem(at: 0, returning: old)
+        await service.resumeItem(at: 0, returning: old)
         await first.value
-        let firstWasCancelled = await repository.detailWasCancelled(at: 0)
+        let firstWasCancelled = await service.detailWasCancelled(at: 0)
 
         #expect(firstWasCancelled)
         #expect(viewModel.state == .content(new))
@@ -161,35 +161,35 @@ struct BrowseViewModelTests {
     @Test
     func cancelledDetailLoadDoesNotPublishNonCooperativeResponse() async {
         let item = BrowseItem(id: "one", title: "One", summary: "Late")
-        let repository = ControlledBrowseRepository()
+        let service = ControlledBrowseService()
         let viewModel = BrowseDetailViewModel(
             id: "one",
-            dependencies: BrowseDependencies(repository: repository)
+            dependencies: BrowseDependencies(service: service)
         )
 
         let load = Task { await viewModel.load() }
-        await repository.waitForCalls(details: 1)
+        await service.waitForCalls(details: 1)
         load.cancel()
-        await repository.resumeItem(at: 0, returning: item)
+        await service.resumeItem(at: 0, returning: item)
         await load.value
 
         #expect(viewModel.state == .idle)
     }
 
     @Test
-    func cancelledDetailLoadTreatsOrdinaryRepositoryErrorAsCancellation() async {
-        let repository = ControlledBrowseRepository()
+    func cancelledDetailLoadTreatsOrdinaryServiceErrorAsCancellation() async {
+        let service = ControlledBrowseService()
         let viewModel = BrowseDetailViewModel(
             id: "one",
-            dependencies: BrowseDependencies(repository: repository)
+            dependencies: BrowseDependencies(service: service)
         )
 
         let load = Task { await viewModel.load() }
-        await repository.waitForCalls(details: 1)
+        await service.waitForCalls(details: 1)
         load.cancel()
-        await repository.failItem(at: 0)
+        await service.failItem(at: 0)
         await load.value
-        let loadWasCancelled = await repository.detailWasCancelled(at: 0)
+        let loadWasCancelled = await service.detailWasCancelled(at: 0)
 
         #expect(loadWasCancelled)
         #expect(viewModel.state == .idle)
@@ -198,24 +198,24 @@ struct BrowseViewModelTests {
     @Test
     func retryThenDestinationCancellationCancelsOwnedLoad() async {
         let item = BrowseItem(id: "one", title: "One", summary: "Late")
-        let repository = ControlledBrowseRepository()
+        let service = ControlledBrowseService()
         let viewModel = BrowseDetailViewModel(
             id: "one",
-            dependencies: BrowseDependencies(repository: repository)
+            dependencies: BrowseDependencies(service: service)
         )
 
         let initialLoad = Task { await viewModel.load() }
-        await repository.waitForCalls(details: 1)
-        await repository.failItem(at: 0)
+        await service.waitForCalls(details: 1)
+        await service.failItem(at: 0)
         await initialLoad.value
         #expect(viewModel.state == .failed(.load))
 
         let retry = viewModel.retry()
-        await repository.waitForCalls(details: 2)
+        await service.waitForCalls(details: 2)
         viewModel.cancel()
-        await repository.resumeItem(at: 1, returning: item)
+        await service.resumeItem(at: 1, returning: item)
         await retry.value
-        let retryWasCancelled = await repository.detailWasCancelled(at: 1)
+        let retryWasCancelled = await service.detailWasCancelled(at: 1)
 
         #expect(retryWasCancelled)
         #expect(viewModel.state == .idle)
@@ -224,7 +224,7 @@ struct BrowseViewModelTests {
     @Test
     func browseScreensUseScopedDependencies() {
         let dependencies = BrowseDependencies(
-            repository: InMemoryBrowseRepository(items: [])
+            service: BrowseService(items: [])
         )
 
         _ = BrowseNavigationView(
@@ -238,21 +238,21 @@ struct BrowseViewModelTests {
     }
 }
 
-private nonisolated enum BrowseRepositoryTestError: Error {
+private nonisolated enum BrowseServiceTestError: Error {
     case failed
 }
 
-private actor FailingBrowseRepository: BrowseRepository {
+private actor FailingBrowseService: IBrowseService {
     func items() throws -> [BrowseItem] {
-        throw BrowseRepositoryTestError.failed
+        throw BrowseServiceTestError.failed
     }
 
     func item(id: BrowseItem.ID) throws -> BrowseItem? {
-        throw BrowseRepositoryTestError.failed
+        throw BrowseServiceTestError.failed
     }
 }
 
-private actor ControlledBrowseRepository: BrowseRepository {
+private actor ControlledBrowseService: IBrowseService {
     private var listCount = 0
     private var detailCount = 0
     private var listContinuations:
@@ -325,13 +325,13 @@ private actor ControlledBrowseRepository: BrowseRepository {
 
     func failItems(at index: Int) {
         listContinuations.removeValue(forKey: index)?.resume(
-            throwing: BrowseRepositoryTestError.failed
+            throwing: BrowseServiceTestError.failed
         )
     }
 
     func failItem(at index: Int) {
         detailContinuations.removeValue(forKey: index)?.resume(
-            throwing: BrowseRepositoryTestError.failed
+            throwing: BrowseServiceTestError.failed
         )
     }
 

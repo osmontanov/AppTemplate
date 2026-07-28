@@ -13,7 +13,7 @@ nonisolated struct AppDependencies: Sendable {
     static func live() -> AppDependencies {
         AppDependencies(
             browse: BrowseDependencies(
-                repository: InMemoryBrowseRepository.live()
+                service: BrowseService.live()
             ),
             session: SessionDependencies(
                 service: InMemorySessionService(initialSession: nil)
@@ -27,7 +27,7 @@ nonisolated struct AppDependencies: Sendable {
     ) -> AppDependencies {
         AppDependencies(
             browse: BrowseDependencies(
-                repository: InMemoryBrowseRepository(items: browseItems)
+                service: BrowseService(items: browseItems)
             ),
             session: SessionDependencies(
                 service: InMemorySessionService(initialSession: session)
@@ -36,12 +36,12 @@ nonisolated struct AppDependencies: Sendable {
     }
 
     static func test(
-        browseRepository: any BrowseRepository,
+        browseService: any IBrowseService,
         sessionService: any SessionService
     ) -> AppDependencies {
         AppDependencies(
             browse: BrowseDependencies(
-                repository: browseRepository
+                service: browseService
             ),
             session: SessionDependencies(
                 service: sessionService
