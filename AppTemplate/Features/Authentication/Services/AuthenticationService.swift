@@ -1,0 +1,1 @@
+nonisolated protocol AuthenticationService: Sendable {}
