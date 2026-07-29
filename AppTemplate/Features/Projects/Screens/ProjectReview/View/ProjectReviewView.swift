@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct ProjectReviewView: View {
-    @Environment(\.dismiss) private var dismiss
     @State private var errorMessage: String?
     @State private var viewModel: ProjectReviewViewModel
 
@@ -34,7 +33,6 @@ struct ProjectReviewView: View {
                 Button("Save Project") {
                     do {
                         _ = try viewModel.save()
-                        dismiss()
                     } catch {
                         errorMessage = "Unable to save the project."
                     }

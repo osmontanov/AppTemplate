@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct CreateProjectFlowView: View {
+    @Environment(\.dismiss) private var dismiss
     @State private var router = FlowRouter()
     @State private var draft = CreateProjectDraftState()
 
@@ -15,6 +16,12 @@ struct CreateProjectFlowView: View {
                 router: router,
                 store: store
             )
+        }
+        .onChange(of: draft.isComplete) { _, isComplete in
+            guard isComplete else {
+                return
+            }
+            dismiss()
         }
     }
 }

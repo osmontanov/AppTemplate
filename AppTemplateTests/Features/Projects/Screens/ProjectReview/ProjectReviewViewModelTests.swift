@@ -16,6 +16,18 @@ struct ProjectReviewViewModelTests {
     }
 
     @Test
+    func successfulSaveCompletesTheCreationFlow() throws {
+        let store = ProjectsStore(projects: [])
+        let draft = CreateProjectDraftState()
+        draft.title = "Template"
+        let viewModel = ProjectReviewViewModel(draft: draft, store: store)
+
+        _ = try viewModel.save()
+
+        #expect(draft.isComplete)
+    }
+
+    @Test
     func editingDraftWithoutSavingLeavesStoreUnchanged() {
         let store = ProjectsStore(projects: [])
         let draft = CreateProjectDraftState()
