@@ -1,22 +1,16 @@
 import SwiftUI
 
-struct BrowseDetailView: View {
-    private let router: FlowRouter
-    private let dependencies: BrowseDependencies
-    @State private var viewModel: BrowseDetailViewModel
+struct RelatedItemDetailView: View {
+    @State private var viewModel: RelatedItemDetailViewModel
 
     init(
         id: BrowseItem.ID,
-        dependencies: BrowseDependencies,
-        router: FlowRouter
+        dependencies: BrowseDependencies
     ) {
-        self.router = router
-        self.dependencies = dependencies
         _viewModel = State(
-            initialValue: BrowseDetailViewModel(
+            initialValue: RelatedItemDetailViewModel(
                 id: id,
-                dependencies: dependencies,
-                router: router
+                dependencies: dependencies
             )
         )
     }
@@ -25,7 +19,7 @@ struct BrowseDetailView: View {
         Group {
             switch viewModel.state {
             case .idle, .loading:
-                LoadingStateView(title: "Loading Item…")
+                LoadingStateView(title: "Loading Related Item…")
             case let .content(item):
                 Form {
                     LabeledContent("Identifier", value: item.id)
@@ -34,13 +28,13 @@ struct BrowseDetailView: View {
                 .navigationTitle(item.title)
             case .empty:
                 EmptyStateView(
-                    title: "Item Unavailable",
+                    title: "Related Item Unavailable",
                     systemImage: "questionmark.folder",
                     message: "This item no longer exists."
                 )
             case let .failed(failure):
                 ErrorStateView(
-                    title: "Item Unavailable",
+                    title: "Related Item Unavailable",
                     message: failure.message,
                     retry: {
                         viewModel.retry()
@@ -53,21 +47,6 @@ struct BrowseDetailView: View {
         }
         .onDisappear {
             viewModel.cancel()
-        }
-        .toolbar {
-            Button("Related Items", systemImage: "link") {
-                viewModel.openRelatedItems()
-            }
-        }
-        .navigationDestination(for: BrowseDetailRoute.self) { route in
-            switch route {
-            case let .relatedItems(itemID):
-                RelatedItemsView(
-                    sourceItemID: itemID,
-                    dependencies: dependencies,
-                    router: router
-                )
-            }
         }
     }
 }

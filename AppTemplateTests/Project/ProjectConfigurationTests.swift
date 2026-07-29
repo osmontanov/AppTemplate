@@ -45,6 +45,20 @@ struct ProjectConfigurationTests {
             preferences: browsePreferences
         )
         _ = BrowseOptionsView(preferences: browsePreferences)
+        _ = BrowseDetailView(
+            id: "source",
+            dependencies: dependencies.browse,
+            router: router.browse
+        )
+        _ = RelatedItemsView(
+            sourceItemID: "source",
+            dependencies: dependencies.browse,
+            router: router.browse
+        )
+        _ = RelatedItemDetailView(
+            id: "related",
+            dependencies: dependencies.browse
+        )
         _ = ProjectsFlowView(
             router: router.projects,
             dependencies: dependencies.projects

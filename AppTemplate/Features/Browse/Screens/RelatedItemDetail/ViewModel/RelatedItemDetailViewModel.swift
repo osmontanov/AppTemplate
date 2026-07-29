@@ -2,26 +2,19 @@ import Observation
 
 @MainActor
 @Observable
-final class BrowseDetailViewModel {
+final class RelatedItemDetailViewModel {
     let id: BrowseItem.ID
-    private(set) var state: BrowseDetailState = .idle
+    private(set) var state: RelatedItemDetailState = .idle
     private let dependencies: BrowseDependencies
-    private let router: any IFlowRouter
     private var requestVersion = 0
     private var loadTask: Task<Void, Never>?
 
     init(
         id: BrowseItem.ID,
-        dependencies: BrowseDependencies,
-        router: any IFlowRouter
+        dependencies: BrowseDependencies
     ) {
         self.id = id
         self.dependencies = dependencies
-        self.router = router
-    }
-
-    func openRelatedItems() {
-        router.push(BrowseDetailRoute.relatedItems(itemID: id))
     }
 
     func load() async {
@@ -79,7 +72,7 @@ final class BrowseDetailViewModel {
             return
         }
         loadTask = nil
-        state = item.map(BrowseDetailState.content) ?? .empty
+        state = item.map(RelatedItemDetailState.content) ?? .empty
     }
 
     private func finishCancellation(version: Int) {

@@ -1,43 +1,39 @@
 import SwiftUI
 
-struct BrowseView: View {
+struct RelatedItemsView: View {
     private let router: FlowRouter
-    @State private var viewModel: BrowseListViewModel
     private let dependencies: BrowseDependencies
-    private let preferences: BrowsePreferencesStore
+    @State private var viewModel: RelatedItemsViewModel
 
     init(
-        router: FlowRouter,
+        sourceItemID: BrowseItem.ID,
         dependencies: BrowseDependencies,
-        preferences: BrowsePreferencesStore
+        router: FlowRouter
     ) {
         self.router = router
         self.dependencies = dependencies
-        self.preferences = preferences
         _viewModel = State(
-            initialValue: BrowseListViewModel(
+            initialValue: RelatedItemsViewModel(
+                sourceItemID: sourceItemID,
                 dependencies: dependencies,
-                router: router,
-                preferences: preferences
+                router: router
             )
         )
     }
 
     var body: some View {
-        @Bindable var viewModel = viewModel
-
         Group {
             switch viewModel.state {
             case .idle, .loading:
-                LoadingStateView(title: "Loading Browse…")
+                LoadingStateView(title: "Loading Related Items…")
             case .empty:
                 EmptyStateView(
-                    title: "No Browse Items",
-                    systemImage: "tray",
-                    message: "There are no Browse items yet."
+                    title: "No Related Items",
+                    systemImage: "link",
+                    message: "There are no other Browse items."
                 )
-            case .content:
-                List(viewModel.visibleItems) { item in
+            case let .content(items):
+                List(items) { item in
                     Button {
                         viewModel.openItem(id: item.id)
                     } label: {
@@ -52,7 +48,7 @@ struct BrowseView: View {
                 }
             case let .failed(failure):
                 ErrorStateView(
-                    title: "Browse Unavailable",
+                    title: "Related Items Unavailable",
                     message: failure.message,
                     retry: {
                         viewModel.retry()
@@ -60,34 +56,20 @@ struct BrowseView: View {
                 )
             }
         }
-        .navigationTitle("Browse")
-        .toolbar {
-            Button("Options", systemImage: "slider.horizontal.3") {
-                viewModel.openOptions()
-            }
-        }
+        .navigationTitle("Related Items")
         .task {
             await viewModel.load()
         }
         .onDisappear {
             viewModel.cancel()
         }
-        .navigationDestination(for: BrowseRoute.self) { route in
+        .navigationDestination(for: RelatedItemsRoute.self) { route in
             switch route {
             case let .item(id):
-                BrowseDetailView(
+                RelatedItemDetailView(
                     id: id,
-                    dependencies: dependencies,
-                    router: router
+                    dependencies: dependencies
                 )
-            }
-        }
-        .sheet(item: $viewModel.sheet, onDismiss: {
-            viewModel.dismissSheet()
-        }) { route in
-            switch route {
-            case .options:
-                BrowseOptionsView(preferences: preferences)
             }
         }
     }

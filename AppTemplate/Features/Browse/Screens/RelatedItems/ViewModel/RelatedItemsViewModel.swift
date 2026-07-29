@@ -2,26 +2,26 @@ import Observation
 
 @MainActor
 @Observable
-final class BrowseDetailViewModel {
-    let id: BrowseItem.ID
-    private(set) var state: BrowseDetailState = .idle
+final class RelatedItemsViewModel {
+    let sourceItemID: BrowseItem.ID
+    private(set) var state: RelatedItemsState = .idle
     private let dependencies: BrowseDependencies
     private let router: any IFlowRouter
     private var requestVersion = 0
     private var loadTask: Task<Void, Never>?
 
     init(
-        id: BrowseItem.ID,
+        sourceItemID: BrowseItem.ID,
         dependencies: BrowseDependencies,
         router: any IFlowRouter
     ) {
-        self.id = id
+        self.sourceItemID = sourceItemID
         self.dependencies = dependencies
         self.router = router
     }
 
-    func openRelatedItems() {
-        router.push(BrowseDetailRoute.relatedItems(itemID: id))
+    func openItem(id: BrowseItem.ID) {
+        router.push(RelatedItemsRoute.item(id: id))
     }
 
     func load() async {
@@ -54,12 +54,15 @@ final class BrowseDetailViewModel {
         state = .loading
 
         let service = dependencies.service
-        let id = id
-        let task = Task { @MainActor [weak self, service, id] in
+        let sourceItemID = sourceItemID
+        let task = Task { @MainActor [weak self, service, sourceItemID] in
             do {
-                let item = try await service.item(id: id)
+                let items = try await service.items()
                 try Task.checkCancellation()
-                self?.finish(item, version: version)
+                self?.finish(
+                    items.filter { $0.id != sourceItemID },
+                    version: version
+                )
             } catch is CancellationError {
                 self?.finishCancellation(version: version)
             } catch {
@@ -74,12 +77,12 @@ final class BrowseDetailViewModel {
         return task
     }
 
-    private func finish(_ item: BrowseItem?, version: Int) {
+    private func finish(_ items: [BrowseItem], version: Int) {
         guard version == requestVersion else {
             return
         }
         loadTask = nil
-        state = item.map(BrowseDetailState.content) ?? .empty
+        state = items.isEmpty ? .empty : .content(items)
     }
 
     private func finishCancellation(version: Int) {

@@ -1,19 +1,17 @@
 import Foundation
-import SwiftUI
 import Testing
 @testable import AppTemplate
 
 @MainActor
-struct BrowseDetailViewModelTests {
+struct RelatedItemDetailViewModelTests {
     @Test
-    func detailLoadsByStableIdentifier() async {
+    func relatedItemLoadsByStableIdentifier() async {
         let item = BrowseItem(id: "one", title: "One", summary: "First")
-        let viewModel = BrowseDetailViewModel(
+        let viewModel = RelatedItemDetailViewModel(
             id: item.id,
             dependencies: BrowseDependencies(
                 service: BrowseService(items: [item])
-            ),
-            router: FlowRouter()
+            )
         )
 
         await viewModel.load()
@@ -22,13 +20,12 @@ struct BrowseDetailViewModelTests {
     }
 
     @Test
-    func missingDetailProducesEmptyState() async {
-        let viewModel = BrowseDetailViewModel(
+    func missingRelatedItemProducesEmptyState() async {
+        let viewModel = RelatedItemDetailViewModel(
             id: "missing",
             dependencies: BrowseDependencies(
                 service: BrowseService(items: [])
-            ),
-            router: FlowRouter()
+            )
         )
 
         await viewModel.load()
@@ -38,12 +35,11 @@ struct BrowseDetailViewModelTests {
 
     @Test
     func serviceFailureProducesDisplaySafeFailure() async {
-        let viewModel = BrowseDetailViewModel(
+        let viewModel = RelatedItemDetailViewModel(
             id: "one",
             dependencies: BrowseDependencies(
                 service: FailingBrowseService()
-            ),
-            router: FlowRouter()
+            )
         )
 
         await viewModel.load()
@@ -52,14 +48,13 @@ struct BrowseDetailViewModelTests {
     }
 
     @Test
-    func replacementDetailLoadCancelsAndRejectsStaleResponse() async {
+    func replacementLoadCancelsAndRejectsStaleResponse() async {
         let old = BrowseItem(id: "one", title: "Old", summary: "Slow")
-        let new = BrowseItem(id: "one", title: "New", summary: "Fast")
+        let new = BrowseItem(id: "one", title: "New", summary: "Current")
         let service = ControlledBrowseService()
-        let viewModel = BrowseDetailViewModel(
+        let viewModel = RelatedItemDetailViewModel(
             id: "one",
-            dependencies: BrowseDependencies(service: service),
-            router: FlowRouter()
+            dependencies: BrowseDependencies(service: service)
         )
 
         let first = Task { await viewModel.load() }
@@ -78,31 +73,31 @@ struct BrowseDetailViewModelTests {
     }
 
     @Test
-    func cancelledDetailLoadDoesNotPublishNonCooperativeResponse() async {
+    func explicitCancellationRejectsNonCooperativeResponse() async {
         let item = BrowseItem(id: "one", title: "One", summary: "Late")
         let service = ControlledBrowseService()
-        let viewModel = BrowseDetailViewModel(
+        let viewModel = RelatedItemDetailViewModel(
             id: "one",
-            dependencies: BrowseDependencies(service: service),
-            router: FlowRouter()
+            dependencies: BrowseDependencies(service: service)
         )
 
         let load = Task { await viewModel.load() }
         await service.waitForCalls(details: 1)
-        load.cancel()
+        viewModel.cancel()
         await service.resumeItem(at: 0, returning: item)
         await load.value
+        let loadWasCancelled = await service.detailWasCancelled(at: 0)
 
+        #expect(loadWasCancelled)
         #expect(viewModel.state == .idle)
     }
 
     @Test
-    func cancelledDetailLoadTreatsOrdinaryServiceErrorAsCancellation() async {
+    func cancelledLoadTreatsOrdinaryServiceErrorAsCancellation() async {
         let service = ControlledBrowseService()
-        let viewModel = BrowseDetailViewModel(
+        let viewModel = RelatedItemDetailViewModel(
             id: "one",
-            dependencies: BrowseDependencies(service: service),
-            router: FlowRouter()
+            dependencies: BrowseDependencies(service: service)
         )
 
         let load = Task { await viewModel.load() }
@@ -120,10 +115,9 @@ struct BrowseDetailViewModelTests {
     func retryThenDestinationCancellationCancelsOwnedLoad() async {
         let item = BrowseItem(id: "one", title: "One", summary: "Late")
         let service = ControlledBrowseService()
-        let viewModel = BrowseDetailViewModel(
+        let viewModel = RelatedItemDetailViewModel(
             id: "one",
-            dependencies: BrowseDependencies(service: service),
-            router: FlowRouter()
+            dependencies: BrowseDependencies(service: service)
         )
 
         let initialLoad = Task { await viewModel.load() }
@@ -141,35 +135,5 @@ struct BrowseDetailViewModelTests {
 
         #expect(retryWasCancelled)
         #expect(viewModel.state == .idle)
-    }
-
-    @Test
-    func browseDetailScreenUsesScopedDependencies() {
-        let dependencies = BrowseDependencies(
-            service: BrowseService(items: [])
-        )
-        let router = FlowRouter()
-
-        _ = BrowseDetailView(
-            id: "swiftui",
-            dependencies: dependencies,
-            router: router
-        )
-    }
-
-    @Test
-    func detailPushesItsOwnRelatedItemsRoute() {
-        let router = FlowRouter()
-        let viewModel = BrowseDetailViewModel(
-            id: "source",
-            dependencies: BrowseDependencies(
-                service: BrowseService(items: [])
-            ),
-            router: router
-        )
-
-        viewModel.openRelatedItems()
-
-        #expect(router.path.count == 1)
     }
 }
