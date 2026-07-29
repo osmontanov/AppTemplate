@@ -1,3 +1,4 @@
+import SwiftUI
 import Testing
 @testable import AppTemplate
 
@@ -5,17 +6,28 @@ import Testing
 struct NavigationGuideViewModelTests {
     @Test
     func guideExposesPresentationItems() {
-        let guide = NavigationGuideViewModel()
+        let guide = NavigationGuideViewModel(router: FlowRouter())
 
         #expect(guide.items.map(\.title) == [
-            "Typed paths",
-            "Independent tabs",
+            "Screen-owned routes",
+            "Independent flows",
             "Scene restoration"
         ])
     }
 
     @Test
+    func closePopsTheCurrentFlowRouter() {
+        let router = FlowRouter()
+        router.push(HomeRoute.navigationGuide)
+        let guide = NavigationGuideViewModel(router: router)
+
+        guide.close()
+
+        #expect(router.path.isEmpty)
+    }
+
+    @Test
     func navigationGuideScreenCanBeConstructed() {
-        _ = NavigationGuideView()
+        _ = NavigationGuideView(router: FlowRouter())
     }
 }

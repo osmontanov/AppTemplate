@@ -10,9 +10,10 @@ struct AppRootView: View {
         case .launching:
             ProgressView("Launching…")
         case .authentication:
-            AuthenticationView(
+            AuthenticationFlowView(
+                router: router.authentication,
                 sessionStore: sessionStore,
-                router: router
+                appRouter: router
             )
         case .main:
             AppShellView(router: router, dependencies: dependencies)

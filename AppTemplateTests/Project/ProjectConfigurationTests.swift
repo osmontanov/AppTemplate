@@ -25,12 +25,17 @@ struct ProjectConfigurationTests {
             .environment(sessionStore)
         _ = AppShellView(router: router, dependencies: dependencies)
             .environment(sessionStore)
-        _ = HomeNavigationView(router: router.home)
-        _ = BrowseNavigationView(
+        _ = AuthenticationFlowView(
+            router: router.authentication,
+            sessionStore: sessionStore,
+            appRouter: router
+        )
+        _ = HomeFlowView(router: router.home)
+        _ = BrowseFlowView(
             router: router.browse,
             dependencies: dependencies.browse
         )
-        _ = SettingsNavigationView(
+        _ = SettingsFlowView(
             router: router.settings,
             sessionStore: sessionStore
         )

@@ -4,6 +4,7 @@ import Observation
 @Observable
 final class SettingsViewModel {
     private let sessionStore: SessionStore
+    private let router: any IFlowRouter
 
     var phase: SessionPhase {
         sessionStore.phase
@@ -13,8 +14,16 @@ final class SettingsViewModel {
         sessionStore.failure?.message
     }
 
-    init(sessionStore: SessionStore) {
+    init(
+        sessionStore: SessionStore,
+        router: any IFlowRouter
+    ) {
         self.sessionStore = sessionStore
+        self.router = router
+    }
+
+    func openAbout() {
+        router.push(SettingsRoute.about)
     }
 
     func signOut() async {

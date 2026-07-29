@@ -7,20 +7,23 @@ import OSLog
 final class AppRouter {
     var flow: AppFlow
     var selectedSection: AppSection
-    let home: HomeRouter
-    let browse: BrowseRouter
-    let settings: SettingsRouter
+    let authentication: FlowRouter
+    let home: FlowRouter
+    let browse: FlowRouter
+    let settings: FlowRouter
     private(set) var pendingIntent: NavigationIntent?
 
     init(
         flow: AppFlow,
         selectedSection: AppSection,
-        home: HomeRouter,
-        browse: BrowseRouter,
-        settings: SettingsRouter
+        authentication: FlowRouter,
+        home: FlowRouter,
+        browse: FlowRouter,
+        settings: FlowRouter
     ) {
         self.flow = flow
         self.selectedSection = selectedSection
+        self.authentication = authentication
         self.home = home
         self.browse = browse
         self.settings = settings
@@ -33,9 +36,10 @@ final class AppRouter {
         self.init(
             flow: flow,
             selectedSection: selectedSection,
-            home: HomeRouter(),
-            browse: BrowseRouter(),
-            settings: SettingsRouter()
+            authentication: FlowRouter(),
+            home: FlowRouter(),
+            browse: FlowRouter(),
+            settings: FlowRouter()
         )
     }
 
@@ -48,22 +52,40 @@ final class AppRouter {
     }
 
     func finishLaunching(isAuthenticated: Bool) -> NavigationOutcome? {
-        flow = isAuthenticated ? .main : .authentication
         guard isAuthenticated else {
+            pendingIntent = nil
+            resetFlowHistories()
+            flow = .authentication
             return nil
         }
+
+        authentication.popToRoot()
+        flow = .main
         return replayPendingIntent()
     }
 
     func completeAuthentication(succeeded: Bool) -> NavigationOutcome? {
         guard succeeded else {
             pendingIntent = nil
+            authentication.popToRoot()
             flow = .authentication
             return nil
         }
 
+        resetFlowHistories()
         flow = .main
         return replayPendingIntent()
+    }
+
+    func requireAuthentication() {
+        pendingIntent = nil
+        resetFlowHistories()
+        flow = .authentication
+    }
+
+    func openDefaultDestination(for section: AppSection) {
+        selectedSection = section
+        router(for: section).popToRoot()
     }
 
     private func replayPendingIntent() -> NavigationOutcome? {
@@ -78,27 +100,33 @@ final class AppRouter {
         switch intent {
         case let .selectSection(section):
             selectedSection = section
-            return .applied
         case let .openSectionRoot(section):
             openDefaultDestination(for: section)
-            return .applied
         case let .browseItem(id):
             selectedSection = .browse
-            browse.replacePath(with: [.item(id: id)])
-            return .applied
+            browse.popToRoot()
+            browse.push(BrowseRoute.item(id: id))
+        }
+        return .applied
+    }
+
+    private func router(for section: AppSection) -> FlowRouter {
+        switch section {
+        case .home:
+            home
+        case .browse:
+            browse
+        case .settings:
+            settings
         }
     }
 
-    func openDefaultDestination(for section: AppSection) {
-        selectedSection = section
-        switch section {
-        case .home:
-            home.popToRoot()
-        case .browse:
-            browse.popToRoot()
-        case .settings:
-            settings.popToRoot()
-        }
+    private func resetFlowHistories() {
+        selectedSection = .home
+        authentication.popToRoot()
+        home.popToRoot()
+        browse.popToRoot()
+        settings.popToRoot()
     }
 }
 
@@ -137,17 +165,27 @@ extension AppRouter {
             return .reset(.unsupportedSchema(decoded.schemaVersion))
         }
 
+        guard let homePath = decoded.homePath.restoredPath,
+              let browsePath = decoded.browsePath.restoredPath,
+              let settingsPath = decoded.settingsPath.restoredPath else {
+            resetNavigation()
+            Logger.navigation.error(
+                "Reset navigation snapshot with a non-restorable path"
+            )
+            return .reset(.corruptData)
+        }
+
         selectedSection = decoded.selectedSection
-        home.replacePath(with: decoded.homePath)
-        browse.replacePath(with: decoded.browsePath)
-        settings.replacePath(with: decoded.settingsPath)
+        authentication.popToRoot()
+        home.replacePath(with: homePath)
+        browse.replacePath(with: browsePath)
+        settings.replacePath(with: settingsPath)
+        pendingIntent = nil
         return .restored
     }
 
     func resetNavigation() {
-        selectedSection = .home
-        home.popToRoot()
-        browse.popToRoot()
-        settings.popToRoot()
+        pendingIntent = nil
+        resetFlowHistories()
     }
 }

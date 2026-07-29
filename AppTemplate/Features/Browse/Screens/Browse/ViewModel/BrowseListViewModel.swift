@@ -5,11 +5,20 @@ import Observation
 final class BrowseListViewModel {
     private(set) var state: BrowseListState = .idle
     private let dependencies: BrowseDependencies
+    private let router: any IFlowRouter
     private var requestVersion = 0
     private var loadTask: Task<Void, Never>?
 
-    init(dependencies: BrowseDependencies) {
+    init(
+        dependencies: BrowseDependencies,
+        router: any IFlowRouter
+    ) {
         self.dependencies = dependencies
+        self.router = router
+    }
+
+    func openItem(id: BrowseItem.ID) {
+        router.push(BrowseRoute.item(id: id))
     }
 
     func load() async {

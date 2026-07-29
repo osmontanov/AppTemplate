@@ -31,11 +31,15 @@ final class AppSceneNavigationLifecycle {
         case .unauthenticated:
             if router.flow == .launching {
                 _ = router.finishLaunching(isAuthenticated: false)
-            } else {
-                router.flow = .authentication
+            } else if router.flow == .main {
+                router.requireAuthentication()
             }
         case .authenticated:
-            _ = router.completeAuthentication(succeeded: true)
+            if router.flow == .launching {
+                _ = router.finishLaunching(isAuthenticated: true)
+            } else if router.flow == .authentication {
+                _ = router.completeAuthentication(succeeded: true)
+            }
         }
     }
 

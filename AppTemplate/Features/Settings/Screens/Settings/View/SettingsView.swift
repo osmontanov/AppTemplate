@@ -1,51 +1,52 @@
 import SwiftUI
 
-struct SettingsNavigationView: View {
-    @Bindable var router: SettingsRouter
+struct SettingsView: View {
+    private let router: FlowRouter
     @State private var viewModel: SettingsViewModel
 
     init(
-        router: SettingsRouter,
+        router: FlowRouter,
         sessionStore: SessionStore
     ) {
         self.router = router
         _viewModel = State(
             initialValue: SettingsViewModel(
-                sessionStore: sessionStore
+                sessionStore: sessionStore,
+                router: router
             )
         )
     }
 
     var body: some View {
-        NavigationStack(path: $router.path) {
-            List {
-                Section("Session") {
-                    switch viewModel.phase {
-                    case let .authenticated(session):
-                        LabeledContent("Signed in", value: session.displayName)
-                        Button("Sign Out") {
-                            Task { await viewModel.signOut() }
-                        }
-                    case .idle, .loading:
-                        ProgressView()
-                    case .unauthenticated:
-                        Text("Not signed in")
+        List {
+            Section("Session") {
+                switch viewModel.phase {
+                case let .authenticated(session):
+                    LabeledContent("Signed in", value: session.displayName)
+                    Button("Sign Out") {
+                        Task { await viewModel.signOut() }
                     }
-
-                    if let failureMessage = viewModel.failureMessage {
-                        Text(failureMessage)
-                            .foregroundStyle(.secondary)
-                    }
+                case .idle, .loading:
+                    ProgressView()
+                case .unauthenticated:
+                    Text("Not signed in")
                 }
 
-                NavigationLink("About this template", value: SettingsRoute.about)
+                if let failureMessage = viewModel.failureMessage {
+                    Text(failureMessage)
+                        .foregroundStyle(.secondary)
+                }
             }
-            .navigationTitle("Settings")
-            .navigationDestination(for: SettingsRoute.self) { route in
-                switch route {
-                case .about:
-                    AboutView()
-                }
+
+            Button("About this template") {
+                viewModel.openAbout()
+            }
+        }
+        .navigationTitle("Settings")
+        .navigationDestination(for: SettingsRoute.self) { route in
+            switch route {
+            case .about:
+                AboutView()
             }
         }
     }

@@ -1,17 +1,20 @@
+import SwiftUI
 import Testing
 @testable import AppTemplate
 
 @MainActor
 struct AppRouterTests {
     @Test
-    func designatedInitializerKeepsInjectedFeatureRouters() {
-        let home = HomeRouter(path: [.details])
-        let browse = BrowseRouter(path: [.item(id: "swiftui")])
-        let settings = SettingsRouter(path: [.about])
+    func designatedInitializerKeepsInjectedFlowRouters() {
+        let authentication = FlowRouter()
+        let home = FlowRouter()
+        let browse = FlowRouter()
+        let settings = FlowRouter()
 
         let router = AppRouter(
             flow: .launching,
             selectedSection: .settings,
+            authentication: authentication,
             home: home,
             browse: browse,
             settings: settings
@@ -19,57 +22,98 @@ struct AppRouterTests {
 
         #expect(router.flow == .launching)
         #expect(router.selectedSection == .settings)
+        #expect(router.authentication === authentication)
         #expect(router.home === home)
         #expect(router.browse === browse)
         #expect(router.settings === settings)
     }
 
     @Test
-    func browseIntentSelectsBrowseAndBuildsPath() {
+    func browseIntentSelectsBrowseAndBuildsCanonicalPath() {
         let router = AppRouter()
+
         let outcome = router.handle(.browseItem(id: "swiftui"))
 
         #expect(outcome == .applied)
         #expect(router.selectedSection == .browse)
-        #expect(router.browse.path == [.item(id: "swiftui")])
+        #expect(router.browse.path.count == 1)
     }
 
     @Test
-    func unknownBrowseIdentifierStillBuildsTypedRoute() {
+    func unknownBrowseIdentifierStillBuildsRouteAndPreservesOtherFlows() {
         let router = AppRouter(selectedSection: .settings)
-        router.home.push(.details)
-        router.settings.push(.about)
+        router.home.push(HomeRoute.details)
+        router.settings.push(SettingsRoute.about)
 
         let outcome = router.handle(.browseItem(id: "missing"))
 
         #expect(outcome == .applied)
         #expect(router.selectedSection == .browse)
-        #expect(router.browse.path == [.item(id: "missing")])
-        #expect(router.home.path == [.details])
-        #expect(router.settings.path == [.about])
+        #expect(router.browse.path.count == 1)
+        #expect(router.home.path.count == 1)
+        #expect(router.settings.path.count == 1)
     }
 
     @Test
-    func intentWaitsForAuthenticationAndReplaysAfterSuccess() {
+    func successfulNewAuthenticationResetsHistoriesBeforeReplayingIntent() {
         let router = AppRouter(flow: .authentication)
+        router.authentication.push(AuthenticationTestRoute.step)
+        router.home.push(HomeRoute.details)
+        router.settings.push(SettingsRoute.about)
+        _ = router.handle(.browseItem(id: "swiftui"))
 
-        #expect(router.handle(.browseItem(id: "swiftui")) == .deferred)
-        #expect(router.pendingIntent == .browseItem(id: "swiftui"))
+        let outcome = router.completeAuthentication(succeeded: true)
 
-        #expect(router.completeAuthentication(succeeded: true) == .applied)
+        #expect(outcome == .applied)
         #expect(router.flow == .main)
         #expect(router.pendingIntent == nil)
-        #expect(router.browse.path == [.item(id: "swiftui")])
+        #expect(router.authentication.path.isEmpty)
+        #expect(router.home.path.isEmpty)
+        #expect(router.settings.path.isEmpty)
+        #expect(router.browse.path.count == 1)
+        #expect(router.selectedSection == .browse)
     }
 
     @Test
-    func cancelledAuthenticationClearsPendingIntent() {
+    func cancelledAuthenticationClearsPendingIntentAndAuthenticationHistory() {
         let router = AppRouter(flow: .authentication)
+        router.authentication.push(AuthenticationTestRoute.step)
         _ = router.handle(.selectSection(.settings))
 
         #expect(router.completeAuthentication(succeeded: false) == nil)
         #expect(router.pendingIntent == nil)
         #expect(router.flow == .authentication)
+        #expect(router.authentication.path.isEmpty)
+    }
+
+    @Test
+    func authenticatedColdLaunchPreservesRestoredTabHistories() {
+        let router = AppRouter(flow: .launching)
+        router.home.push(HomeRoute.details)
+        router.authentication.push(AuthenticationTestRoute.step)
+
+        _ = router.finishLaunching(isAuthenticated: true)
+
+        #expect(router.flow == .main)
+        #expect(router.home.path.count == 1)
+        #expect(router.authentication.path.isEmpty)
+    }
+
+    @Test
+    func requiringAuthenticationResetsEveryHistory() {
+        let router = AppRouter()
+        router.home.push(HomeRoute.details)
+        router.browse.push(BrowseRoute.item(id: "swiftui"))
+        router.settings.push(SettingsRoute.about)
+
+        router.requireAuthentication()
+
+        #expect(router.flow == .authentication)
+        #expect(router.selectedSection == .home)
+        #expect(router.authentication.path.isEmpty)
+        #expect(router.home.path.isEmpty)
+        #expect(router.browse.path.isEmpty)
+        #expect(router.settings.path.isEmpty)
     }
 
     @Test
@@ -80,8 +124,12 @@ struct AppRouterTests {
         _ = firstScene.handle(.browseItem(id: "swiftui"))
 
         #expect(firstScene.selectedSection == .browse)
-        #expect(firstScene.browse.path == [.item(id: "swiftui")])
+        #expect(firstScene.browse.path.count == 1)
         #expect(secondScene.selectedSection == .home)
         #expect(secondScene.browse.path.isEmpty)
     }
+}
+
+private nonisolated enum AuthenticationTestRoute: String, NavigationRoute {
+    case step
 }

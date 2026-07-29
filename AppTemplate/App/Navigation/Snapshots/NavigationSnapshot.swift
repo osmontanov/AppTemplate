@@ -1,32 +1,42 @@
 import Foundation
+import SwiftUI
 
-struct NavigationSnapshot: Codable, Equatable, Sendable {
-    static let currentSchemaVersion = 1
+struct NavigationSnapshot: Codable, Equatable {
+    static let currentSchemaVersion = 2
 
     let schemaVersion: Int
     var selectedSection: AppSection
-    var homePath: [HomeRoute]
-    var browsePath: [BrowseRoute]
-    var settingsPath: [SettingsRoute]
+    var homePath: FlowPathSnapshot
+    var browsePath: FlowPathSnapshot
+    var settingsPath: FlowPathSnapshot
 
     init(
         schemaVersion: Int = Self.currentSchemaVersion,
         selectedSection: AppSection,
-        homePath: [HomeRoute],
-        browsePath: [BrowseRoute],
-        settingsPath: [SettingsRoute]
+        homePath: NavigationPath,
+        browsePath: NavigationPath,
+        settingsPath: NavigationPath
     ) {
         self.schemaVersion = schemaVersion
         self.selectedSection = selectedSection
-        self.homePath = homePath
-        self.browsePath = browsePath
-        self.settingsPath = settingsPath
+        self.homePath = FlowPathSnapshot(path: homePath)
+        self.browsePath = FlowPathSnapshot(path: browsePath)
+        self.settingsPath = FlowPathSnapshot(path: settingsPath)
     }
+}
+
+nonisolated enum NavigationSnapshotEncodingError: Error, Equatable {
+    case nonRestorablePath
 }
 
 enum NavigationSnapshotCodec {
     static func encode(_ snapshot: NavigationSnapshot) throws -> Data {
-        try JSONEncoder().encode(snapshot)
+        guard snapshot.homePath.isRestorable,
+              snapshot.browsePath.isRestorable,
+              snapshot.settingsPath.isRestorable else {
+            throw NavigationSnapshotEncodingError.nonRestorablePath
+        }
+        return try JSONEncoder().encode(snapshot)
     }
 
     static func decode(_ data: Data) throws -> NavigationSnapshot {
@@ -46,12 +56,12 @@ enum NavigationSnapshotCodec {
     }
 }
 
-enum NavigationRestorationFailure: Equatable, Sendable {
+nonisolated enum NavigationRestorationFailure: Equatable, Sendable {
     case corruptData
     case unsupportedSchema(Int)
 }
 
-enum NavigationRestorationResult: Equatable, Sendable {
+nonisolated enum NavigationRestorationResult: Equatable, Sendable {
     case noState
     case restored
     case reset(NavigationRestorationFailure)

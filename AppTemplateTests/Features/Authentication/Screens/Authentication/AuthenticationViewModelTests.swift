@@ -87,13 +87,19 @@ struct AuthenticationViewModelTests {
     }
 
     @Test
-    func authenticationScreenCanBeConstructed() {
+    func authenticationFlowAndScreenCanBeConstructed() {
         let service = SessionService(initialSession: nil)
         let store = SessionStore(service: service)
+        let appRouter = AppRouter(flow: .authentication)
 
         _ = AuthenticationView(
             sessionStore: store,
-            router: AppRouter(flow: .authentication)
+            router: appRouter
+        )
+        _ = AuthenticationFlowView(
+            router: appRouter.authentication,
+            sessionStore: store,
+            appRouter: appRouter
         )
     }
 }

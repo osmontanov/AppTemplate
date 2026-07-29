@@ -3,39 +3,40 @@ import Observation
 @MainActor
 @Observable
 final class HomeViewModel {
-    let router: HomeRouter
+    private let router: any IFlowRouter
+    var alert: HomeAlertRoute?
 
     var isResetAlertPresented: Bool {
-        get { router.alert != nil }
+        get { alert != nil }
         set {
             if !newValue {
-                router.alert = nil
+                alert = nil
             }
         }
     }
 
-    init(router: HomeRouter) {
+    init(router: any IFlowRouter) {
         self.router = router
     }
 
     func openDetails() {
-        router.push(.details)
+        router.push(HomeRoute.details)
     }
 
     func openNavigationGuide() {
-        router.sheet = .navigationGuide
+        router.push(HomeRoute.navigationGuide)
     }
 
     func requestNavigationReset() {
-        router.alert = .resetNavigation
+        alert = .resetNavigation
     }
 
     func confirmNavigationReset() {
         router.popToRoot()
-        router.alert = nil
+        alert = nil
     }
 
     func cancelNavigationReset() {
-        router.alert = nil
+        alert = nil
     }
 }

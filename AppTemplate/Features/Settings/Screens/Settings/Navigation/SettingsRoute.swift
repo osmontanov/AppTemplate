@@ -1,3 +1,3 @@
-enum SettingsRoute: String, Codable, Hashable, Sendable {
+nonisolated enum SettingsRoute: String, NavigationRoute {
     case about
 }

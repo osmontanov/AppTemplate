@@ -1,13 +1,8 @@
-enum HomeRoute: String, Codable, Hashable, Sendable {
+nonisolated enum HomeRoute: String, NavigationRoute {
     case details
-}
-
-enum HomeSheetRoute: String, Codable, Hashable, Identifiable, Sendable {
     case navigationGuide
-
-    var id: Self { self }
 }
 
-enum HomeAlertRoute: String, Codable, Hashable, Sendable {
+nonisolated enum HomeAlertRoute: String, Codable, Hashable, Sendable {
     case resetNavigation
 }

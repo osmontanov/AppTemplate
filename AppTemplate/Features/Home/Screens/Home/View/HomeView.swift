@@ -1,49 +1,42 @@
 import SwiftUI
 
-struct HomeNavigationView: View {
+struct HomeView: View {
+    private let router: FlowRouter
     @State private var viewModel: HomeViewModel
 
-    init(router: HomeRouter) {
+    init(router: FlowRouter) {
+        self.router = router
         _viewModel = State(
             initialValue: HomeViewModel(router: router)
         )
     }
 
     var body: some View {
-        @Bindable var router = viewModel.router
-        @Bindable var bindableViewModel = viewModel
+        @Bindable var viewModel = viewModel
 
-        NavigationStack(path: $router.path) {
-            List {
-                Button("Navigation details") {
-                    viewModel.openDetails()
-                }
-                Button("Open navigation guide") {
-                    viewModel.openNavigationGuide()
-                }
-                Button("Reset Home navigation", role: .destructive) {
-                    viewModel.requestNavigationReset()
-                }
+        List {
+            Button("Navigation details") {
+                viewModel.openDetails()
             }
-            .navigationTitle("Home")
-            .navigationDestination(for: HomeRoute.self) { route in
-                switch route {
-                case .details:
-                    HomeDetailsView()
-                }
+            Button("Open navigation guide") {
+                viewModel.openNavigationGuide()
+            }
+            Button("Reset Home navigation", role: .destructive) {
+                viewModel.requestNavigationReset()
             }
         }
-        .sheet(item: $router.sheet) { route in
+        .navigationTitle("Home")
+        .navigationDestination(for: HomeRoute.self) { route in
             switch route {
+            case .details:
+                HomeDetailsView(router: router)
             case .navigationGuide:
-                NavigationStack {
-                    NavigationGuideView()
-                }
+                NavigationGuideView(router: router)
             }
         }
         .alert(
             "Reset Home navigation?",
-            isPresented: $bindableViewModel.isResetAlertPresented
+            isPresented: $viewModel.isResetAlertPresented
         ) {
             Button("Reset", role: .destructive) {
                 viewModel.confirmNavigationReset()

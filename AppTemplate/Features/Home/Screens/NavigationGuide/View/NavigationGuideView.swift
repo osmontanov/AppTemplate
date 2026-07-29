@@ -1,12 +1,11 @@
 import SwiftUI
 
 struct NavigationGuideView: View {
-    @Environment(\.dismiss) private var dismiss
     @State private var viewModel: NavigationGuideViewModel
 
-    init() {
+    init(router: FlowRouter) {
         _viewModel = State(
-            initialValue: NavigationGuideViewModel()
+            initialValue: NavigationGuideViewModel(router: router)
         )
     }
 
@@ -18,7 +17,7 @@ struct NavigationGuideView: View {
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Done") {
-                    dismiss()
+                    viewModel.close()
                 }
             }
         }

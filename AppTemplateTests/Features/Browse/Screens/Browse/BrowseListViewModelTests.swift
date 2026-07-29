@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Testing
 @testable import AppTemplate
 
@@ -10,7 +11,8 @@ struct BrowseListViewModelTests {
         let viewModel = BrowseListViewModel(
             dependencies: BrowseDependencies(
                 service: BrowseService(items: [item])
-            )
+            ),
+            router: FlowRouter()
         )
 
         await viewModel.load()
@@ -23,7 +25,8 @@ struct BrowseListViewModelTests {
         let viewModel = BrowseListViewModel(
             dependencies: BrowseDependencies(
                 service: BrowseService(items: [])
-            )
+            ),
+            router: FlowRouter()
         )
 
         await viewModel.load()
@@ -36,7 +39,8 @@ struct BrowseListViewModelTests {
         let viewModel = BrowseListViewModel(
             dependencies: BrowseDependencies(
                 service: FailingBrowseService()
-            )
+            ),
+            router: FlowRouter()
         )
 
         await viewModel.load()
@@ -49,7 +53,8 @@ struct BrowseListViewModelTests {
         let item = BrowseItem(id: "one", title: "One", summary: "Late")
         let service = ControlledBrowseService()
         let viewModel = BrowseListViewModel(
-            dependencies: BrowseDependencies(service: service)
+            dependencies: BrowseDependencies(service: service),
+            router: FlowRouter()
         )
 
         let load = Task { await viewModel.load() }
@@ -65,7 +70,8 @@ struct BrowseListViewModelTests {
     func cancelledListLoadTreatsOrdinaryServiceErrorAsCancellation() async {
         let service = ControlledBrowseService()
         let viewModel = BrowseListViewModel(
-            dependencies: BrowseDependencies(service: service)
+            dependencies: BrowseDependencies(service: service),
+            router: FlowRouter()
         )
 
         let load = Task { await viewModel.load() }
@@ -85,7 +91,8 @@ struct BrowseListViewModelTests {
         let new = BrowseItem(id: "new", title: "New", summary: "Current")
         let service = ControlledBrowseService()
         let viewModel = BrowseListViewModel(
-            dependencies: BrowseDependencies(service: service)
+            dependencies: BrowseDependencies(service: service),
+            router: FlowRouter()
         )
 
         let first = Task { await viewModel.load() }
@@ -104,14 +111,32 @@ struct BrowseListViewModelTests {
     }
 
     @Test
-    func browseListScreenUsesScopedDependencies() {
+    func openingAnItemPushesTheBrowseScreenRoute() {
         let dependencies = BrowseDependencies(
             service: BrowseService(items: [])
         )
+        let router = FlowRouter()
+        let viewModel = BrowseListViewModel(
+            dependencies: dependencies,
+            router: router
+        )
 
-        _ = BrowseNavigationView(
-            router: BrowseRouter(),
+        viewModel.openItem(id: "swiftui")
+
+        #expect(router.path.count == 1)
+    }
+
+    @Test
+    func browseFlowAndScreenUseScopedDependencies() {
+        let dependencies = BrowseDependencies(
+            service: BrowseService(items: [])
+        )
+        let router = FlowRouter()
+
+        _ = BrowseFlowView(
+            router: router,
             dependencies: dependencies
         )
+        _ = BrowseView(router: router, dependencies: dependencies)
     }
 }

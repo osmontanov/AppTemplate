@@ -1,3 +1,3 @@
-nonisolated enum BrowseRoute: Codable, Hashable, Sendable {
+nonisolated enum BrowseRoute: NavigationRoute {
     case item(id: BrowseItem.ID)
 }

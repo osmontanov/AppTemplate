@@ -1,3 +1,4 @@
+import SwiftUI
 import Testing
 @testable import AppTemplate
 
@@ -9,7 +10,10 @@ struct SettingsViewModelTests {
         let service = SessionService(initialSession: session)
         let store = SessionStore(service: service)
         await store.start()
-        let viewModel = SettingsViewModel(sessionStore: store)
+        let viewModel = SettingsViewModel(
+            sessionStore: store,
+            router: FlowRouter()
+        )
 
         #expect(viewModel.phase == .authenticated(session))
 
@@ -26,7 +30,10 @@ struct SettingsViewModelTests {
             service: FailingSettingsSessionService(session: session)
         )
         await store.start()
-        let viewModel = SettingsViewModel(sessionStore: store)
+        let viewModel = SettingsViewModel(
+            sessionStore: store,
+            router: FlowRouter()
+        )
 
         await viewModel.signOut()
 
@@ -38,14 +45,31 @@ struct SettingsViewModelTests {
     }
 
     @Test
-    func settingsScreenCanBeConstructed() {
+    func openingAboutPushesTheSettingsScreenRoute() {
         let service = SessionService(initialSession: nil)
         let store = SessionStore(service: service)
+        let router = FlowRouter()
+        let viewModel = SettingsViewModel(
+            sessionStore: store,
+            router: router
+        )
 
-        _ = SettingsNavigationView(
-            router: SettingsRouter(),
+        viewModel.openAbout()
+
+        #expect(router.path.count == 1)
+    }
+
+    @Test
+    func settingsFlowAndScreenCanBeConstructed() {
+        let service = SessionService(initialSession: nil)
+        let store = SessionStore(service: service)
+        let router = FlowRouter()
+
+        _ = SettingsFlowView(
+            router: router,
             sessionStore: store
         )
+        _ = SettingsView(router: router, sessionStore: store)
     }
 }
 

@@ -6,13 +6,13 @@ final class NavigationGuideViewModel {
     let title = "Navigation Guide"
     let items = [
         NavigationGuideItem(
-            id: "typed-paths",
-            title: "Typed paths",
+            id: "screen-owned-routes",
+            title: "Screen-owned routes",
             systemImage: "list.bullet.rectangle"
         ),
         NavigationGuideItem(
-            id: "independent-tabs",
-            title: "Independent tabs",
+            id: "independent-flows",
+            title: "Independent flows",
             systemImage: "square.3.layers.3d"
         ),
         NavigationGuideItem(
@@ -21,4 +21,14 @@ final class NavigationGuideViewModel {
             systemImage: "arrow.clockwise"
         )
     ]
+
+    private let router: any IFlowRouter
+
+    init(router: any IFlowRouter) {
+        self.router = router
+    }
+
+    func close() {
+        router.pop()
+    }
 }

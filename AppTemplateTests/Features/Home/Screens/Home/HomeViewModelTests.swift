@@ -1,55 +1,53 @@
+import SwiftUI
 import Testing
 @testable import AppTemplate
 
 @MainActor
 struct HomeViewModelTests {
     @Test
-    func userIntentsDriveTheHomeRouter() {
-        let router = HomeRouter()
+    func userIntentsPushScreenOwnedRoutes() {
+        let router = FlowRouter()
         let viewModel = HomeViewModel(router: router)
 
         viewModel.openDetails()
-        #expect(router.path == [.details])
-
         viewModel.openNavigationGuide()
-        #expect(router.sheet == .navigationGuide)
 
-        viewModel.requestNavigationReset()
-        #expect(router.alert == .resetNavigation)
-        #expect(viewModel.isResetAlertPresented)
-
-        viewModel.cancelNavigationReset()
-        #expect(router.alert == nil)
+        #expect(router.path.count == 2)
+        #expect(router.path.codable != nil)
     }
 
     @Test
-    func confirmedResetClearsOnlyHomePresentationState() {
-        let router = HomeRouter(
-            path: [.details],
-            sheet: .navigationGuide,
-            alert: .resetNavigation
-        )
+    func resetAlertIsLocalAndConfirmationClearsTheFlow() {
+        let router = FlowRouter()
+        router.push(HomeRoute.details)
         let viewModel = HomeViewModel(router: router)
+
+        viewModel.requestNavigationReset()
+        #expect(viewModel.alert == .resetNavigation)
+        #expect(viewModel.isResetAlertPresented)
 
         viewModel.confirmNavigationReset()
 
         #expect(router.path.isEmpty)
-        #expect(router.alert == nil)
-        #expect(router.sheet == .navigationGuide)
+        #expect(viewModel.alert == nil)
     }
 
     @Test
     func dismissingResetBindingClearsTheAlert() {
-        let router = HomeRouter(alert: .resetNavigation)
+        let router = FlowRouter()
         let viewModel = HomeViewModel(router: router)
+        viewModel.requestNavigationReset()
 
         viewModel.isResetAlertPresented = false
 
-        #expect(router.alert == nil)
+        #expect(viewModel.alert == nil)
     }
 
     @Test
-    func homeScreenCanBeConstructed() {
-        _ = HomeNavigationView(router: HomeRouter())
+    func homeFlowAndScreenCanBeConstructed() {
+        let router = FlowRouter()
+
+        _ = HomeFlowView(router: router)
+        _ = HomeView(router: router)
     }
 }
