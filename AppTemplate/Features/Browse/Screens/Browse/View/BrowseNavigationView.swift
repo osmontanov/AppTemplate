@@ -23,12 +23,12 @@ struct BrowseNavigationView: View {
             Group {
                 switch viewModel.state {
                 case .idle, .loading:
-                    ProgressView("Loading Browse…")
+                    LoadingStateView(title: "Loading Browse…")
                 case .empty:
-                    ContentUnavailableView(
-                        "No Browse Items",
+                    EmptyStateView(
+                        title: "No Browse Items",
                         systemImage: "tray",
-                        description: Text("There are no Browse items yet.")
+                        message: "There are no Browse items yet."
                     )
                 case let .content(items):
                     List(items) { item in
@@ -42,18 +42,13 @@ struct BrowseNavigationView: View {
                         }
                     }
                 case let .failed(failure):
-                    ContentUnavailableView {
-                        Label(
-                            "Browse Unavailable",
-                            systemImage: "exclamationmark.triangle"
-                        )
-                    } description: {
-                        Text(failure.message)
-                    } actions: {
-                        Button("Retry") {
+                    ErrorStateView(
+                        title: "Browse Unavailable",
+                        message: failure.message,
+                        retry: {
                             viewModel.retry()
                         }
-                    }
+                    )
                 }
             }
             .navigationTitle("Browse")

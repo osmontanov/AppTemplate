@@ -18,7 +18,8 @@ SwiftUI boilerplate for iOS 26, iPadOS 26, and macOS 26.
   only by that screen.
 - Feature Routers remain in `Features/<Feature>/Navigation`; Routes live with
   the navigation-owning screen.
-- `Utilities/UIComponents` contains reusable UI independent from screens.
+- `Utilities/UIComponents` contains only reusable SwiftUI `View` types
+  independent from screens.
 - There is no Repository layer.
 - `Resources` owns the asset catalog and Info.plist.
 

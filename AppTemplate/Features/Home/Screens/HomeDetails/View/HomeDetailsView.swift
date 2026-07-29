@@ -10,10 +10,10 @@ struct HomeDetailsView: View {
     }
 
     var body: some View {
-        ContentUnavailableView(
-            viewModel.title,
+        EmptyStateView(
+            title: viewModel.title,
             systemImage: viewModel.systemImage,
-            description: Text(viewModel.message)
+            message: viewModel.message
         )
         .navigationTitle("Details")
     }

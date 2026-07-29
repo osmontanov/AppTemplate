@@ -19,7 +19,7 @@ struct BrowseDetailView: View {
         Group {
             switch viewModel.state {
             case .idle, .loading:
-                ProgressView("Loading Item…")
+                LoadingStateView(title: "Loading Item…")
             case let .content(item):
                 Form {
                     LabeledContent("Identifier", value: item.id)
@@ -27,24 +27,19 @@ struct BrowseDetailView: View {
                 }
                 .navigationTitle(item.title)
             case .empty:
-                ContentUnavailableView(
-                    "Item Unavailable",
+                EmptyStateView(
+                    title: "Item Unavailable",
                     systemImage: "questionmark.folder",
-                    description: Text("This item no longer exists.")
+                    message: "This item no longer exists."
                 )
             case let .failed(failure):
-                ContentUnavailableView {
-                    Label(
-                        "Item Unavailable",
-                        systemImage: "exclamationmark.triangle"
-                    )
-                } description: {
-                    Text(failure.message)
-                } actions: {
-                    Button("Retry") {
+                ErrorStateView(
+                    title: "Item Unavailable",
+                    message: failure.message,
+                    retry: {
                         viewModel.retry()
                     }
-                }
+                )
             }
         }
         .task(id: viewModel.id) {
