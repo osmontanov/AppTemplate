@@ -1,1 +1,2 @@
-nonisolated protocol ILocalDatabaseService: Sendable {}
+nonisolated
+protocol ILocalDatabaseService: Sendable {}
