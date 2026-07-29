@@ -1,7 +1,12 @@
 import Foundation
+import Observation
 import SwiftUI
 import Testing
 @testable import AppTemplate
+
+#if os(macOS)
+import AppKit
+#endif
 
 struct ProjectConfigurationTests {
     @Test
@@ -103,6 +108,89 @@ struct ProjectConfigurationTests {
         _ = SessionInfoView(sessionStore: sessionStore)
     }
 }
+
+#if os(macOS)
+extension ProjectConfigurationTests {
+    @MainActor
+    @Test
+    func completingCreateProjectFlowDismissesItsContainingSheet() async throws {
+        let store = ProjectsStore(projects: [])
+        let draft = CreateProjectDraftState()
+        let presentation = CreateProjectSheetPresentation()
+        let controller = NSHostingController(
+            rootView: CreateProjectSheetHarness(
+                presentation: presentation,
+                draft: draft,
+                store: store
+            )
+        )
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 600, height: 600),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.contentViewController = controller
+        window.makeKeyAndOrderFront(nil)
+        defer {
+            window.close()
+        }
+
+        let didPresent = try await eventually {
+            window.attachedSheet != nil
+        }
+        #expect(didPresent)
+
+        draft.title = "Template"
+        let created = try ProjectReviewViewModel(
+            draft: draft,
+            store: store
+        ).save()
+
+        let didDismiss = try await eventually {
+            !presentation.isPresented && window.attachedSheet == nil
+        }
+
+        #expect(didDismiss)
+        #expect(store.projects == [created])
+    }
+}
+
+@MainActor
+@Observable
+private final class CreateProjectSheetPresentation {
+    var isPresented = true
+}
+
+private struct CreateProjectSheetHarness: View {
+    @Bindable var presentation: CreateProjectSheetPresentation
+    let draft: CreateProjectDraftState
+    let store: ProjectsStore
+
+    var body: some View {
+        Color.clear
+            .sheet(isPresented: $presentation.isPresented) {
+                CreateProjectFlowView(
+                    store: store,
+                    draft: draft
+                )
+            }
+    }
+}
+
+@MainActor
+private func eventually(
+    _ condition: @escaping @MainActor () -> Bool
+) async throws -> Bool {
+    for _ in 0..<100 {
+        if condition() {
+            return true
+        }
+        try await Task.sleep(for: .milliseconds(20))
+    }
+    return condition()
+}
+#endif
 
 extension ProjectConfigurationTests {
     @Test

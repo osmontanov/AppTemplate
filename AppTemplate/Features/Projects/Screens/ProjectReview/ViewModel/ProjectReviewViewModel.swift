@@ -15,8 +15,12 @@ final class ProjectReviewViewModel {
     }
 
     func save() throws -> ProjectItem {
+        if let completedProject = draft.completedProject {
+            return completedProject
+        }
+
         let project = try store.addProject(from: draft)
-        draft.complete()
+        draft.complete(with: project)
         return project
     }
 }

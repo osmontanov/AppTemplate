@@ -28,6 +28,21 @@ struct ProjectReviewViewModelTests {
     }
 
     @Test
+    func repeatedSaveReturnsTheSameProjectWithoutDuplicateInsertion() throws {
+        let store = ProjectsStore(projects: [])
+        let draft = CreateProjectDraftState()
+        draft.title = "Template"
+        let viewModel = ProjectReviewViewModel(draft: draft, store: store)
+
+        let first = try viewModel.save()
+        let second = try viewModel.save()
+
+        #expect(second == first)
+        #expect(second.id == first.id)
+        #expect(store.projects == [first])
+    }
+
+    @Test
     func editingDraftWithoutSavingLeavesStoreUnchanged() {
         let store = ProjectsStore(projects: [])
         let draft = CreateProjectDraftState()

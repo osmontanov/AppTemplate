@@ -7,6 +7,18 @@ struct CreateProjectFlowView: View {
 
     let store: ProjectsStore
 
+    init(store: ProjectsStore) {
+        self.init(
+            store: store,
+            draft: CreateProjectDraftState()
+        )
+    }
+
+    init(store: ProjectsStore, draft: CreateProjectDraftState) {
+        self.store = store
+        _draft = State(initialValue: draft)
+    }
+
     var body: some View {
         @Bindable var router = router
 
