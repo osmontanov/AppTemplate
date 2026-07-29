@@ -10,7 +10,7 @@ final class AboutViewModel {
         "macOS 26"
     ]
     let exampleDescription =
-        "Home, Browse, and Settings are replaceable feature examples."
+        "Home, Browse, Projects, and Settings are replaceable feature examples."
 
     init(router: any IFlowRouter) {
         self.router = router

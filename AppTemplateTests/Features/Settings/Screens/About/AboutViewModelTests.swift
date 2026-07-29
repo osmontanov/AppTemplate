@@ -15,7 +15,10 @@ struct AboutViewModelTests {
         ])
         #expect(
             viewModel.exampleDescription
-                == "Home, Browse, and Settings are replaceable feature examples."
+                == """
+                Home, Browse, Projects, and Settings are replaceable feature \
+                examples.
+                """
         )
     }
 

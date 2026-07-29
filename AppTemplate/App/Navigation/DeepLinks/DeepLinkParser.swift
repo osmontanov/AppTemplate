@@ -49,7 +49,7 @@ struct DeepLinkParser: Sendable {
         case "browse" where segments.isEmpty:
             return .success(.selectSection(.browse))
         case "projects" where segments.isEmpty:
-            return .success(.selectSection(.projects))
+            return .success(.openSectionRoot(.projects))
         case "settings" where segments.isEmpty:
             return .success(.selectSection(.settings))
         case "browse" where segments.count == 2 && segments[0] == "item":

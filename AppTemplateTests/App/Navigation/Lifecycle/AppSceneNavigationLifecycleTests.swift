@@ -85,6 +85,33 @@ struct AppSceneNavigationLifecycleTests {
     }
 
     @Test
+    func projectsRootWarmURLResetsOnlyProjectsHistory() throws {
+        let router = AppRouter(selectedSection: .settings)
+        let lifecycle = AppSceneNavigationLifecycle(router: router)
+        _ = lifecycle.restore(from: nil)
+        router.home.push(HomeRoute.details)
+        router.browse.push(BrowseRoute.item(id: "swiftui"))
+        router.projects.push(ProjectsRoute.project(id: "stale-project"))
+        router.projects.push(
+            ProjectDetailsRoute.task(
+                projectID: "stale-project",
+                taskID: "stale-task"
+            )
+        )
+        router.settings.push(SettingsRoute.about)
+
+        _ = lifecycle.receive(
+            try #require(URL(string: "apptemplate://projects"))
+        )
+
+        #expect(router.selectedSection == .projects)
+        #expect(router.projects.path.isEmpty)
+        #expect(router.home.path.count == 1)
+        #expect(router.browse.path.count == 1)
+        #expect(router.settings.path.count == 1)
+    }
+
+    @Test
     func unknownBrowseRecordColdLaunchKeepsRouteAndOtherHistories() throws {
         let stored = AppRouter(selectedSection: .settings)
         stored.home.push(HomeRoute.details)

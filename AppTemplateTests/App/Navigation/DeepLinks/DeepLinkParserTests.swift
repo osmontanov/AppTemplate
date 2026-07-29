@@ -8,7 +8,10 @@ struct DeepLinkParserTests {
     @Test(arguments: [
         ("apptemplate://home", NavigationIntent.selectSection(.home)),
         ("apptemplate://browse", NavigationIntent.selectSection(.browse)),
-        ("apptemplate://projects", NavigationIntent.selectSection(.projects)),
+        (
+            "apptemplate://projects",
+            NavigationIntent.openSectionRoot(.projects)
+        ),
         (
             "apptemplate://projects/project/project-1",
             NavigationIntent.project(id: "project-1")
