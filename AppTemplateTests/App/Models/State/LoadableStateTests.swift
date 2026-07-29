@@ -4,17 +4,18 @@ import Testing
 struct LoadableStateTests {
     @Test
     func representsTheCompleteLoadingLifecycle() {
-        let item = BrowseItem(
-            id: "one",
-            title: "One",
-            summary: "First"
-        )
-        typealias State = LoadableState<[BrowseItem], BrowseFailure>
+        typealias State = LoadableState<[String], LoadableStateTestFailure>
 
         #expect(State.idle == .idle)
         #expect(State.loading == .loading)
-        #expect(State.content([item]) == .content([item]))
+        #expect(State.content(["one"]) == .content(["one"]))
         #expect(State.empty == .empty)
         #expect(State.failed(.load) == .failed(.load))
     }
+}
+
+private nonisolated enum LoadableStateTestFailure:
+    Equatable,
+    Sendable {
+    case load
 }

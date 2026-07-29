@@ -8,14 +8,22 @@ SwiftUI boilerplate for iOS 26, iPadOS 26, and macOS 26.
 - `App/Composition` owns the explicit dependency graph.
 - `App/Navigation` owns app-wide navigation infrastructure.
 - `App/Models/Domain` owns shared business entities.
-- `App/Models/State` owns shared application state.
+- `App/Models/State` owns shared application state and generic reusable state
+  containers.
 - `App/Models/Local` owns local queries and persisted records.
 - `App/Models/Remote` owns transport requests and responses.
 - `App/Services` owns `I<ServiceName>` contracts and concrete
   `<ServiceName>` implementations.
-- `Features/<Feature>/Screens/<Screen>` owns each screen's View and ViewModel.
-- `Features/<Feature>/Screens/<Screen>/Model` owns presentation models used
-  only by that screen.
+- `Features/<Feature>/Screens/<Screen>` owns each screen's View, ViewModel,
+  reserved State scaffold, and reserved Model scaffold.
+- `Features/<Feature>/State` owns feature-scoped state shared by multiple
+  screens in one feature.
+- `Features/<Feature>/Screens/<Screen>/State` owns render state used only by
+  that screen's ViewModel.
+- `Features/<Feature>/Screens/<Screen>/Model` owns the screen's `<Screen>Model`
+  scaffold and presentation models such as rows, cards, or `Item` types.
+  Existing `Item` types stay where their ownership belongs; the `Item` suffix
+  does not decide placement.
 - `Features/<Feature>/Flow` owns independent flow containers. Outgoing Routes
   live with their originating screen under
   `Features/<Feature>/Screens/<Screen>/Navigation`.

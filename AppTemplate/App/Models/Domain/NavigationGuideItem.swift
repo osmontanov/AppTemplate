@@ -1,4 +1,5 @@
-nonisolated struct NavigationGuideItem:
+nonisolated
+struct NavigationGuideItem:
     Identifiable,
     Equatable,
     Sendable {
