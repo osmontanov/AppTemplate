@@ -1,3 +1,4 @@
-nonisolated struct HomeDependencies: Sendable {
+nonisolated
+struct HomeDependencies: Sendable {
     init() {}
 }

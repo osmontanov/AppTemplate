@@ -1,4 +1,5 @@
-nonisolated struct SessionDependencies: Sendable {
+nonisolated
+struct SessionDependencies: Sendable {
     let service: any ISessionService
 
     init(service: any ISessionService) {

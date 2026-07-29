@@ -1,11 +1,13 @@
-nonisolated enum SessionPhase: Equatable, Sendable {
+nonisolated
+enum SessionPhase: Equatable, Sendable {
     case idle
     case loading
     case unauthenticated
     case authenticated(UserSession)
 }
 
-nonisolated enum SessionFailure: Equatable, Sendable {
+nonisolated
+enum SessionFailure: Equatable, Sendable {
     case restoration
     case signIn
     case signOut

@@ -1,8 +1,10 @@
-nonisolated enum HomeRoute: String, NavigationRoute {
+nonisolated
+enum HomeRoute: String, NavigationRoute {
     case details
     case navigationGuide
 }
 
-nonisolated enum HomeAlertRoute: String, Codable, Hashable, Sendable {
+nonisolated
+enum HomeAlertRoute: String, Codable, Hashable, Sendable {
     case resetNavigation
 }

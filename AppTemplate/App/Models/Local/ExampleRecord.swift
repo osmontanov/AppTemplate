@@ -1,4 +1,5 @@
-nonisolated struct ExampleRecord: Codable, Equatable, Sendable {
+nonisolated
+struct ExampleRecord: Codable, Equatable, Sendable {
     let id: String
     let payload: String
 }

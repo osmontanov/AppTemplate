@@ -1,4 +1,5 @@
-nonisolated enum LoadableState<
+nonisolated
+enum LoadableState<
     Content: Equatable & Sendable,
     Failure: Equatable & Sendable
 >: Equatable, Sendable {

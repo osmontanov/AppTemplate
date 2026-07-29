@@ -15,7 +15,8 @@ actor BrowseService: IBrowseService {
         itemsByID[id]
     }
 
-    nonisolated static func live() -> BrowseService {
+    nonisolated
+    static func live() -> BrowseService {
         BrowseService(items: [
             BrowseItem(id: "swiftui", title: "SwiftUI", summary: "Adaptive native interfaces."),
             BrowseItem(id: "observation", title: "Observation", summary: "Focused state tracking."),

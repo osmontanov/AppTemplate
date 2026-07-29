@@ -1,3 +1,4 @@
-nonisolated enum SettingsRoute: String, NavigationRoute {
+nonisolated
+enum SettingsRoute: String, NavigationRoute {
     case about
 }

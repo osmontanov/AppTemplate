@@ -1,1 +1,2 @@
-nonisolated enum AboutRoute {}
+nonisolated
+enum AboutRoute {}

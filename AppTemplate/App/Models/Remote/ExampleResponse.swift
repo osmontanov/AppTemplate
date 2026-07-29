@@ -1,4 +1,5 @@
-nonisolated struct ExampleResponse: Decodable, Equatable, Sendable {
+nonisolated
+struct ExampleResponse: Decodable, Equatable, Sendable {
     let id: String
     let title: String
 }

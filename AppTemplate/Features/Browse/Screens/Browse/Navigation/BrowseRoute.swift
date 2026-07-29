@@ -1,3 +1,4 @@
-nonisolated enum BrowseRoute: NavigationRoute {
+nonisolated
+enum BrowseRoute: NavigationRoute {
     case item(id: BrowseItem.ID)
 }

@@ -1,3 +1,4 @@
-nonisolated enum HomeDetailsRoute: String, NavigationRoute {
+nonisolated
+enum HomeDetailsRoute: String, NavigationRoute {
     case navigationGuide
 }

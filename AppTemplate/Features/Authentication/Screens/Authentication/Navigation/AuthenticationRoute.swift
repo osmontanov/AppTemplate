@@ -1,1 +1,2 @@
-nonisolated enum AuthenticationRoute {}
+nonisolated
+enum AuthenticationRoute {}

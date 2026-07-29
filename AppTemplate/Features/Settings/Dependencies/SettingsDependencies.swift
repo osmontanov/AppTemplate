@@ -1,3 +1,4 @@
-nonisolated struct SettingsDependencies: Sendable {
+nonisolated
+struct SettingsDependencies: Sendable {
     init() {}
 }

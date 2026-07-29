@@ -1,1 +1,2 @@
-nonisolated enum BrowseDetailRoute {}
+nonisolated
+enum BrowseDetailRoute {}

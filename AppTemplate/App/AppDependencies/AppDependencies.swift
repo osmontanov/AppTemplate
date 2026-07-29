@@ -1,4 +1,5 @@
-nonisolated struct AppDependencies: Sendable {
+nonisolated
+struct AppDependencies: Sendable {
     let browse: BrowseDependencies
     let session: SessionDependencies
 

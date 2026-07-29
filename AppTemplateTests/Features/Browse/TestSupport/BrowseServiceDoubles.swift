@@ -1,7 +1,8 @@
 import Foundation
 @testable import AppTemplate
 
-nonisolated enum BrowseServiceTestError: Error {
+nonisolated
+enum BrowseServiceTestError: Error {
     case failed
 }
 

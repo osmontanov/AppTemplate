@@ -1,1 +1,2 @@
-nonisolated enum NavigationGuideRoute {}
+nonisolated
+enum NavigationGuideRoute {}

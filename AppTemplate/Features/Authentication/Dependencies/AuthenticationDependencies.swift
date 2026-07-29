@@ -1,3 +1,4 @@
-nonisolated struct AuthenticationDependencies: Sendable {
+nonisolated
+struct AuthenticationDependencies: Sendable {
     init() {}
 }

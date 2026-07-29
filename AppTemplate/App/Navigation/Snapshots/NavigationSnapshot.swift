@@ -55,12 +55,14 @@ enum NavigationSnapshotCodec {
     }
 }
 
-nonisolated enum NavigationRestorationFailure: Equatable, Sendable {
+nonisolated
+enum NavigationRestorationFailure: Equatable, Sendable {
     case corruptData
     case unsupportedSchema(Int)
 }
 
-nonisolated enum NavigationRestorationResult: Equatable, Sendable {
+nonisolated
+enum NavigationRestorationResult: Equatable, Sendable {
     case noState
     case restored
     case recovered(Set<AppSection>)
