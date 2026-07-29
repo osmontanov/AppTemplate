@@ -30,7 +30,10 @@ struct ProjectConfigurationTests {
             sessionStore: sessionStore,
             appRouter: router
         )
+        _ = AuthenticationHelpView()
         _ = HomeFlowView(router: router.home)
+        _ = GuideTopicView(id: "screen-owned-routes")
+        _ = QuickStartView()
         _ = BrowseFlowView(
             router: router.browse,
             dependencies: dependencies.browse

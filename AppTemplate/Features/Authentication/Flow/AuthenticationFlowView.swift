@@ -9,7 +9,8 @@ struct AuthenticationFlowView: View {
         NavigationStack(path: $router.path) {
             AuthenticationView(
                 sessionStore: sessionStore,
-                router: appRouter
+                router: appRouter,
+                flowRouter: router
             )
         }
     }

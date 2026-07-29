@@ -21,6 +21,9 @@ struct HomeView: View {
             Button("Open navigation guide") {
                 viewModel.openNavigationGuide()
             }
+            Button("Quick Start") {
+                viewModel.openQuickStart()
+            }
             Button("Reset Home navigation", role: .destructive) {
                 viewModel.requestNavigationReset()
             }
@@ -46,6 +49,12 @@ struct HomeView: View {
             }
         } message: {
             Text("This clears only the Home navigation history.")
+        }
+        .sheet(item: $viewModel.sheet) { route in
+            switch route {
+            case .quickStart:
+                QuickStartView()
+            }
         }
     }
 }

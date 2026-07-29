@@ -5,6 +5,7 @@ import Observation
 final class AuthenticationViewModel {
     private let sessionStore: SessionStore
     private let router: AppRouter
+    private let flowRouter: any IFlowRouter
 
     var failureMessage: String? {
         sessionStore.failure?.message
@@ -16,10 +17,12 @@ final class AuthenticationViewModel {
 
     init(
         sessionStore: SessionStore,
-        router: AppRouter
+        router: AppRouter,
+        flowRouter: any IFlowRouter
     ) {
         self.sessionStore = sessionStore
         self.router = router
+        self.flowRouter = flowRouter
     }
 
     func signIn() async {
@@ -32,5 +35,9 @@ final class AuthenticationViewModel {
 
     func cancelAuthentication() {
         _ = router.completeAuthentication(succeeded: false)
+    }
+
+    func openHelp() {
+        flowRouter.push(AuthenticationRoute.help)
     }
 }

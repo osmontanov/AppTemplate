@@ -27,6 +27,17 @@ struct NavigationGuideViewModelTests {
     }
 
     @Test
+    func guidePushesItsOwnTopicRoute() throws {
+        let router = FlowRouter()
+        let viewModel = NavigationGuideViewModel(router: router)
+        let item = try #require(viewModel.items.first)
+
+        viewModel.openTopic(id: item.id)
+
+        #expect(router.path.count == 1)
+    }
+
+    @Test
     func navigationGuideScreenCanBeConstructed() {
         _ = NavigationGuideView(router: FlowRouter())
     }

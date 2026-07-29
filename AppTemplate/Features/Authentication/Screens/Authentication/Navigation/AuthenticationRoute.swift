@@ -1,2 +1,4 @@
 nonisolated
-enum AuthenticationRoute {}
+enum AuthenticationRoute: String, NavigationRoute {
+    case help
+}

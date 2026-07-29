@@ -5,6 +5,7 @@ import Observation
 final class HomeViewModel {
     private let router: any IFlowRouter
     var alert: HomeAlertRoute?
+    var sheet: HomeSheetRoute?
 
     var isResetAlertPresented: Bool {
         get { alert != nil }
@@ -38,5 +39,13 @@ final class HomeViewModel {
 
     func cancelNavigationReset() {
         alert = nil
+    }
+
+    func openQuickStart() {
+        sheet = .quickStart
+    }
+
+    func dismissSheet() {
+        sheet = nil
     }
 }

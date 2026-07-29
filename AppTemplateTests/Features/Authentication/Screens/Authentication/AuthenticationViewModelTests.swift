@@ -1,3 +1,4 @@
+import SwiftUI
 import Testing
 @testable import AppTemplate
 
@@ -15,7 +16,8 @@ struct AuthenticationViewModelTests {
         )
         let viewModel = AuthenticationViewModel(
             sessionStore: store,
-            router: AppRouter(flow: .authentication)
+            router: AppRouter(flow: .authentication),
+            flowRouter: FlowRouter()
         )
 
         await viewModel.signIn()
@@ -32,13 +34,29 @@ struct AuthenticationViewModelTests {
         _ = router.handle(.browseItem(id: "swiftui"))
         let viewModel = AuthenticationViewModel(
             sessionStore: store,
-            router: router
+            router: router,
+            flowRouter: FlowRouter()
         )
 
         viewModel.cancelAuthentication()
 
         #expect(router.pendingIntent == nil)
         #expect(router.flow == .authentication)
+    }
+
+    @Test
+    func authenticationHelpUsesAuthenticationFlowRouter() {
+        let store = SessionStore(service: SessionService(initialSession: nil))
+        let flowRouter = FlowRouter()
+        let viewModel = AuthenticationViewModel(
+            sessionStore: store,
+            router: AppRouter(flow: .authentication),
+            flowRouter: flowRouter
+        )
+
+        viewModel.openHelp()
+
+        #expect(flowRouter.path.count == 1)
     }
 
     @Test
@@ -55,7 +73,8 @@ struct AuthenticationViewModelTests {
         )
         let viewModel = AuthenticationViewModel(
             sessionStore: store,
-            router: AppRouter(flow: .launching)
+            router: AppRouter(flow: .launching),
+            flowRouter: FlowRouter()
         )
 
         await store.start()
@@ -73,7 +92,8 @@ struct AuthenticationViewModelTests {
         let store = SessionStore(service: service)
         let viewModel = AuthenticationViewModel(
             sessionStore: store,
-            router: AppRouter(flow: .launching)
+            router: AppRouter(flow: .launching),
+            flowRouter: FlowRouter()
         )
         await store.start()
         #expect(store.failure == .restoration)
@@ -94,7 +114,8 @@ struct AuthenticationViewModelTests {
 
         _ = AuthenticationView(
             sessionStore: store,
-            router: appRouter
+            router: appRouter,
+            flowRouter: appRouter.authentication
         )
         _ = AuthenticationFlowView(
             router: appRouter.authentication,

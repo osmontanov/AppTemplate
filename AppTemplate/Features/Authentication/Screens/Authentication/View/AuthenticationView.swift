@@ -5,12 +5,14 @@ struct AuthenticationView: View {
 
     init(
         sessionStore: SessionStore,
-        router: AppRouter
+        router: AppRouter,
+        flowRouter: FlowRouter
     ) {
         _viewModel = State(
             initialValue: AuthenticationViewModel(
                 sessionStore: sessionStore,
-                router: router
+                router: router,
+                flowRouter: flowRouter
             )
         )
     }
@@ -31,6 +33,9 @@ struct AuthenticationView: View {
                 Button("Cancel") {
                     viewModel.cancelAuthentication()
                 }
+                Button("Help") {
+                    viewModel.openHelp()
+                }
                 if viewModel.canRetryRestoration {
                     Button("Retry") {
                         Task {
@@ -47,5 +52,11 @@ struct AuthenticationView: View {
             }
         }
         .padding()
+        .navigationDestination(for: AuthenticationRoute.self) { route in
+            switch route {
+            case .help:
+                AuthenticationHelpView()
+            }
+        }
     }
 }

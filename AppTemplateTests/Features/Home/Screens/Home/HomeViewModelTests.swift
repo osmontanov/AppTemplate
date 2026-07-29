@@ -44,6 +44,17 @@ struct HomeViewModelTests {
     }
 
     @Test
+    func homeOwnsQuickStartSheetState() {
+        let viewModel = HomeViewModel(router: FlowRouter())
+
+        viewModel.openQuickStart()
+        #expect(viewModel.sheet == .quickStart)
+
+        viewModel.dismissSheet()
+        #expect(viewModel.sheet == nil)
+    }
+
+    @Test
     func homeFlowAndScreenCanBeConstructed() {
         let router = FlowRouter()
 

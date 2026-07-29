@@ -4,23 +4,10 @@ import Observation
 @Observable
 final class NavigationGuideViewModel {
     let title = "Navigation Guide"
-    let items = [
-        NavigationGuideItem(
-            id: "screen-owned-routes",
-            title: "Screen-owned routes",
-            systemImage: "list.bullet.rectangle"
-        ),
-        NavigationGuideItem(
-            id: "independent-flows",
-            title: "Independent flows",
-            systemImage: "square.3.layers.3d"
-        ),
-        NavigationGuideItem(
-            id: "scene-restoration",
-            title: "Scene restoration",
-            systemImage: "arrow.clockwise"
-        )
-    ]
+
+    var items: [NavigationGuideItem] {
+        NavigationGuideModel.items
+    }
 
     private let router: any IFlowRouter
 
@@ -30,5 +17,9 @@ final class NavigationGuideViewModel {
 
     func close() {
         router.pop()
+    }
+
+    func openTopic(id: NavigationGuideItem.ID) {
+        router.push(NavigationGuideRoute.topic(id: id))
     }
 }
