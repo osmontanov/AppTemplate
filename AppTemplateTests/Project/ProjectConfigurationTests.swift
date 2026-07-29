@@ -48,6 +48,10 @@ struct ProjectConfigurationTests {
             projectID: "project-1",
             store: projectsStore
         )
+        _ = ProjectInfoView(
+            projectID: "missing",
+            store: ProjectsStore(projects: [])
+        )
         _ = ProjectBasicsView(
             draft: draft,
             router: FlowRouter(),

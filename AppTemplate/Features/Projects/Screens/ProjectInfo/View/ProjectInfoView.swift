@@ -29,19 +29,26 @@ struct ProjectInfoView: View {
                             value: String(project.tasks.count)
                         )
                     }
+
+                    Section {
+                        Button("Done") {
+                            dismiss()
+                        }
+                    }
                 }
             } else {
-                EmptyStateView(
-                    title: "Project Unavailable",
-                    systemImage: "questionmark.folder",
-                    message: "This project no longer exists."
-                )
-            }
-        }
-        .navigationTitle("Project Info")
-        .toolbar {
-            Button("Done") {
-                dismiss()
+                VStack(spacing: 16) {
+                    EmptyStateView(
+                        title: "Project Unavailable",
+                        systemImage: "questionmark.folder",
+                        message: "This project no longer exists."
+                    )
+
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+                .padding()
             }
         }
     }
