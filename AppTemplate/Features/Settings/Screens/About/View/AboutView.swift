@@ -1,11 +1,13 @@
 import SwiftUI
 
 struct AboutView: View {
+    private let router: FlowRouter
     @State private var viewModel: AboutViewModel
 
-    init() {
+    init(router: FlowRouter) {
+        self.router = router
         _viewModel = State(
-            initialValue: AboutViewModel()
+            initialValue: AboutViewModel(router: router)
         )
     }
 
@@ -13,7 +15,9 @@ struct AboutView: View {
         List {
             Section("Platforms") {
                 ForEach(viewModel.supportedPlatforms, id: \.self) { platform in
-                    Text(platform)
+                    Button(platform) {
+                        viewModel.openPlatform(name: platform)
+                    }
                 }
             }
             Section("Examples") {
@@ -21,5 +25,11 @@ struct AboutView: View {
             }
         }
         .navigationTitle("About")
+        .navigationDestination(for: AboutRoute.self) { route in
+            switch route {
+            case let .platform(name):
+                PlatformDetailsView(name: name)
+            }
+        }
     }
 }

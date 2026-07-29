@@ -5,6 +5,7 @@ import Observation
 final class SettingsViewModel {
     private let sessionStore: SessionStore
     private let router: any IFlowRouter
+    var sheet: SettingsSheetRoute?
 
     var phase: SessionPhase {
         sessionStore.phase
@@ -24,6 +25,14 @@ final class SettingsViewModel {
 
     func openAbout() {
         router.push(SettingsRoute.about)
+    }
+
+    func openSessionInfo() {
+        sheet = .sessionInfo
+    }
+
+    func dismissSheet() {
+        sheet = nil
     }
 
     func signOut() async {

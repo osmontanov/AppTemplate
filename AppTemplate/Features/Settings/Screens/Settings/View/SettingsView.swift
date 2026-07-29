@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     private let router: FlowRouter
+    private let sessionStore: SessionStore
     @State private var viewModel: SettingsViewModel
 
     init(
@@ -9,6 +10,7 @@ struct SettingsView: View {
         sessionStore: SessionStore
     ) {
         self.router = router
+        self.sessionStore = sessionStore
         _viewModel = State(
             initialValue: SettingsViewModel(
                 sessionStore: sessionStore,
@@ -18,6 +20,8 @@ struct SettingsView: View {
     }
 
     var body: some View {
+        @Bindable var viewModel = viewModel
+
         List {
             Section("Session") {
                 switch viewModel.phase {
@@ -36,6 +40,10 @@ struct SettingsView: View {
                     Text(failureMessage)
                         .foregroundStyle(.secondary)
                 }
+
+                Button("Session Info", systemImage: "info.circle") {
+                    viewModel.openSessionInfo()
+                }
             }
 
             Button("About this template") {
@@ -46,7 +54,15 @@ struct SettingsView: View {
         .navigationDestination(for: SettingsRoute.self) { route in
             switch route {
             case .about:
-                AboutView()
+                AboutView(router: router)
+            }
+        }
+        .sheet(item: $viewModel.sheet, onDismiss: {
+            viewModel.dismissSheet()
+        }) { route in
+            switch route {
+            case .sessionInfo:
+                SessionInfoView(sessionStore: sessionStore)
             }
         }
     }

@@ -94,6 +94,13 @@ struct ProjectConfigurationTests {
             router: router.settings,
             sessionStore: sessionStore
         )
+        _ = SettingsView(
+            router: router.settings,
+            sessionStore: sessionStore
+        )
+        _ = AboutView(router: router.settings)
+        _ = PlatformDetailsView(name: "macOS 26")
+        _ = SessionInfoView(sessionStore: sessionStore)
     }
 }
 

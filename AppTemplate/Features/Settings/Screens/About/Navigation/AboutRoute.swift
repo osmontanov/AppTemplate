@@ -1,2 +1,4 @@
 nonisolated
-enum AboutRoute {}
+enum AboutRoute: NavigationRoute {
+    case platform(name: String)
+}

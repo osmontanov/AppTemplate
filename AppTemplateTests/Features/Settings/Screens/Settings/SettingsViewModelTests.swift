@@ -60,6 +60,19 @@ struct SettingsViewModelTests {
     }
 
     @Test
+    func settingsOwnsSessionInfoSheet() {
+        let viewModel = makeSettingsViewModel()
+
+        viewModel.openSessionInfo()
+
+        #expect(viewModel.sheet == .sessionInfo)
+
+        viewModel.dismissSheet()
+
+        #expect(viewModel.sheet == nil)
+    }
+
+    @Test
     func settingsFlowAndScreenCanBeConstructed() {
         let service = SessionService(initialSession: nil)
         let store = SessionStore(service: service)
@@ -70,6 +83,15 @@ struct SettingsViewModelTests {
             sessionStore: store
         )
         _ = SettingsView(router: router, sessionStore: store)
+    }
+
+    private func makeSettingsViewModel() -> SettingsViewModel {
+        SettingsViewModel(
+            sessionStore: SessionStore(
+                service: SessionService(initialSession: nil)
+            ),
+            router: FlowRouter()
+        )
     }
 }
 

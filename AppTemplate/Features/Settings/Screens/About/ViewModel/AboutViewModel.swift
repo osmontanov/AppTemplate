@@ -3,6 +3,7 @@ import Observation
 @MainActor
 @Observable
 final class AboutViewModel {
+    private let router: any IFlowRouter
     let supportedPlatforms = [
         "iOS 26",
         "iPadOS 26",
@@ -10,4 +11,12 @@ final class AboutViewModel {
     ]
     let exampleDescription =
         "Home, Browse, and Settings are replaceable feature examples."
+
+    init(router: any IFlowRouter) {
+        self.router = router
+    }
+
+    func openPlatform(name: String) {
+        router.push(AboutRoute.platform(name: name))
+    }
 }
