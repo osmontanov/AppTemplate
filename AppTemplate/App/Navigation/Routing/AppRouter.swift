@@ -143,6 +143,7 @@ extension AppRouter {
             selectedSection: selectedSection,
             homePath: home.path,
             browsePath: browse.path,
+            projectsPath: projects.path,
             settingsPath: settings.path
         )
     }
@@ -164,28 +165,70 @@ extension AppRouter {
             return .reset(.corruptData)
         }
 
-        guard schemaVersion == NavigationSnapshot.currentSchemaVersion else {
+        switch schemaVersion {
+        case NavigationSnapshot.currentSchemaVersion:
+            let decoded: NavigationSnapshot
+            do {
+                decoded = try NavigationSnapshotCodec.decode(data)
+            } catch {
+                resetNavigation()
+                Logger.navigation.error(
+                    "Reset corrupt navigation snapshot: \(String(describing: error), privacy: .public)"
+                )
+                return .reset(.corruptData)
+            }
+            return restore(
+                selectedSection: decoded.selectedSection,
+                homeSnapshot: decoded.homePath,
+                browseSnapshot: decoded.browsePath,
+                projectsSnapshot: decoded.projectsPath,
+                settingsSnapshot: decoded.settingsPath
+            )
+        case 2:
+            let decoded: NavigationSnapshotV2
+            do {
+                decoded = try JSONDecoder().decode(
+                    NavigationSnapshotV2.self,
+                    from: data
+                )
+            } catch {
+                resetNavigation()
+                Logger.navigation.error(
+                    "Reset corrupt navigation snapshot: \(String(describing: error), privacy: .public)"
+                )
+                return .reset(.corruptData)
+            }
+            let result = restore(
+                selectedSection: decoded.selectedSection,
+                homeSnapshot: decoded.homePath,
+                browseSnapshot: decoded.browsePath,
+                projectsSnapshot: nil,
+                settingsSnapshot: decoded.settingsPath
+            )
+            if result == .restored {
+                return .migrated(from: 2)
+            }
+            return result
+        default:
             resetNavigation()
             Logger.navigation.error(
                 "Reset unsupported navigation schema: \(schemaVersion)"
             )
             return .reset(.unsupportedSchema(schemaVersion))
         }
+    }
 
-        let decoded: NavigationSnapshot
-        do {
-            decoded = try NavigationSnapshotCodec.decode(data)
-        } catch {
-            resetNavigation()
-            Logger.navigation.error(
-                "Reset corrupt navigation snapshot: \(String(describing: error), privacy: .public)"
-            )
-            return .reset(.corruptData)
-        }
-
-        let homePath = decoded.homePath.restoredPath
-        let browsePath = decoded.browsePath.restoredPath
-        let settingsPath = decoded.settingsPath.restoredPath
+    private func restore(
+        selectedSection: AppSection,
+        homeSnapshot: FlowPathSnapshot,
+        browseSnapshot: FlowPathSnapshot,
+        projectsSnapshot: FlowPathSnapshot?,
+        settingsSnapshot: FlowPathSnapshot
+    ) -> NavigationRestorationResult {
+        let homePath = homeSnapshot.restoredPath
+        let browsePath = browseSnapshot.restoredPath
+        let projectsPath = projectsSnapshot?.restoredPath
+        let settingsPath = settingsSnapshot.restoredPath
         var recoveredSections: Set<AppSection> = []
         if homePath == nil {
             recoveredSections.insert(.home)
@@ -193,14 +236,18 @@ extension AppRouter {
         if browsePath == nil {
             recoveredSections.insert(.browse)
         }
+        if projectsSnapshot != nil, projectsPath == nil {
+            recoveredSections.insert(.projects)
+        }
         if settingsPath == nil {
             recoveredSections.insert(.settings)
         }
 
-        selectedSection = decoded.selectedSection
+        self.selectedSection = selectedSection
         authentication.popToRoot()
         home.replacePath(with: homePath ?? .init())
         browse.replacePath(with: browsePath ?? .init())
+        projects.replacePath(with: projectsPath ?? .init())
         settings.replacePath(with: settingsPath ?? .init())
         pendingIntent = nil
 
@@ -221,4 +268,14 @@ extension AppRouter {
         pendingIntent = nil
         resetFlowHistories()
     }
+}
+
+private
+nonisolated
+struct NavigationSnapshotV2: Decodable {
+    let schemaVersion: Int
+    let selectedSection: AppSection
+    let homePath: FlowPathSnapshot
+    let browsePath: FlowPathSnapshot
+    let settingsPath: FlowPathSnapshot
 }

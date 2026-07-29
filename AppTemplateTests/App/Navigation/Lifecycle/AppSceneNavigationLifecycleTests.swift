@@ -218,9 +218,68 @@ struct AppSceneNavigationLifecycleTests {
     }
 
     @Test
+    func sceneRestorationKeepsProjectsPathsIsolated() throws {
+        let firstStored = AppRouter(selectedSection: .projects)
+        firstStored.projects.push(ProjectsRoute.project(id: "project-1"))
+        let secondStored = AppRouter(selectedSection: .projects)
+        secondStored.projects.push(ProjectsRoute.project(id: "project-2"))
+        secondStored.projects.push(
+            ProjectDetailsRoute.task(
+                projectID: "project-2",
+                taskID: "task-2"
+            )
+        )
+        let first = AppSceneNavigationLifecycle(router: AppRouter())
+        let second = AppSceneNavigationLifecycle(router: AppRouter())
+
+        _ = first.restore(
+            from: try NavigationSnapshotCodec.encode(firstStored.snapshot)
+        )
+        _ = second.restore(
+            from: try NavigationSnapshotCodec.encode(secondStored.snapshot)
+        )
+
+        #expect(first.router.projects.path.count == 1)
+        #expect(second.router.projects.path.count == 2)
+        #expect(first.router.snapshot != second.router.snapshot)
+    }
+
+    @Test
+    func schemaTwoLifecycleRestorationReturnsSchemaThreeReplacement() throws {
+        let legacy = NavigationSnapshotV2(
+            selectedSection: .home,
+            homePath: FlowPathSnapshot(
+                path: NavigationPath([HomeRoute.details])
+            ),
+            browsePath: FlowPathSnapshot(path: NavigationPath()),
+            settingsPath: FlowPathSnapshot(path: NavigationPath())
+        )
+        let lifecycle = AppSceneNavigationLifecycle(router: AppRouter())
+        let replacement = lifecycle.restore(
+            from: try JSONEncoder().encode(legacy)
+        )
+
+        #expect(
+            try NavigationSnapshotCodec.schemaVersion(
+                in: NavigationSnapshotCodec.encode(#require(replacement))
+            ) == 3
+        )
+        #expect(lifecycle.router.home.path.count == 1)
+        #expect(lifecycle.router.projects.path.isEmpty)
+    }
+
+    @Test
     func defaultLifecycleStartsInLaunchingFlow() {
         let lifecycle = AppSceneNavigationLifecycle()
 
         #expect(lifecycle.router.flow == .launching)
     }
+}
+
+private nonisolated struct NavigationSnapshotV2: Encodable {
+    let schemaVersion = 2
+    let selectedSection: AppSection
+    let homePath: FlowPathSnapshot
+    let browsePath: FlowPathSnapshot
+    let settingsPath: FlowPathSnapshot
 }

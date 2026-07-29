@@ -2,12 +2,13 @@ import Foundation
 import SwiftUI
 
 struct NavigationSnapshot: Codable, Equatable {
-    static let currentSchemaVersion = 2
+    static let currentSchemaVersion = 3
 
     let schemaVersion: Int
     var selectedSection: AppSection
     var homePath: FlowPathSnapshot
     var browsePath: FlowPathSnapshot
+    var projectsPath: FlowPathSnapshot
     var settingsPath: FlowPathSnapshot
 
     init(
@@ -15,12 +16,14 @@ struct NavigationSnapshot: Codable, Equatable {
         selectedSection: AppSection,
         homePath: NavigationPath,
         browsePath: NavigationPath,
+        projectsPath: NavigationPath,
         settingsPath: NavigationPath
     ) {
         self.schemaVersion = schemaVersion
         self.selectedSection = selectedSection
         self.homePath = FlowPathSnapshot(path: homePath)
         self.browsePath = FlowPathSnapshot(path: browsePath)
+        self.projectsPath = FlowPathSnapshot(path: projectsPath)
         self.settingsPath = FlowPathSnapshot(path: settingsPath)
     }
 }
@@ -65,6 +68,7 @@ nonisolated
 enum NavigationRestorationResult: Equatable, Sendable {
     case noState
     case restored
+    case migrated(from: Int)
     case recovered(Set<AppSection>)
     case reset(NavigationRestorationFailure)
 }

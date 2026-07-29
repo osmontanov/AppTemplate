@@ -134,6 +134,27 @@ struct AppRouterTests {
     }
 
     @Test
+    func schemaThreeRestoreReplacesExistingProjectsHistory() throws {
+        let source = AppRouter(selectedSection: .projects)
+        source.projects.push(ProjectsRoute.project(id: "project-1"))
+        let restored = AppRouter()
+        restored.projects.push(ProjectsRoute.project(id: "stale-project"))
+        restored.projects.push(
+            ProjectDetailsRoute.task(
+                projectID: "stale-project",
+                taskID: "task-1"
+            )
+        )
+
+        #expect(
+            restored.restore(
+                from: try NavigationSnapshotCodec.encode(source.snapshot)
+            ) == .restored
+        )
+        #expect(restored.projects.path.count == 1)
+    }
+
+    @Test
     func multipleScenesKeepIndependentRouterState() {
         let firstScene = AppRouter()
         let secondScene = AppRouter()

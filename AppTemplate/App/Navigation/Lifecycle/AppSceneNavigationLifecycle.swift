@@ -60,7 +60,7 @@ final class AppSceneNavigationLifecycle {
             return router.snapshot
         }
         switch restorationResult {
-        case .recovered, .reset:
+        case .migrated, .recovered, .reset:
             return router.snapshot
         case .noState, .restored:
             return nil

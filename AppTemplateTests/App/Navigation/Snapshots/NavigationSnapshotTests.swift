@@ -20,6 +20,46 @@ struct NavigationSnapshotTests {
     }
 
     @Test
+    func projectsScreenRoutePathRoundTripsThroughJSON() throws {
+        let source = AppRouter(selectedSection: .projects)
+        source.projects.push(ProjectsRoute.project(id: "project-1"))
+        source.projects.push(
+            ProjectDetailsRoute.task(
+                projectID: "project-1",
+                taskID: "task-1"
+            )
+        )
+        let data = try NavigationSnapshotCodec.encode(source.snapshot)
+        let restored = AppRouter()
+
+        #expect(restored.restore(from: data) == .restored)
+        #expect(restored.projects.path.count == 2)
+    }
+
+    @Test
+    func schemaTwoSnapshotMigratesItsDurableHistories() throws {
+        let legacy = NavigationSnapshotV2(
+            selectedSection: .browse,
+            homePath: FlowPathSnapshot(
+                path: NavigationPath([HomeRoute.details])
+            ),
+            browsePath: FlowPathSnapshot(
+                path: NavigationPath([BrowseRoute.item(id: "swiftui")])
+            ),
+            settingsPath: FlowPathSnapshot(path: NavigationPath())
+        )
+        let restored = AppRouter()
+
+        #expect(
+            restored.restore(from: try JSONEncoder().encode(legacy))
+                == .migrated(from: 2)
+        )
+        #expect(restored.home.path.count == 1)
+        #expect(restored.browse.path.count == 1)
+        #expect(restored.projects.path.isEmpty)
+    }
+
+    @Test
     func unchangedSnapshotDoesNotRequestAnotherEncoding() throws {
         let router = AppRouter()
         router.home.push(HomeRoute.details)
@@ -107,12 +147,63 @@ struct NavigationSnapshotTests {
     }
 
     @Test
+    func corruptProjectsPathResetsOnlyProjectsHistory() throws {
+        let source = AppRouter(selectedSection: .projects)
+        source.home.push(HomeRoute.details)
+        source.browse.push(BrowseRoute.item(id: "swiftui"))
+        source.settings.push(SettingsRoute.about)
+        var snapshot = source.snapshot
+        snapshot.projectsPath = FlowPathSnapshot(
+            restorationData: Data("not-json".utf8)
+        )
+        let restored = AppRouter()
+        restored.projects.push(ProjectsRoute.project(id: "stale-project"))
+
+        let result = restored.restore(
+            from: try NavigationSnapshotCodec.encode(snapshot)
+        )
+
+        #expect(result == .recovered([.projects]))
+        #expect(restored.selectedSection == .projects)
+        #expect(restored.home.path.count == 1)
+        #expect(restored.browse.path.count == 1)
+        #expect(restored.projects.path.isEmpty)
+        #expect(restored.settings.path.count == 1)
+    }
+
+    @Test
+    func snapshotIncludesProjectsPathButExcludesTransientSheetAndDraftState() throws {
+        let router = AppRouter(selectedSection: .projects)
+        router.projects.push(ProjectsRoute.project(id: "project-1"))
+
+        let json = String(
+            decoding: try NavigationSnapshotCodec.encode(router.snapshot),
+            as: UTF8.self
+        )
+
+        #expect(json.contains("projectsPath"))
+        for transientName in [
+            "quickStart",
+            "options",
+            "sessionInfo",
+            "createProject",
+            "projectInfo",
+            "title",
+            "summary",
+            "colorName"
+        ] {
+            #expect(!json.contains(transientName))
+        }
+    }
+
+    @Test
     func futureSchemaResetsNavigation() throws {
         let snapshot = NavigationSnapshot(
             schemaVersion: 999,
             selectedSection: .settings,
             homePath: NavigationPath(),
             browsePath: NavigationPath(),
+            projectsPath: NavigationPath(),
             settingsPath: NavigationPath([SettingsRoute.about])
         )
         let router = AppRouter()
@@ -195,4 +286,12 @@ private nonisolated struct LegacyNavigationSnapshot: Encodable {
     let homePath: [HomeRoute]
     let browsePath: [BrowseRoute]
     let settingsPath: [SettingsRoute]
+}
+
+private nonisolated struct NavigationSnapshotV2: Encodable {
+    let schemaVersion = 2
+    let selectedSection: AppSection
+    let homePath: FlowPathSnapshot
+    let browsePath: FlowPathSnapshot
+    let settingsPath: FlowPathSnapshot
 }
