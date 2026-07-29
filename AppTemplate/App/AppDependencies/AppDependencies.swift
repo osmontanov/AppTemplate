@@ -1,13 +1,16 @@
 nonisolated
 struct AppDependencies: Sendable {
     let browse: BrowseDependencies
+    let projects: ProjectsDependencies
     let session: SessionDependencies
 
     init(
         browse: BrowseDependencies,
+        projects: ProjectsDependencies,
         session: SessionDependencies
     ) {
         self.browse = browse
+        self.projects = projects
         self.session = session
     }
 
@@ -18,6 +21,7 @@ struct AppDependencies: Sendable {
             browse: BrowseDependencies(
                 service: BrowseService.live()
             ),
+            projects: ProjectsDependencies(),
             session: SessionDependencies(
                 service: sessionService
             )
@@ -34,6 +38,7 @@ struct AppDependencies: Sendable {
             browse: BrowseDependencies(
                 service: BrowseService(items: browseItems)
             ),
+            projects: ProjectsDependencies(),
             session: SessionDependencies(
                 service: sessionService
             )
@@ -48,6 +53,7 @@ struct AppDependencies: Sendable {
             browse: BrowseDependencies(
                 service: browseService
             ),
+            projects: ProjectsDependencies(),
             session: SessionDependencies(
                 service: sessionService
             )

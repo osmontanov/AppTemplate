@@ -10,6 +10,7 @@ struct AppDependenciesTests {
 
         #expect(dependencies.browse.service is BrowseService)
         #expect(dependencies.session.service is SessionService)
+        let _: ProjectsDependencies = dependencies.projects
         #expect(items.map(\.id) == ["swiftui", "observation", "routing"])
         #expect(session == nil)
     }
@@ -27,6 +28,7 @@ struct AppDependenciesTests {
 
         #expect(items == [item])
         #expect(restoredSession == session)
+        let _: ProjectsDependencies = dependencies.projects
     }
 
     @Test
@@ -59,6 +61,7 @@ struct AppDependenciesTests {
         #expect(resolvedService === service)
         #expect(items == [item])
         #expect(restoredSession == session)
+        let _: ProjectsDependencies = dependencies.projects
     }
 }
 
