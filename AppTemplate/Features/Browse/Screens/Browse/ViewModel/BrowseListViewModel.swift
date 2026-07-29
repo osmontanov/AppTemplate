@@ -4,21 +4,46 @@ import Observation
 @Observable
 final class BrowseListViewModel {
     private(set) var state: BrowseListState = .idle
+    var sheet: BrowseSheetRoute?
     private let dependencies: BrowseDependencies
     private let router: any IFlowRouter
+    private let preferences: BrowsePreferencesStore
     private var requestVersion = 0
     private var loadTask: Task<Void, Never>?
 
     init(
         dependencies: BrowseDependencies,
-        router: any IFlowRouter
+        router: any IFlowRouter,
+        preferences: BrowsePreferencesStore
     ) {
         self.dependencies = dependencies
         self.router = router
+        self.preferences = preferences
+    }
+
+    var visibleItems: [BrowseItem] {
+        guard case let .content(items) = state else {
+            return []
+        }
+
+        return switch preferences.sortOrder {
+        case .titleAscending:
+            items.sorted { $0.title < $1.title }
+        case .titleDescending:
+            items.sorted { $0.title > $1.title }
+        }
     }
 
     func openItem(id: BrowseItem.ID) {
         router.push(BrowseRoute.item(id: id))
+    }
+
+    func openOptions() {
+        sheet = .options
+    }
+
+    func dismissSheet() {
+        sheet = nil
     }
 
     func load() async {

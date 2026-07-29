@@ -12,7 +12,8 @@ struct BrowseListViewModelTests {
             dependencies: BrowseDependencies(
                 service: BrowseService(items: [item])
             ),
-            router: FlowRouter()
+            router: FlowRouter(),
+            preferences: BrowsePreferencesStore()
         )
 
         await viewModel.load()
@@ -21,12 +22,46 @@ struct BrowseListViewModelTests {
     }
 
     @Test
+    func browseDerivesVisibleItemsFromSharedSortPreference() async {
+        let preferences = BrowsePreferencesStore(sortOrder: .titleDescending)
+        let viewModel = BrowseListViewModel(
+            dependencies: BrowseDependencies(
+                service: BrowseService(items: [
+                    BrowseItem(id: "a", title: "Alpha", summary: ""),
+                    BrowseItem(id: "z", title: "Zulu", summary: "")
+                ])
+            ),
+            router: FlowRouter(),
+            preferences: preferences
+        )
+
+        await viewModel.load()
+
+        #expect(viewModel.visibleItems.map(\.id) == ["z", "a"])
+    }
+
+    @Test
+    func browseOwnsOptionsSheetState() {
+        let viewModel = BrowseListViewModel(
+            dependencies: BrowseDependencies(service: BrowseService(items: [])),
+            router: FlowRouter(),
+            preferences: BrowsePreferencesStore()
+        )
+
+        viewModel.openOptions()
+        #expect(viewModel.sheet == .options)
+        viewModel.dismissSheet()
+        #expect(viewModel.sheet == nil)
+    }
+
+    @Test
     func emptyListProducesEmptyState() async {
         let viewModel = BrowseListViewModel(
             dependencies: BrowseDependencies(
                 service: BrowseService(items: [])
             ),
-            router: FlowRouter()
+            router: FlowRouter(),
+            preferences: BrowsePreferencesStore()
         )
 
         await viewModel.load()
@@ -40,7 +75,8 @@ struct BrowseListViewModelTests {
             dependencies: BrowseDependencies(
                 service: FailingBrowseService()
             ),
-            router: FlowRouter()
+            router: FlowRouter(),
+            preferences: BrowsePreferencesStore()
         )
 
         await viewModel.load()
@@ -54,7 +90,8 @@ struct BrowseListViewModelTests {
         let service = ControlledBrowseService()
         let viewModel = BrowseListViewModel(
             dependencies: BrowseDependencies(service: service),
-            router: FlowRouter()
+            router: FlowRouter(),
+            preferences: BrowsePreferencesStore()
         )
 
         let load = Task { await viewModel.load() }
@@ -71,7 +108,8 @@ struct BrowseListViewModelTests {
         let service = ControlledBrowseService()
         let viewModel = BrowseListViewModel(
             dependencies: BrowseDependencies(service: service),
-            router: FlowRouter()
+            router: FlowRouter(),
+            preferences: BrowsePreferencesStore()
         )
 
         let load = Task { await viewModel.load() }
@@ -92,7 +130,8 @@ struct BrowseListViewModelTests {
         let service = ControlledBrowseService()
         let viewModel = BrowseListViewModel(
             dependencies: BrowseDependencies(service: service),
-            router: FlowRouter()
+            router: FlowRouter(),
+            preferences: BrowsePreferencesStore()
         )
 
         let first = Task { await viewModel.load() }
@@ -118,7 +157,8 @@ struct BrowseListViewModelTests {
         let router = FlowRouter()
         let viewModel = BrowseListViewModel(
             dependencies: dependencies,
-            router: router
+            router: router,
+            preferences: BrowsePreferencesStore()
         )
 
         viewModel.openItem(id: "swiftui")
@@ -137,6 +177,10 @@ struct BrowseListViewModelTests {
             router: router,
             dependencies: dependencies
         )
-        _ = BrowseView(router: router, dependencies: dependencies)
+        _ = BrowseView(
+            router: router,
+            dependencies: dependencies,
+            preferences: BrowsePreferencesStore()
+        )
     }
 }

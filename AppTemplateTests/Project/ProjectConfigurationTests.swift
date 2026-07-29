@@ -38,6 +38,13 @@ struct ProjectConfigurationTests {
             router: router.browse,
             dependencies: dependencies.browse
         )
+        let browsePreferences = BrowsePreferencesStore()
+        _ = BrowseView(
+            router: router.browse,
+            dependencies: dependencies.browse,
+            preferences: browsePreferences
+        )
+        _ = BrowseOptionsView(preferences: browsePreferences)
         _ = ProjectsFlowView(
             router: router.projects,
             dependencies: dependencies.projects

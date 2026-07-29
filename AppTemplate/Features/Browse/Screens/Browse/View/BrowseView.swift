@@ -4,22 +4,28 @@ struct BrowseView: View {
     private let router: FlowRouter
     @State private var viewModel: BrowseListViewModel
     private let dependencies: BrowseDependencies
+    private let preferences: BrowsePreferencesStore
 
     init(
         router: FlowRouter,
-        dependencies: BrowseDependencies
+        dependencies: BrowseDependencies,
+        preferences: BrowsePreferencesStore
     ) {
         self.router = router
         self.dependencies = dependencies
+        self.preferences = preferences
         _viewModel = State(
             initialValue: BrowseListViewModel(
                 dependencies: dependencies,
-                router: router
+                router: router,
+                preferences: preferences
             )
         )
     }
 
     var body: some View {
+        @Bindable var viewModel = viewModel
+
         Group {
             switch viewModel.state {
             case .idle, .loading:
@@ -30,8 +36,8 @@ struct BrowseView: View {
                     systemImage: "tray",
                     message: "There are no Browse items yet."
                 )
-            case let .content(items):
-                List(items) { item in
+            case .content:
+                List(viewModel.visibleItems) { item in
                     Button {
                         viewModel.openItem(id: item.id)
                     } label: {
@@ -55,6 +61,11 @@ struct BrowseView: View {
             }
         }
         .navigationTitle("Browse")
+        .toolbar {
+            Button("Options", systemImage: "slider.horizontal.3") {
+                viewModel.openOptions()
+            }
+        }
         .task {
             await viewModel.load()
         }
@@ -68,6 +79,14 @@ struct BrowseView: View {
                     id: id,
                     dependencies: dependencies
                 )
+            }
+        }
+        .sheet(item: $viewModel.sheet, onDismiss: {
+            viewModel.dismissSheet()
+        }) { route in
+            switch route {
+            case .options:
+                BrowseOptionsView(preferences: preferences)
             }
         }
     }
