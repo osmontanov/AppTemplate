@@ -5,6 +5,7 @@ import Observation
 final class ProjectsViewModel {
     let store: ProjectsStore
     private let router: any IFlowRouter
+    var sheet: ProjectsSheetRoute?
 
     var projects: [ProjectItem] {
         store.projects
@@ -20,5 +21,13 @@ final class ProjectsViewModel {
 
     func openProject(id: ProjectItem.ID) {
         router.push(ProjectsRoute.project(id: id))
+    }
+
+    func openCreateProject() {
+        sheet = .createProject
+    }
+
+    func dismissSheet() {
+        sheet = nil
     }
 }

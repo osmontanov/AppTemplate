@@ -33,4 +33,20 @@ struct ProjectsViewModelTests {
             store: ProjectsStore()
         )
     }
+
+    @Test
+    func projectsOwnsCreateProjectSheetState() {
+        let viewModel = ProjectsViewModel(
+            store: ProjectsStore(),
+            router: FlowRouter()
+        )
+
+        viewModel.openCreateProject()
+
+        #expect(viewModel.sheet == .createProject)
+
+        viewModel.dismissSheet()
+
+        #expect(viewModel.sheet == nil)
+    }
 }

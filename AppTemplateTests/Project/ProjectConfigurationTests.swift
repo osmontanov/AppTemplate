@@ -39,6 +39,29 @@ struct ProjectConfigurationTests {
             router: router.projects,
             dependencies: dependencies.projects
         )
+        let projectsStore = ProjectsStore()
+        let draft = CreateProjectDraftState()
+        _ = CreateProjectFlowView(
+            store: projectsStore
+        )
+        _ = ProjectInfoView(
+            projectID: "project-1",
+            store: projectsStore
+        )
+        _ = ProjectBasicsView(
+            draft: draft,
+            router: FlowRouter(),
+            store: projectsStore
+        )
+        _ = ProjectOptionsView(
+            draft: draft,
+            router: FlowRouter(),
+            store: projectsStore
+        )
+        _ = ProjectReviewView(
+            draft: draft,
+            store: projectsStore
+        )
         _ = SettingsFlowView(
             router: router.settings,
             sessionStore: sessionStore

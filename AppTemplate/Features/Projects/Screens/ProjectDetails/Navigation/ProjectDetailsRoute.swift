@@ -5,3 +5,10 @@ enum ProjectDetailsRoute: NavigationRoute {
         taskID: ProjectTaskItem.ID
     )
 }
+
+nonisolated
+enum ProjectDetailsSheetRoute: Identifiable, Hashable, Sendable {
+    case projectInfo(projectID: ProjectItem.ID)
+
+    var id: Self { self }
+}

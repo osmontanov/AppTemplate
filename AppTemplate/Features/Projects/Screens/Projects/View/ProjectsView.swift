@@ -18,6 +18,8 @@ struct ProjectsView: View {
     }
 
     var body: some View {
+        @Bindable var viewModel = viewModel
+
         Group {
             if viewModel.projects.isEmpty {
                 EmptyStateView(
@@ -42,6 +44,11 @@ struct ProjectsView: View {
             }
         }
         .navigationTitle("Projects")
+        .toolbar {
+            Button("New Project", systemImage: "plus") {
+                viewModel.openCreateProject()
+            }
+        }
         .navigationDestination(for: ProjectsRoute.self) { route in
             switch route {
             case let .project(id):
@@ -50,6 +57,12 @@ struct ProjectsView: View {
                     router: router,
                     store: viewModel.store
                 )
+            }
+        }
+        .sheet(item: $viewModel.sheet) { route in
+            switch route {
+            case .createProject:
+                CreateProjectFlowView(store: viewModel.store)
             }
         }
     }

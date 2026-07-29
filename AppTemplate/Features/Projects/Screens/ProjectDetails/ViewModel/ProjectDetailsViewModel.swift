@@ -6,6 +6,7 @@ final class ProjectDetailsViewModel {
     let projectID: ProjectItem.ID
     let store: ProjectsStore
     private let router: any IFlowRouter
+    var sheet: ProjectDetailsSheetRoute?
 
     var project: ProjectItem? {
         store.project(id: projectID)
@@ -32,5 +33,13 @@ final class ProjectDetailsViewModel {
                 taskID: id
             )
         )
+    }
+
+    func openProjectInfo() {
+        sheet = .projectInfo(projectID: projectID)
+    }
+
+    func dismissSheet() {
+        sheet = nil
     }
 }

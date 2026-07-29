@@ -20,6 +20,8 @@ struct ProjectDetailsView: View {
     }
 
     var body: some View {
+        @Bindable var viewModel = viewModel
+
         Group {
             if let project = viewModel.project {
                 List(viewModel.tasks) { task in
@@ -51,6 +53,20 @@ struct ProjectDetailsView: View {
                 TaskDetailsView(
                     projectID: projectID,
                     taskID: taskID,
+                    store: viewModel.store
+                )
+            }
+        }
+        .toolbar {
+            Button("Project Info", systemImage: "info.circle") {
+                viewModel.openProjectInfo()
+            }
+        }
+        .sheet(item: $viewModel.sheet) { route in
+            switch route {
+            case let .projectInfo(projectID):
+                ProjectInfoView(
+                    projectID: projectID,
                     store: viewModel.store
                 )
             }

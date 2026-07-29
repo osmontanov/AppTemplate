@@ -32,4 +32,23 @@ struct ProjectDetailsViewModelTests {
             store: ProjectsStore()
         )
     }
+
+    @Test
+    func projectDetailsOwnsProjectInfoSheetState() {
+        let store = ProjectsStore()
+        let projectID = store.projects[0].id
+        let viewModel = ProjectDetailsViewModel(
+            projectID: projectID,
+            store: store,
+            router: FlowRouter()
+        )
+
+        viewModel.openProjectInfo()
+
+        #expect(viewModel.sheet == .projectInfo(projectID: projectID))
+
+        viewModel.dismissSheet()
+
+        #expect(viewModel.sheet == nil)
+    }
 }
