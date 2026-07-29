@@ -122,6 +122,29 @@ struct AppSceneNavigationLifecycleTests {
     }
 
     @Test
+    func authenticationGatedProjectTaskColdLaunchReplaysCanonicalProjectsPath() throws {
+        let router = AppRouter(flow: .authentication)
+        let lifecycle = AppSceneNavigationLifecycle(router: router)
+
+        lifecycle.receive(
+            try #require(
+                URL(
+                    string: "apptemplate://projects/project/project-1/task/task-1"
+                )
+            )
+        )
+        _ = lifecycle.restore(from: nil)
+
+        #expect(
+            router.pendingIntent
+                == .projectTask(projectID: "project-1", taskID: "task-1")
+        )
+        #expect(router.completeAuthentication(succeeded: true) == .applied)
+        #expect(router.selectedSection == .projects)
+        #expect(router.projects.path.count == 2)
+    }
+
+    @Test
     func signedOutColdLaunchIntentReplaysAfterAuthentication() throws {
         let router = AppRouter(flow: .launching)
         let lifecycle = AppSceneNavigationLifecycle(router: router)

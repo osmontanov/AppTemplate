@@ -48,6 +48,8 @@ struct DeepLinkParser: Sendable {
             return .success(.selectSection(.home))
         case "browse" where segments.isEmpty:
             return .success(.selectSection(.browse))
+        case "projects" where segments.isEmpty:
+            return .success(.selectSection(.projects))
         case "settings" where segments.isEmpty:
             return .success(.selectSection(.settings))
         case "browse" where segments.count == 2 && segments[0] == "item":
@@ -56,6 +58,24 @@ struct DeepLinkParser: Sendable {
                 return .failure(.unknownDestination)
             }
             return .success(.browseItem(id: id))
+        case "projects" where segments.count == 2 && segments[0] == "project":
+            let id = segments[1]
+            guard !id.isEmpty else {
+                return .failure(.unknownDestination)
+            }
+            return .success(.project(id: id))
+        case "projects"
+            where segments.count == 4
+                && segments[0] == "project"
+                && segments[2] == "task":
+            let projectID = segments[1]
+            let taskID = segments[3]
+            guard !projectID.isEmpty, !taskID.isEmpty else {
+                return .failure(.unknownDestination)
+            }
+            return .success(
+                .projectTask(projectID: projectID, taskID: taskID)
+            )
         default:
             return .failure(.unknownDestination)
         }

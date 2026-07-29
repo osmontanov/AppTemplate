@@ -43,18 +43,29 @@ Tests mirror production ownership under `AppTemplateTests`.
 - Screen ViewModels receive `any IFlowRouter`; each screen owns its outgoing
   Route and `.navigationDestination` mapping.
 - `AppRouter` is created per window scene.
-- `NavigationSnapshot` restores schema-2 heterogeneous `NavigationPath`
-  representations through `SceneStorage`.
+- `NavigationSnapshot` restores schema-3 heterogeneous `NavigationPath`
+  representations through `SceneStorage`, and migrates schema-2 snapshots by
+  restoring their Home, Browse, and Settings histories with an empty Projects
+  history.
 - `DeepLinkParser` accepts:
   - `apptemplate://home`
   - `apptemplate://browse`
   - `apptemplate://browse/item/<id>`
+  - `apptemplate://projects`
+  - `apptemplate://projects/project/<project-id>`
+  - `apptemplate://projects/project/<project-id>/task/<task-id>`
   - `apptemplate://settings`
 
 Example features are removable. A new independent flow uses the shared
 `FlowRouter`, owns one navigation container, and keeps destination mappings
 inside the screens that initiate them. A leaf screen may reserve an empty,
 nonconforming Route scaffold; it must not add a fake placeholder route.
+
+The Projects tab is an example of this ownership. `ProjectsView` owns the
+simple create-project sheet, while `ProjectDetailsView` owns its project-info
+sheet. The create-project sheet presents `CreateProjectFlowView`, an
+independent modal flow with its own router and draft state, so its multi-screen
+creation sequence does not join the tab's Projects navigation stack.
 
 See the
 [hierarchical navigation design](docs/superpowers/specs/2026-07-29-hierarchical-flow-navigation-design.md)

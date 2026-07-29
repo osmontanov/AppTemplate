@@ -110,6 +110,20 @@ final class AppRouter {
             selectedSection = .browse
             browse.popToRoot()
             browse.push(BrowseRoute.item(id: id))
+        case let .project(id):
+            selectedSection = .projects
+            projects.popToRoot()
+            projects.push(ProjectsRoute.project(id: id))
+        case let .projectTask(projectID, taskID):
+            selectedSection = .projects
+            projects.popToRoot()
+            projects.push(ProjectsRoute.project(id: projectID))
+            projects.push(
+                ProjectDetailsRoute.task(
+                    projectID: projectID,
+                    taskID: taskID
+                )
+            )
         }
         return .applied
     }

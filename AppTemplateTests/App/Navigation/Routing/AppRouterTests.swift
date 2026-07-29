@@ -58,6 +58,63 @@ struct AppRouterTests {
     }
 
     @Test
+    func projectIntentResetsOnlyProjectsHistoryAndPreservesOtherFlows() {
+        let router = AppRouter(selectedSection: .settings)
+        router.home.push(HomeRoute.details)
+        router.browse.push(BrowseRoute.item(id: "swiftui"))
+        router.projects.push(ProjectsRoute.project(id: "stale-project"))
+        router.projects.push(
+            ProjectDetailsRoute.task(
+                projectID: "stale-project",
+                taskID: "stale-task"
+            )
+        )
+        router.settings.push(SettingsRoute.about)
+
+        let outcome = router.handle(.project(id: "missing-project"))
+
+        #expect(outcome == .applied)
+        #expect(router.selectedSection == .projects)
+        #expect(router.projects.path.count == 1)
+        #expect(router.home.path.count == 1)
+        #expect(router.browse.path.count == 1)
+        #expect(router.settings.path.count == 1)
+    }
+
+    @Test
+    func projectTaskIntentBuildsCanonicalProjectsRouteSequence() {
+        let router = AppRouter()
+        router.projects.push(ProjectsRoute.project(id: "stale-project"))
+
+        let outcome = router.handle(
+            .projectTask(projectID: "project-1", taskID: "missing-task")
+        )
+
+        #expect(outcome == .applied)
+        #expect(router.selectedSection == .projects)
+        #expect(router.projects.path.count == 2)
+    }
+
+    @Test
+    func projectTaskIntentDefersAndReplaysAfterAuthentication() {
+        let router = AppRouter(flow: .authentication)
+
+        #expect(
+            router.handle(.projectTask(projectID: "project-1", taskID: "task-1"))
+                == .deferred
+        )
+        #expect(
+            router.pendingIntent
+                == .projectTask(projectID: "project-1", taskID: "task-1")
+        )
+
+        #expect(router.completeAuthentication(succeeded: true) == .applied)
+        #expect(router.pendingIntent == nil)
+        #expect(router.selectedSection == .projects)
+        #expect(router.projects.path.count == 2)
+    }
+
+    @Test
     func successfulNewAuthenticationResetsHistoriesBeforeReplayingIntent() {
         let router = AppRouter(flow: .authentication)
         router.authentication.push(AuthenticationTestRoute.step)

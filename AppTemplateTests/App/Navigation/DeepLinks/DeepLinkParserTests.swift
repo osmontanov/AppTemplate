@@ -8,6 +8,18 @@ struct DeepLinkParserTests {
     @Test(arguments: [
         ("apptemplate://home", NavigationIntent.selectSection(.home)),
         ("apptemplate://browse", NavigationIntent.selectSection(.browse)),
+        ("apptemplate://projects", NavigationIntent.selectSection(.projects)),
+        (
+            "apptemplate://projects/project/project-1",
+            NavigationIntent.project(id: "project-1")
+        ),
+        (
+            "apptemplate://projects/project/project-1/task/task-1",
+            NavigationIntent.projectTask(
+                projectID: "project-1",
+                taskID: "task-1"
+            )
+        ),
         ("apptemplate://settings", NavigationIntent.selectSection(.settings)),
         ("apptemplate://browse/item/swiftui", NavigationIntent.browseItem(id: "swiftui"))
     ])
@@ -35,10 +47,25 @@ struct DeepLinkParserTests {
         "apptemplate://browse/",
         "apptemplate://settings/",
         "apptemplate://browse/item/",
-        "apptemplate://browse/item/swiftui/"
+        "apptemplate://browse/item/swiftui/",
+        "apptemplate://projects/project",
+        "apptemplate://projects/project/",
+        "apptemplate://projects/project/project-1/task",
+        "apptemplate://projects/project/project-1/task/"
     ])
     func rejectsEmptyPathSegments(rawURL: String) throws {
         let url = try #require(URL(string: rawURL))
+        #expect(parser.parse(url) == .failure(.unknownDestination))
+    }
+
+    @Test
+    func rejectsProjectsURLsWithExtraPathComponents() throws {
+        let url = try #require(
+            URL(
+                string: "apptemplate://projects/project/project-1/task/task-1/extra"
+            )
+        )
+
         #expect(parser.parse(url) == .failure(.unknownDestination))
     }
 
