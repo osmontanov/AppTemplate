@@ -1,0 +1,28 @@
+import SwiftUI
+
+struct ErrorStateView: View {
+    let title: String
+    let message: String
+    let retry: () -> Void
+
+    var body: some View {
+        ContentUnavailableView {
+            Label(
+                title,
+                systemImage: "exclamationmark.triangle"
+            )
+        } description: {
+            Text(message)
+        } actions: {
+            Button("Retry", action: retry)
+        }
+    }
+}
+
+#Preview("Error") {
+    ErrorStateView(
+        title: "Unavailable",
+        message: "Please try again.",
+        retry: {}
+    )
+}
