@@ -35,6 +35,10 @@ struct ProjectConfigurationTests {
             router: router.browse,
             dependencies: dependencies.browse
         )
+        _ = ProjectsFlowView(
+            router: router.projects,
+            dependencies: dependencies.projects
+        )
         _ = SettingsFlowView(
             router: router.settings,
             sessionStore: sessionStore

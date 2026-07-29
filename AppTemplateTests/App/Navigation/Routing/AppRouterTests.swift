@@ -9,6 +9,7 @@ struct AppRouterTests {
         let authentication = FlowRouter()
         let home = FlowRouter()
         let browse = FlowRouter()
+        let projects = FlowRouter()
         let settings = FlowRouter()
 
         let router = AppRouter(
@@ -17,6 +18,7 @@ struct AppRouterTests {
             authentication: authentication,
             home: home,
             browse: browse,
+            projects: projects,
             settings: settings
         )
 
@@ -25,6 +27,7 @@ struct AppRouterTests {
         #expect(router.authentication === authentication)
         #expect(router.home === home)
         #expect(router.browse === browse)
+        #expect(router.projects === projects)
         #expect(router.settings === settings)
     }
 
@@ -60,6 +63,7 @@ struct AppRouterTests {
         router.authentication.push(AuthenticationTestRoute.step)
         router.home.push(HomeRoute.details)
         router.settings.push(SettingsRoute.about)
+        router.projects.push(ProjectsRoute.project(id: "project-1"))
         _ = router.handle(.browseItem(id: "swiftui"))
 
         let outcome = router.completeAuthentication(succeeded: true)
@@ -70,6 +74,7 @@ struct AppRouterTests {
         #expect(router.authentication.path.isEmpty)
         #expect(router.home.path.isEmpty)
         #expect(router.settings.path.isEmpty)
+        #expect(router.projects.path.isEmpty)
         #expect(router.browse.path.count == 1)
         #expect(router.selectedSection == .browse)
     }
@@ -104,6 +109,7 @@ struct AppRouterTests {
         let router = AppRouter()
         router.home.push(HomeRoute.details)
         router.browse.push(BrowseRoute.item(id: "swiftui"))
+        router.projects.push(ProjectsRoute.project(id: "project-1"))
         router.settings.push(SettingsRoute.about)
 
         router.requireAuthentication()
@@ -113,7 +119,18 @@ struct AppRouterTests {
         #expect(router.authentication.path.isEmpty)
         #expect(router.home.path.isEmpty)
         #expect(router.browse.path.isEmpty)
+        #expect(router.projects.path.isEmpty)
         #expect(router.settings.path.isEmpty)
+    }
+
+    @Test
+    func appRouterOwnsAndResetsProjectsHistory() {
+        let router = AppRouter()
+        router.projects.push(ProjectsRoute.project(id: "project-1"))
+
+        router.requireAuthentication()
+
+        #expect(router.projects.path.isEmpty)
     }
 
     @Test

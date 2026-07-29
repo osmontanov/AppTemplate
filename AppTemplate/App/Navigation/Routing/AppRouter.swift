@@ -11,6 +11,7 @@ final class AppRouter {
     let authentication: FlowRouter
     let home: FlowRouter
     let browse: FlowRouter
+    let projects: FlowRouter
     let settings: FlowRouter
     private(set) var pendingIntent: NavigationIntent?
 
@@ -20,6 +21,7 @@ final class AppRouter {
         authentication: FlowRouter,
         home: FlowRouter,
         browse: FlowRouter,
+        projects: FlowRouter,
         settings: FlowRouter
     ) {
         self.flow = flow
@@ -27,6 +29,7 @@ final class AppRouter {
         self.authentication = authentication
         self.home = home
         self.browse = browse
+        self.projects = projects
         self.settings = settings
     }
 
@@ -40,6 +43,7 @@ final class AppRouter {
             authentication: FlowRouter(),
             home: FlowRouter(),
             browse: FlowRouter(),
+            projects: FlowRouter(),
             settings: FlowRouter()
         )
     }
@@ -116,6 +120,8 @@ final class AppRouter {
             home
         case .browse:
             browse
+        case .projects:
+            projects
         case .settings:
             settings
         }
@@ -126,6 +132,7 @@ final class AppRouter {
         authentication.popToRoot()
         home.popToRoot()
         browse.popToRoot()
+        projects.popToRoot()
         settings.popToRoot()
     }
 }

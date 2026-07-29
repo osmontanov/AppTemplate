@@ -18,6 +18,13 @@ struct AppShellView: View {
                 )
             }
 
+            Tab("Projects", systemImage: "folder", value: AppSection.projects) {
+                ProjectsFlowView(
+                    router: router.projects,
+                    dependencies: dependencies.projects
+                )
+            }
+
             Tab("Settings", systemImage: "gearshape", value: AppSection.settings) {
                 SettingsFlowView(
                     router: router.settings,
