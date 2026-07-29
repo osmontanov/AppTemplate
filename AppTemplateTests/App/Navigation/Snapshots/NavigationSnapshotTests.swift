@@ -125,17 +125,16 @@ struct NavigationSnapshotTests {
 
     @Test
     func legacySchemaResetsNavigationAsUnsupported() throws {
-        let snapshot = NavigationSnapshot(
-            schemaVersion: 1,
+        let snapshot = LegacyNavigationSnapshot(
             selectedSection: .browse,
-            homePath: NavigationPath([HomeRoute.details]),
-            browsePath: NavigationPath([BrowseRoute.item(id: "swiftui")]),
-            settingsPath: NavigationPath()
+            homePath: [.details],
+            browsePath: [.item(id: "swiftui")],
+            settingsPath: []
         )
         let router = AppRouter()
 
         #expect(
-            router.restore(from: try NavigationSnapshotCodec.encode(snapshot))
+            router.restore(from: try JSONEncoder().encode(snapshot))
                 == .reset(.unsupportedSchema(1))
         )
         #expect(router.selectedSection == .home)
@@ -188,4 +187,12 @@ private nonisolated enum AuthenticationSnapshotRoute:
 
 private nonisolated struct NonCodablePathValue: Hashable {
     let id: String
+}
+
+private nonisolated struct LegacyNavigationSnapshot: Encodable {
+    let schemaVersion = 1
+    let selectedSection: AppSection
+    let homePath: [HomeRoute]
+    let browsePath: [BrowseRoute]
+    let settingsPath: [SettingsRoute]
 }

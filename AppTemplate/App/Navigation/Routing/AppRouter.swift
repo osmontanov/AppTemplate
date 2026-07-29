@@ -146,6 +146,25 @@ extension AppRouter {
             return .noState
         }
 
+        let schemaVersion: Int
+        do {
+            schemaVersion = try NavigationSnapshotCodec.schemaVersion(in: data)
+        } catch {
+            resetNavigation()
+            Logger.navigation.error(
+                "Reset corrupt navigation snapshot: \(String(describing: error), privacy: .public)"
+            )
+            return .reset(.corruptData)
+        }
+
+        guard schemaVersion == NavigationSnapshot.currentSchemaVersion else {
+            resetNavigation()
+            Logger.navigation.error(
+                "Reset unsupported navigation schema: \(schemaVersion)"
+            )
+            return .reset(.unsupportedSchema(schemaVersion))
+        }
+
         let decoded: NavigationSnapshot
         do {
             decoded = try NavigationSnapshotCodec.decode(data)
@@ -155,14 +174,6 @@ extension AppRouter {
                 "Reset corrupt navigation snapshot: \(String(describing: error), privacy: .public)"
             )
             return .reset(.corruptData)
-        }
-
-        guard decoded.schemaVersion == NavigationSnapshot.currentSchemaVersion else {
-            resetNavigation()
-            Logger.navigation.error(
-                "Reset unsupported navigation schema: \(decoded.schemaVersion)"
-            )
-            return .reset(.unsupportedSchema(decoded.schemaVersion))
         }
 
         let homePath = decoded.homePath.restoredPath

@@ -26,8 +26,16 @@ struct NavigationSnapshot: Codable, Equatable {
 }
 
 enum NavigationSnapshotCodec {
+    private struct Header: Decodable {
+        let schemaVersion: Int
+    }
+
     static func encode(_ snapshot: NavigationSnapshot) throws -> Data {
         try JSONEncoder().encode(snapshot)
+    }
+
+    static func schemaVersion(in data: Data) throws -> Int {
+        try JSONDecoder().decode(Header.self, from: data).schemaVersion
     }
 
     static func decode(_ data: Data) throws -> NavigationSnapshot {
