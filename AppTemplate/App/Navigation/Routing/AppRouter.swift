@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import OSLog
+import SwiftUI
 
 @MainActor
 @Observable
@@ -53,7 +54,6 @@ final class AppRouter {
 
     func finishLaunching(isAuthenticated: Bool) -> NavigationOutcome? {
         guard isAuthenticated else {
-            pendingIntent = nil
             resetFlowHistories()
             flow = .authentication
             return nil
@@ -165,22 +165,37 @@ extension AppRouter {
             return .reset(.unsupportedSchema(decoded.schemaVersion))
         }
 
-        guard let homePath = decoded.homePath.restoredPath,
-              let browsePath = decoded.browsePath.restoredPath,
-              let settingsPath = decoded.settingsPath.restoredPath else {
-            resetNavigation()
-            Logger.navigation.error(
-                "Reset navigation snapshot with a non-restorable path"
-            )
-            return .reset(.corruptData)
+        let homePath = decoded.homePath.restoredPath
+        let browsePath = decoded.browsePath.restoredPath
+        let settingsPath = decoded.settingsPath.restoredPath
+        var recoveredSections: Set<AppSection> = []
+        if homePath == nil {
+            recoveredSections.insert(.home)
+        }
+        if browsePath == nil {
+            recoveredSections.insert(.browse)
+        }
+        if settingsPath == nil {
+            recoveredSections.insert(.settings)
         }
 
         selectedSection = decoded.selectedSection
         authentication.popToRoot()
-        home.replacePath(with: homePath)
-        browse.replacePath(with: browsePath)
-        settings.replacePath(with: settingsPath)
+        home.replacePath(with: homePath ?? .init())
+        browse.replacePath(with: browsePath ?? .init())
+        settings.replacePath(with: settingsPath ?? .init())
         pendingIntent = nil
+
+        guard recoveredSections.isEmpty else {
+            let names = recoveredSections
+                .map(\.rawValue)
+                .sorted()
+                .joined(separator: ", ")
+            Logger.navigation.error(
+                "Reset non-restorable navigation flows: \(names, privacy: .public)"
+            )
+            return .recovered(recoveredSections)
+        }
         return .restored
     }
 

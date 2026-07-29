@@ -84,6 +84,29 @@ struct NavigationSnapshotTests {
     }
 
     @Test
+    func corruptFlowPathResetsOnlyTheAffectedFlow() throws {
+        let source = AppRouter(selectedSection: .settings)
+        source.home.push(HomeRoute.details)
+        source.browse.push(BrowseRoute.item(id: "swiftui"))
+        source.settings.push(SettingsRoute.about)
+        var snapshot = source.snapshot
+        snapshot.settingsPath = FlowPathSnapshot(
+            restorationData: Data("not-json".utf8)
+        )
+        let restored = AppRouter()
+
+        let result = restored.restore(
+            from: try NavigationSnapshotCodec.encode(snapshot)
+        )
+
+        #expect(result == .recovered([.settings]))
+        #expect(restored.selectedSection == .settings)
+        #expect(restored.home.path.count == 1)
+        #expect(restored.browse.path.count == 1)
+        #expect(restored.settings.path.isEmpty)
+    }
+
+    @Test
     func futureSchemaResetsNavigation() throws {
         let snapshot = NavigationSnapshot(
             schemaVersion: 999,
@@ -98,6 +121,26 @@ struct NavigationSnapshotTests {
             router.restore(from: try NavigationSnapshotCodec.encode(snapshot))
                 == .reset(.unsupportedSchema(999))
         )
+    }
+
+    @Test
+    func legacySchemaResetsNavigationAsUnsupported() throws {
+        let snapshot = NavigationSnapshot(
+            schemaVersion: 1,
+            selectedSection: .browse,
+            homePath: NavigationPath([HomeRoute.details]),
+            browsePath: NavigationPath([BrowseRoute.item(id: "swiftui")]),
+            settingsPath: NavigationPath()
+        )
+        let router = AppRouter()
+
+        #expect(
+            router.restore(from: try NavigationSnapshotCodec.encode(snapshot))
+                == .reset(.unsupportedSchema(1))
+        )
+        #expect(router.selectedSection == .home)
+        #expect(router.home.path.isEmpty)
+        #expect(router.browse.path.isEmpty)
     }
 
     @Test
@@ -120,15 +163,19 @@ struct NavigationSnapshotTests {
     }
 
     @Test
-    func nonCodablePathIsNotPersisted() {
-        let router = AppRouter()
-        router.home.path.append(NonCodablePathValue(id: "temporary"))
+    func nonCodablePathPersistsAsRecoverableEmptyFlow() throws {
+        let source = AppRouter(selectedSection: .home)
+        source.home.path.append(NonCodablePathValue(id: "temporary"))
+        source.browse.push(BrowseRoute.item(id: "swiftui"))
+        let restored = AppRouter()
 
-        #expect(
-            throws: NavigationSnapshotEncodingError.nonRestorablePath
-        ) {
-            try NavigationSnapshotCodec.encode(router.snapshot)
-        }
+        let result = restored.restore(
+            from: try NavigationSnapshotCodec.encode(source.snapshot)
+        )
+
+        #expect(result == .recovered([.home]))
+        #expect(restored.home.path.isEmpty)
+        #expect(restored.browse.path.count == 1)
     }
 }
 

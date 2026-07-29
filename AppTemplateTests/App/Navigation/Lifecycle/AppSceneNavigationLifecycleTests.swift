@@ -122,6 +122,30 @@ struct AppSceneNavigationLifecycleTests {
     }
 
     @Test
+    func signedOutColdLaunchIntentReplaysAfterAuthentication() throws {
+        let router = AppRouter(flow: .launching)
+        let lifecycle = AppSceneNavigationLifecycle(router: router)
+        let session = UserSession(id: "one", displayName: "One")
+
+        lifecycle.receive(
+            try #require(URL(string: "apptemplate://browse/item/swiftui"))
+        )
+        _ = lifecycle.restore(from: nil)
+        lifecycle.synchronizeSession(.unauthenticated)
+
+        #expect(router.flow == .authentication)
+        #expect(router.pendingIntent == .browseItem(id: "swiftui"))
+
+        lifecycle.synchronizeSession(.loading)
+        lifecycle.synchronizeSession(.authenticated(session))
+
+        #expect(router.flow == .main)
+        #expect(router.pendingIntent == nil)
+        #expect(router.selectedSection == .browse)
+        #expect(router.browse.path.count == 1)
+    }
+
+    @Test
     func lastQueuedURLWinsAfterAuthenticationAndOldHistoriesReset() throws {
         let router = AppRouter(flow: .authentication)
         let lifecycle = AppSceneNavigationLifecycle(router: router)

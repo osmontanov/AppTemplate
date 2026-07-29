@@ -12,6 +12,10 @@ struct FlowPathSnapshot: Codable, Equatable, Sendable {
         data = try? JSONEncoder().encode(representation)
     }
 
+    init(restorationData: Data?) {
+        data = restorationData
+    }
+
     var restoredPath: NavigationPath? {
         guard let data,
               let representation = try? JSONDecoder().decode(
@@ -21,9 +25,5 @@ struct FlowPathSnapshot: Codable, Equatable, Sendable {
             return nil
         }
         return NavigationPath(representation)
-    }
-
-    var isRestorable: Bool {
-        data != nil
     }
 }

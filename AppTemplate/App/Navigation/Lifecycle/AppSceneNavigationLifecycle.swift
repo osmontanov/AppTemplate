@@ -59,10 +59,12 @@ final class AppSceneNavigationLifecycle {
         if !urls.isEmpty {
             return router.snapshot
         }
-        if case .reset = restorationResult {
+        switch restorationResult {
+        case .recovered, .reset:
             return router.snapshot
+        case .noState, .restored:
+            return nil
         }
-        return nil
     }
 
     @discardableResult

@@ -25,18 +25,9 @@ struct NavigationSnapshot: Codable, Equatable {
     }
 }
 
-nonisolated enum NavigationSnapshotEncodingError: Error, Equatable {
-    case nonRestorablePath
-}
-
 enum NavigationSnapshotCodec {
     static func encode(_ snapshot: NavigationSnapshot) throws -> Data {
-        guard snapshot.homePath.isRestorable,
-              snapshot.browsePath.isRestorable,
-              snapshot.settingsPath.isRestorable else {
-            throw NavigationSnapshotEncodingError.nonRestorablePath
-        }
-        return try JSONEncoder().encode(snapshot)
+        try JSONEncoder().encode(snapshot)
     }
 
     static func decode(_ data: Data) throws -> NavigationSnapshot {
@@ -64,5 +55,6 @@ nonisolated enum NavigationRestorationFailure: Equatable, Sendable {
 nonisolated enum NavigationRestorationResult: Equatable, Sendable {
     case noState
     case restored
+    case recovered(Set<AppSection>)
     case reset(NavigationRestorationFailure)
 }
