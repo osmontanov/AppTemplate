@@ -9,10 +9,12 @@ final class AppRouter {
     let appFlowRouter: AppFlowRouter
     var selectedSection: AppSection
     let authentication: FlowRouter
+    let onboarding: FlowRouter
     let home: FlowRouter
     let browse: FlowRouter
     let projects: FlowRouter
     let settings: FlowRouter
+    let maintenance: FlowRouter
     private(set) var pendingIntent: NavigationIntent?
 
     init(
@@ -22,10 +24,12 @@ final class AppRouter {
         self.appFlowRouter = appFlowRouter
         self.selectedSection = selectedSection
         authentication = FlowRouter(appFlowRouter: appFlowRouter)
+        onboarding = FlowRouter(appFlowRouter: appFlowRouter)
         home = FlowRouter(appFlowRouter: appFlowRouter)
         browse = FlowRouter(appFlowRouter: appFlowRouter)
         projects = FlowRouter(appFlowRouter: appFlowRouter)
         settings = FlowRouter(appFlowRouter: appFlowRouter)
+        maintenance = FlowRouter(appFlowRouter: appFlowRouter)
     }
 
     @discardableResult
@@ -110,10 +114,12 @@ final class AppRouter {
     private func resetFlowHistories() {
         selectedSection = .home
         authentication.popToRoot()
+        onboarding.popToRoot()
         home.popToRoot()
         browse.popToRoot()
         projects.popToRoot()
         settings.popToRoot()
+        maintenance.popToRoot()
     }
 }
 
@@ -225,10 +231,12 @@ extension AppRouter {
 
         self.selectedSection = selectedSection
         authentication.popToRoot()
+        onboarding.popToRoot()
         home.replacePath(with: homePath ?? .init())
         browse.replacePath(with: browsePath ?? .init())
         projects.replacePath(with: projectsPath ?? .init())
         settings.replacePath(with: settingsPath ?? .init())
+        maintenance.popToRoot()
         pendingIntent = nil
 
         guard recoveredSections.isEmpty else {

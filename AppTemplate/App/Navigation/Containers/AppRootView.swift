@@ -16,8 +16,12 @@ struct AppRootView: View {
                     router: router.authentication,
                     sessionStore: sessionStore
                 )
+            case .onboarding:
+                OnboardingFlowView(router: router.onboarding)
             case .main:
                 AppShellView(router: router, dependencies: dependencies)
+            case .maintenance:
+                MaintenanceFlowView(router: router.maintenance)
             }
         }
         .id(appFlowRouter.transition.id)

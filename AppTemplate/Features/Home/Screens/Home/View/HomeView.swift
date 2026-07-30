@@ -21,6 +21,12 @@ struct HomeView: View {
             Button("Open navigation guide") {
                 viewModel.openNavigationGuide()
             }
+            Button("Open onboarding example") {
+                viewModel.openOnboarding()
+            }
+            Button("Open maintenance example") {
+                viewModel.openMaintenance()
+            }
             Button("Quick Start") {
                 viewModel.openQuickStart()
             }

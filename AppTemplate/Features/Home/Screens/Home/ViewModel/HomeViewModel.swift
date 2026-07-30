@@ -3,7 +3,7 @@ import Observation
 @MainActor
 @Observable
 final class HomeViewModel {
-    private let router: any IFlowRouter
+    private let router: any IRouter
     var alert: HomeAlertRoute?
     var sheet: HomeSheetRoute?
 
@@ -16,7 +16,7 @@ final class HomeViewModel {
         }
     }
 
-    init(router: any IFlowRouter) {
+    init(router: any IRouter) {
         self.router = router
     }
 
@@ -26,6 +26,14 @@ final class HomeViewModel {
 
     func openNavigationGuide() {
         router.push(HomeRoute.navigationGuide)
+    }
+
+    func openOnboarding() {
+        router.setFlow(.onboarding)
+    }
+
+    func openMaintenance() {
+        router.setFlow(.maintenance)
     }
 
     func requestNavigationReset() {

@@ -43,6 +43,8 @@ struct ProjectConfigurationTests {
             sessionStore: sessionStore
         )
         _ = AuthenticationHelpView()
+        _ = OnboardingFlowView(router: router.onboarding)
+        _ = OnboardingView(router: router.onboarding)
         _ = HomeFlowView(router: router.home)
         _ = GuideTopicView(id: "screen-owned-routes")
         _ = QuickStartView()
@@ -113,6 +115,8 @@ struct ProjectConfigurationTests {
         _ = AboutView(router: router.settings)
         _ = PlatformDetailsView(name: "macOS 26")
         _ = SessionInfoView(sessionStore: sessionStore)
+        _ = MaintenanceFlowView(router: router.maintenance)
+        _ = MaintenanceView(router: router.maintenance)
     }
 }
 

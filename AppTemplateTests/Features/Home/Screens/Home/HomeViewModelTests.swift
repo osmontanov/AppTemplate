@@ -55,6 +55,28 @@ struct HomeViewModelTests {
     }
 
     @Test
+    func openingOnboardingChangesTheAppFlow() {
+        let appFlowRouter = AppFlowRouter(flow: .main)
+        let router = FlowRouter(appFlowRouter: appFlowRouter)
+        let viewModel = HomeViewModel(router: router)
+
+        viewModel.openOnboarding()
+
+        #expect(appFlowRouter.flow == .onboarding)
+    }
+
+    @Test
+    func openingMaintenanceChangesTheAppFlow() {
+        let appFlowRouter = AppFlowRouter(flow: .main)
+        let router = FlowRouter(appFlowRouter: appFlowRouter)
+        let viewModel = HomeViewModel(router: router)
+
+        viewModel.openMaintenance()
+
+        #expect(appFlowRouter.flow == .maintenance)
+    }
+
+    @Test
     func homeFlowAndScreenCanBeConstructed() {
         let router = FlowRouter()
 
