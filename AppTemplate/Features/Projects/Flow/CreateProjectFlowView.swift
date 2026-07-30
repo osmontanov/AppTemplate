@@ -7,6 +7,10 @@ struct CreateProjectFlowView: View {
 
     let store: ProjectsStore
 
+    var localRouter: FlowRouter {
+        router
+    }
+
     init(
         store: ProjectsStore,
         appFlowRouter: any IAppFlowRouter

@@ -16,16 +16,39 @@ struct ProjectConfigurationTests {
 
     @MainActor
     @Test
-    func createProjectFlowReceivesThePresentingAppFlowRouter() {
-        let appFlowRouter = AppFlowRouter(flow: .main)
+    func createProjectFlowForwardsGlobalFlowFromItsNormalInitializer() {
+        let appFlowRouter = CreateProjectAppFlowRouterSpy()
         let presentingRouter = FlowRouter(appFlowRouter: appFlowRouter)
-
-        _ = CreateProjectFlowView(
+        let flow = CreateProjectFlowView(
             store: ProjectsStore(),
             appFlowRouter: presentingRouter
         )
 
-        #expect(appFlowRouter.flow == .main)
+        flow.localRouter.push(ProjectBasicsRoute.options)
+        flow.localRouter.setFlow(.onboarding)
+
+        #expect(flow.localRouter.path.count == 1)
+        #expect(presentingRouter.path.isEmpty)
+        #expect(appFlowRouter.receivedFlows == [.onboarding])
+    }
+
+    @MainActor
+    @Test
+    func createProjectFlowForwardsGlobalFlowFromItsDraftInitializer() {
+        let appFlowRouter = CreateProjectAppFlowRouterSpy()
+        let presentingRouter = FlowRouter(appFlowRouter: appFlowRouter)
+        let flow = CreateProjectFlowView(
+            store: ProjectsStore(),
+            draft: CreateProjectDraftState(),
+            appFlowRouter: presentingRouter
+        )
+
+        flow.localRouter.push(ProjectBasicsRoute.options)
+        flow.localRouter.setFlow(.maintenance)
+
+        #expect(flow.localRouter.path.count == 1)
+        #expect(presentingRouter.path.isEmpty)
+        #expect(appFlowRouter.receivedFlows == [.maintenance])
     }
 
     @MainActor
@@ -204,6 +227,15 @@ private struct CreateProjectSheetHarness: View {
                     appFlowRouter: appFlowRouter
                 )
             }
+    }
+}
+
+@MainActor
+private final class CreateProjectAppFlowRouterSpy: IAppFlowRouter {
+    private(set) var receivedFlows: [AppFlow] = []
+
+    func setFlow(_ flow: AppFlow) {
+        receivedFlows.append(flow)
     }
 }
 
