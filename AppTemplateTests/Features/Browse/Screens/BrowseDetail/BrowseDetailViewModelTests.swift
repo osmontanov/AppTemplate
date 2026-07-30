@@ -5,6 +5,11 @@ import Testing
 @MainActor
 struct BrowseDetailViewModelTests {
     @Test
+    func browseDetailStateScaffoldCanBeConstructed() {
+        _ = BrowseDetailScreenState()
+    }
+
+    @Test
     func detailRetainsItsStableIdentifier() {
         let viewModel = BrowseDetailViewModel(id: "swiftui", router: FlowRouter())
 

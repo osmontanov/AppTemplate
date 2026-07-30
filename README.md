@@ -94,7 +94,7 @@ router.setFlow(.main)
 The `push` changes only the current scene's Home path. Each `setFlow` changes
 the shared root observed by every window and clears each window's own histories.
 Pending deep links are still scene-scoped and replay only in the scene that
-received them after authentication succeeds.
+received them after the Authentication screen switches the root to Main.
 
 Example features are removable. A new independent flow uses the shared
 `FlowRouter`, owns one navigation container, and keeps destination mappings

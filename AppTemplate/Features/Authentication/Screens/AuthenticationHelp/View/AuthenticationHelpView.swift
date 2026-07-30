@@ -7,9 +7,9 @@ struct AuthenticationHelpView: View {
         VStack(spacing: 16) {
             Image(systemName: "questionmark.circle")
                 .font(.largeTitle)
-            Text(viewModel.title)
+            Text("Authentication Help")
                 .font(.title)
-            Text(viewModel.message)
+            Text("Sign in to continue to the app.")
                 .foregroundStyle(.secondary)
         }
         .padding()

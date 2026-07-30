@@ -5,6 +5,11 @@ import Testing
 @MainActor
 struct BrowseListViewModelTests {
     @Test
+    func browseStateScaffoldCanBeConstructed() {
+        _ = BrowseScreenState()
+    }
+
+    @Test
     func openingAnItemPushesTheBrowseScreenRoute() {
         let router = FlowRouter()
         let viewModel = BrowseListViewModel(router: router)

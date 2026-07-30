@@ -4,7 +4,8 @@ import Testing
 @MainActor
 struct AuthenticationHelpViewModelTests {
     @Test
-    func helpScreenCanBeConstructed() {
+    func helpViewModelAndScreenCanBeConstructedWithoutDependencies() {
+        _ = AuthenticationHelpViewModel()
         _ = AuthenticationHelpView()
     }
 }

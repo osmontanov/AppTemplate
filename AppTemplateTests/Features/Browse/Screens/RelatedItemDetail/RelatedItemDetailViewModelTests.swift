@@ -4,6 +4,11 @@ import Testing
 @MainActor
 struct RelatedItemDetailViewModelTests {
     @Test
+    func relatedItemDetailStateScaffoldCanBeConstructed() {
+        _ = RelatedItemDetailScreenState()
+    }
+
+    @Test
     func relatedItemDetailRetainsItsStableIdentifier() {
         let viewModel = RelatedItemDetailViewModel(id: "observation")
 

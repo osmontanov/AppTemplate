@@ -5,6 +5,11 @@ import Testing
 @MainActor
 struct RelatedItemsViewModelTests {
     @Test
+    func relatedItemsStateScaffoldCanBeConstructed() {
+        _ = RelatedItemsScreenState()
+    }
+
+    @Test
     func relatedItemsRetainTheirSourceIdentifier() {
         let viewModel = RelatedItemsViewModel(
             sourceItemID: "swiftui",
