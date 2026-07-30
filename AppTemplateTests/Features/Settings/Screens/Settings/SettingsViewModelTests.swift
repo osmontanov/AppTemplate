@@ -5,17 +5,15 @@ import Testing
 @MainActor
 struct SettingsViewModelTests {
     @Test
-    func returnToAuthenticationReplacesTheRoot() {
-        let coordinator = makeTestAppFlowCoordinator(visibleFlow: .main)
-        let appFlowRouter = coordinator.appFlowRouter
+    func signOutRequestsSemanticSignOut() {
+        let coordinator = AppFlowCoordinatorSpy()
         let viewModel = SettingsViewModel(
             router: FlowRouter(appFlowCoordinator: coordinator)
         )
 
         viewModel.returnToAuthentication()
 
-        #expect(appFlowRouter.flow == .authentication)
-        #expect(appFlowRouter.transition.pendingIntentAction == .discard)
+        #expect(coordinator.commands == [.signOut])
     }
 
     @Test

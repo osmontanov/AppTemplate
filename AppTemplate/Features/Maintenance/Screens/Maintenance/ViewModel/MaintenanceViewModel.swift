@@ -10,6 +10,6 @@ final class MaintenanceViewModel {
     }
 
     func returnToApp() {
-        router.setFlow(.main)
+        router.setMaintenanceEnabled(false)
     }
 }

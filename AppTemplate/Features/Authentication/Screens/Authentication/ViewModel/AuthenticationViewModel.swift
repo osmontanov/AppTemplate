@@ -10,7 +10,7 @@ final class AuthenticationViewModel {
     }
 
     func continueToApp() {
-        router.setFlow(.main)
+        router.signIn()
     }
 
     func cancelAuthentication() {

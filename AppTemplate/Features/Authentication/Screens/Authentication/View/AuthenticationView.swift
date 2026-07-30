@@ -15,7 +15,10 @@ struct AuthenticationView: View {
                 .font(.largeTitle)
             Text("Authentication")
                 .font(.title)
-            Text("Use this screen as a navigation-only authentication entry.")
+            Text(
+                "Continue saves a demo authenticated flag. "
+                    + "No credentials are stored."
+            )
                 .foregroundStyle(.secondary)
             HStack {
                 Button("Cancel") {

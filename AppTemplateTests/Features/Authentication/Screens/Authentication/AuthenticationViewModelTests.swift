@@ -5,36 +5,27 @@ import Testing
 @MainActor
 struct AuthenticationViewModelTests {
     @Test
-    func continueOpensMainAndReplaysTheReceivingScene() {
-        let coordinator = makeTestAppFlowCoordinator(
-            visibleFlow: .authentication
-        )
-        let appFlowRouter = coordinator.appFlowRouter
+    func continueRequestsSemanticSignIn() {
+        let coordinator = AppFlowCoordinatorSpy()
         let viewModel = AuthenticationViewModel(
             router: FlowRouter(appFlowCoordinator: coordinator)
         )
 
         viewModel.continueToApp()
 
-        #expect(appFlowRouter.flow == .main)
-        #expect(appFlowRouter.transition.pendingIntentAction == .replay)
+        #expect(coordinator.commands == [.signIn])
     }
 
     @Test
-    func cancellationPublishesFreshAuthenticationDiscardTransition() {
-        let coordinator = makeTestAppFlowCoordinator(
-            visibleFlow: .authentication
+    func cancellationRemainsARawAuthenticationReset() {
+        let coordinator = AppFlowCoordinatorSpy()
+        let viewModel = AuthenticationViewModel(
+            router: FlowRouter(appFlowCoordinator: coordinator)
         )
-        let appFlowRouter = coordinator.appFlowRouter
-        let flowRouter = FlowRouter(appFlowCoordinator: coordinator)
-        let viewModel = AuthenticationViewModel(router: flowRouter)
-        let previousID = appFlowRouter.transition.id
 
         viewModel.cancelAuthentication()
 
-        #expect(appFlowRouter.flow == .authentication)
-        #expect(appFlowRouter.transition.id != previousID)
-        #expect(appFlowRouter.transition.pendingIntentAction == .discard)
+        #expect(coordinator.commands == [.setFlow(.authentication)])
     }
 
     @Test

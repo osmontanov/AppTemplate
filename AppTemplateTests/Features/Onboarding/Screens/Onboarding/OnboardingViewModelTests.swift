@@ -5,16 +5,15 @@ import Testing
 @MainActor
 struct OnboardingViewModelTests {
     @Test
-    func finishingOnboardingOpensMain() {
-        let coordinator = makeTestAppFlowCoordinator(visibleFlow: .onboarding)
-        let appFlowRouter = coordinator.appFlowRouter
-        let router = FlowRouter(appFlowCoordinator: coordinator)
-        let viewModel = OnboardingViewModel(router: router)
+    func finishRequestsOnboardingCompletion() {
+        let coordinator = AppFlowCoordinatorSpy()
+        let viewModel = OnboardingViewModel(
+            router: FlowRouter(appFlowCoordinator: coordinator)
+        )
 
         viewModel.finish()
 
-        #expect(appFlowRouter.flow == .main)
-        #expect(appFlowRouter.transition.historyAction == .reset)
+        #expect(coordinator.commands == [.completeOnboarding])
     }
 
     @Test

@@ -23,6 +23,6 @@ final class SettingsViewModel {
     }
 
     func returnToAuthentication() {
-        router.setFlow(.authentication)
+        router.signOut()
     }
 }

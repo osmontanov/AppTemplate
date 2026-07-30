@@ -10,6 +10,6 @@ final class OnboardingViewModel {
     }
 
     func finish() {
-        router.setFlow(.main)
+        router.completeOnboarding()
     }
 }

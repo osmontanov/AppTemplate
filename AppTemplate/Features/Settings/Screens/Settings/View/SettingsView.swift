@@ -16,7 +16,10 @@ struct SettingsView: View {
 
         List {
             Section("Session") {
-                Text("Authentication is represented by the app’s root flow.")
+                Text(
+                    "The demo authenticated flag is persisted without "
+                        + "credentials or tokens."
+                )
 
                 Button("Session Info", systemImage: "info.circle") {
                     viewModel.openSessionInfo()

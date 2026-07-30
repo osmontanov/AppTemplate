@@ -436,6 +436,111 @@ struct AppSceneNavigationLifecycleTests {
         #expect(lifecycle.router.projects.path.isEmpty)
     }
 
+    @Test
+    func onboardingAndAuthenticationGatesPreserveThenReplayURL() throws {
+        let coordinator = makeTestAppFlowCoordinator()
+        let appFlowRouter = coordinator.appFlowRouter
+        let lifecycle = AppSceneNavigationLifecycle(
+            appFlowRouter: appFlowRouter,
+            appFlowCoordinator: coordinator
+        )
+        _ = lifecycle.receive(
+            try #require(
+                URL(string: "apptemplate://browse/item/swiftui")
+            )
+        )
+        _ = lifecycle.restore(from: nil)
+
+        coordinator.completeOnboarding()
+        _ = lifecycle.apply(appFlowRouter.transition)
+
+        #expect(appFlowRouter.flow == .authentication)
+        #expect(
+            lifecycle.router.pendingIntent == .browseItem(id: "swiftui")
+        )
+
+        coordinator.signIn()
+        #expect(lifecycle.apply(appFlowRouter.transition) == .applied)
+        #expect(lifecycle.router.pendingIntent == nil)
+        #expect(lifecycle.router.selectedSection == .browse)
+        #expect(lifecycle.router.browse.path.count == 1)
+    }
+
+    @Test
+    func authenticationAndMaintenanceGatesPreserveThenReplayURL() throws {
+        let state = AppState(
+            isAuthenticated: false,
+            hasCompletedOnboarding: true,
+            isMaintenanceEnabled: true
+        )
+        let coordinator = makeTestAppFlowCoordinator(state: state)
+        let appFlowRouter = coordinator.appFlowRouter
+        let lifecycle = AppSceneNavigationLifecycle(
+            appFlowRouter: appFlowRouter,
+            appFlowCoordinator: coordinator
+        )
+        _ = lifecycle.receive(
+            try #require(
+                URL(
+                    string: "apptemplate://projects/project/project-1/task/task-1"
+                )
+            )
+        )
+        _ = lifecycle.restore(from: nil)
+
+        coordinator.signIn()
+        _ = lifecycle.apply(appFlowRouter.transition)
+
+        #expect(appFlowRouter.flow == .maintenance)
+        #expect(
+            lifecycle.router.pendingIntent
+                == .projectTask(projectID: "project-1", taskID: "task-1")
+        )
+
+        coordinator.setMaintenanceEnabled(false)
+        #expect(lifecycle.apply(appFlowRouter.transition) == .applied)
+        #expect(lifecycle.router.pendingIntent == nil)
+        #expect(lifecycle.router.selectedSection == .projects)
+        #expect(lifecycle.router.projects.path.count == 2)
+    }
+
+    @Test
+    func effectiveSignOutDiscardsURLWhenAuthenticationIsAlreadyVisible()
+        throws {
+        let state = AppState(
+            isAuthenticated: true,
+            hasCompletedOnboarding: true,
+            isMaintenanceEnabled: false
+        )
+        let coordinator = makeTestAppFlowCoordinator(
+            state: state,
+            visibleFlow: .authentication
+        )
+        let appFlowRouter = coordinator.appFlowRouter
+        let lifecycle = AppSceneNavigationLifecycle(
+            appFlowRouter: appFlowRouter,
+            appFlowCoordinator: coordinator
+        )
+        _ = lifecycle.receive(
+            try #require(
+                URL(string: "apptemplate://browse/item/swiftui")
+            )
+        )
+        _ = lifecycle.restore(from: nil)
+        let previousID = appFlowRouter.transition.id
+
+        coordinator.signOut()
+        _ = lifecycle.apply(appFlowRouter.transition)
+
+        #expect(appFlowRouter.flow == .authentication)
+        #expect(appFlowRouter.transition.id != previousID)
+        #expect(
+            appFlowRouter.transition.pendingIntentAction == .discard
+        )
+        #expect(lifecycle.router.pendingIntent == nil)
+        #expect(lifecycle.router.browse.path.isEmpty)
+    }
+
     private func makeRouter(
         flow: AppFlow = .main,
         selectedSection: AppSection = .home

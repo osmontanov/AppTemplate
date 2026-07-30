@@ -55,27 +55,19 @@ struct HomeViewModelTests {
     }
 
     @Test
-    func openingOnboardingChangesTheAppFlow() {
-        let coordinator = makeTestAppFlowCoordinator(visibleFlow: .main)
-        let appFlowRouter = coordinator.appFlowRouter
-        let router = FlowRouter(appFlowCoordinator: coordinator)
-        let viewModel = HomeViewModel(router: router)
+    func homeRootActionsRequestPersistentPolicyChanges() {
+        let coordinator = AppFlowCoordinatorSpy()
+        let viewModel = HomeViewModel(
+            router: FlowRouter(appFlowCoordinator: coordinator)
+        )
 
         viewModel.openOnboarding()
-
-        #expect(appFlowRouter.flow == .onboarding)
-    }
-
-    @Test
-    func openingMaintenanceChangesTheAppFlow() {
-        let coordinator = makeTestAppFlowCoordinator(visibleFlow: .main)
-        let appFlowRouter = coordinator.appFlowRouter
-        let router = FlowRouter(appFlowCoordinator: coordinator)
-        let viewModel = HomeViewModel(router: router)
-
         viewModel.openMaintenance()
 
-        #expect(appFlowRouter.flow == .maintenance)
+        #expect(coordinator.commands == [
+            .restartOnboarding,
+            .setMaintenanceEnabled(true)
+        ])
     }
 
     @Test

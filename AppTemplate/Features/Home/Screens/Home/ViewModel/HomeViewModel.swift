@@ -29,11 +29,11 @@ final class HomeViewModel {
     }
 
     func openOnboarding() {
-        router.setFlow(.onboarding)
+        router.restartOnboarding()
     }
 
     func openMaintenance() {
-        router.setFlow(.maintenance)
+        router.setMaintenanceEnabled(true)
     }
 
     func requestNavigationReset() {
