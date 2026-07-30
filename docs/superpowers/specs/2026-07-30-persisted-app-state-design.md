@@ -1,7 +1,7 @@
 # Persisted App State and Flow Coordination Design
 
 Date: 2026-07-30
-Status: Approved design; awaiting written-spec review
+Status: Implemented and verified
 
 > Supersession note: This design supersedes the dependency-graph, initial-root,
 > authentication-demonstration, persistence prohibition, and `signIn` /

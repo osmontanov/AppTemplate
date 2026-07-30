@@ -2,6 +2,14 @@
 
 Date: 2026-07-30
 
+> Forward supersession note: The
+> [Persisted App State and Flow Coordination Design](2026-07-30-persisted-app-state-design.md)
+> supersedes this document's dependency-graph, initial-root,
+> authentication-demonstration, persistence-prohibition, and `signIn` /
+> `signOut` structural-guard sections. The historical design below is retained
+> as the record of the navigation-only reduction that the persisted demo policy
+> extends.
+
 ## Goal
 
 Turn AppTemplate into a navigation-first boilerplate. The application keeps
