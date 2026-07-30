@@ -26,7 +26,10 @@ struct AppSceneView: View {
             dependencies: dependencies
         )
             .task {
-                if let snapshot = lifecycle.restore(from: encodedSnapshot) {
+                if let snapshot = lifecycle.restore(
+                    from: encodedSnapshot,
+                    applying: appFlowRouter.transition
+                ) {
                     persist(snapshot)
                 }
                 await sessionStore.start()
@@ -43,10 +46,10 @@ struct AppSceneView: View {
                 appFlowRouter.synchronizeSession(phase)
             }
             .onChange(of: appFlowRouter.transition) { _, transition in
-                _ = lifecycle.apply(transition)
                 guard lifecycle.hasRestored else {
                     return
                 }
+                _ = lifecycle.apply(transition)
                 persist(lifecycle.router.snapshot)
             }
             .onOpenURL { url in

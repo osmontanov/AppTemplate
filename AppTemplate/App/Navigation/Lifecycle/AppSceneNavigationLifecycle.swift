@@ -36,11 +36,23 @@ final class AppSceneNavigationLifecycle {
 
     @discardableResult
     func restore(from data: Data?) -> NavigationSnapshot? {
+        restore(
+            from: data,
+            applying: router.appFlowRouter.transition
+        )
+    }
+
+    @discardableResult
+    func restore(
+        from data: Data?,
+        applying transition: AppFlowTransition
+    ) -> NavigationSnapshot? {
         guard !hasRestored else {
             return nil
         }
 
         let restorationResult = router.restore(from: data)
+        let transitionOutcome = apply(transition)
         hasRestored = true
 
         let urls = queuedURLs
@@ -48,6 +60,9 @@ final class AppSceneNavigationLifecycle {
         urls.forEach(handle)
 
         if !urls.isEmpty {
+            return router.snapshot
+        }
+        if transition.historyAction == .reset || transitionOutcome != nil {
             return router.snapshot
         }
         switch restorationResult {

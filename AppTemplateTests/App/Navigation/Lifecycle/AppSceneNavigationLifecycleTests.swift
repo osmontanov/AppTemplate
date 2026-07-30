@@ -178,6 +178,69 @@ struct AppSceneNavigationLifecycleTests {
     }
 
     @Test
+    func queuedURLSurvivesCurrentMainResetDuringRestoration() throws {
+        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        appFlowRouter.setFlow(.main)
+        let lifecycle = AppSceneNavigationLifecycle(
+            appFlowRouter: appFlowRouter
+        )
+        lifecycle.receive(
+            try #require(URL(string: "apptemplate://browse/item/swiftui"))
+        )
+
+        let snapshotToPersist = lifecycle.restore(
+            from: nil,
+            applying: appFlowRouter.transition
+        )
+        #expect(lifecycle.apply(appFlowRouter.transition) == nil)
+
+        #expect(lifecycle.hasRestored)
+        #expect(lifecycle.router.pendingIntent == nil)
+        #expect(lifecycle.router.selectedSection == .browse)
+        #expect(lifecycle.router.browse.path.count == 1)
+        #expect(snapshotToPersist == lifecycle.router.snapshot)
+    }
+
+    @Test
+    func queuedURLSurvivesCurrentAuthenticationDiscardThenReplaysExactly()
+        throws {
+        let appFlowRouter = AppFlowRouter(flow: .main)
+        appFlowRouter.setFlow(.authentication)
+        let lifecycle = AppSceneNavigationLifecycle(
+            appFlowRouter: appFlowRouter
+        )
+        let intent = NavigationIntent.projectTask(
+            projectID: "project-1",
+            taskID: "task-1"
+        )
+        lifecycle.receive(
+            try #require(
+                URL(
+                    string: "apptemplate://projects/project/project-1/task/task-1"
+                )
+            )
+        )
+
+        let snapshotToPersist = lifecycle.restore(
+            from: nil,
+            applying: appFlowRouter.transition
+        )
+        #expect(lifecycle.apply(appFlowRouter.transition) == nil)
+
+        #expect(lifecycle.hasRestored)
+        #expect(lifecycle.router.pendingIntent == intent)
+        #expect(snapshotToPersist == lifecycle.router.snapshot)
+
+        appFlowRouter.setFlow(.main)
+        #expect(lifecycle.apply(appFlowRouter.transition) == .applied)
+
+        let expected = makeRouter()
+        #expect(expected.handle(intent) == .applied)
+        #expect(lifecycle.router.pendingIntent == nil)
+        #expect(lifecycle.router.snapshot == expected.snapshot)
+    }
+
+    @Test
     func signedOutColdLaunchIntentReplaysAfterAuthentication() throws {
         let appFlowRouter = AppFlowRouter(flow: .launching)
         let lifecycle = AppSceneNavigationLifecycle(

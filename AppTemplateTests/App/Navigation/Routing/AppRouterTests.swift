@@ -13,21 +13,43 @@ struct AppRouterTests {
         )
 
         router.authentication.setFlow(.authentication)
-        let authenticationTransition = appFlowRouter.transition.id
+        let authenticationTransition = appFlowRouter.transition
+        router.onboarding.setFlow(.onboarding)
+        let onboardingTransition = appFlowRouter.transition
         router.home.setFlow(.main)
-        let homeTransition = appFlowRouter.transition.id
+        let homeTransition = appFlowRouter.transition
         router.browse.setFlow(.authentication)
-        let browseTransition = appFlowRouter.transition.id
+        let browseTransition = appFlowRouter.transition
         router.projects.setFlow(.main)
-        let projectsTransition = appFlowRouter.transition.id
+        let projectsTransition = appFlowRouter.transition
         router.settings.setFlow(.authentication)
+        let settingsTransition = appFlowRouter.transition
+        router.maintenance.setFlow(.maintenance)
+        let maintenanceTransition = appFlowRouter.transition
 
         #expect(router.appFlowRouter === appFlowRouter)
         #expect(router.selectedSection == .settings)
-        #expect(authenticationTransition != homeTransition)
-        #expect(homeTransition != browseTransition)
-        #expect(browseTransition != projectsTransition)
-        #expect(appFlowRouter.flow == .authentication)
+        #expect(authenticationTransition.flow == .authentication)
+        #expect(onboardingTransition.flow == .onboarding)
+        #expect(homeTransition.flow == .main)
+        #expect(browseTransition.flow == .authentication)
+        #expect(projectsTransition.flow == .main)
+        #expect(settingsTransition.flow == .authentication)
+        #expect(maintenanceTransition.flow == .maintenance)
+        #expect(
+            Set(
+                [
+                    authenticationTransition.id,
+                    onboardingTransition.id,
+                    homeTransition.id,
+                    browseTransition.id,
+                    projectsTransition.id,
+                    settingsTransition.id,
+                    maintenanceTransition.id
+                ]
+            ).count == 7
+        )
+        #expect(appFlowRouter.flow == .maintenance)
     }
 
     @Test
