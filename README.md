@@ -17,7 +17,7 @@ snapshots, and independent multi-window navigation state.
 ## Project Structure
 
 - `App/Entry` owns application startup.
-- `App/Composition` owns the explicit dependency graph.
+- `App/AppDependencies` owns the explicit dependency graph.
 - `App/Navigation` owns app-wide navigation infrastructure.
 - `App/Models/Domain` owns shared business entities.
 - `App/Models/State` owns shared application state and generic reusable state

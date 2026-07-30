@@ -172,28 +172,26 @@ struct NavigationSnapshotTests {
     }
 
     @Test
-    func snapshotIncludesProjectsPathButExcludesTransientSheetAndDraftState() throws {
+    func snapshotPayloadContainsOnlyDurableNavigationState() throws {
         let router = makeRouter(selectedSection: .projects)
         router.projects.push(ProjectsRoute.project(id: "project-1"))
 
-        let json = String(
-            decoding: try NavigationSnapshotCodec.encode(router.snapshot),
-            as: UTF8.self
+        let payload = try #require(
+            JSONSerialization.jsonObject(
+                with: NavigationSnapshotCodec.encode(router.snapshot)
+            ) as? [String: Any]
         )
 
-        #expect(json.contains("projectsPath"))
-        for transientName in [
-            "quickStart",
-            "options",
-            "sessionInfo",
-            "createProject",
-            "projectInfo",
-            "title",
-            "summary",
-            "colorName"
-        ] {
-            #expect(!json.contains(transientName))
-        }
+        #expect(
+            Set(payload.keys) == Set([
+                "schemaVersion",
+                "selectedSection",
+                "homePath",
+                "browsePath",
+                "projectsPath",
+                "settingsPath"
+            ])
+        )
     }
 
     @Test

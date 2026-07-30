@@ -138,7 +138,7 @@ struct AppRouterTests {
     }
 
     @Test
-    func successfulNewAuthenticationResetsHistoriesBeforeReplayingIntent() {
+    func mainRootTransitionResetsHistoriesBeforeReplayingIntent() {
         let appFlowRouter = AppFlowRouter(flow: .authentication)
         let router = AppRouter(appFlowRouter: appFlowRouter)
         router.authentication.push(AuthenticationTestRoute.step)

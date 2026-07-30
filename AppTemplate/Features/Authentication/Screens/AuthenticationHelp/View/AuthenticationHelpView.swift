@@ -9,7 +9,7 @@ struct AuthenticationHelpView: View {
                 .font(.largeTitle)
             Text("Authentication Help")
                 .font(.title)
-            Text("Sign in to continue to the app.")
+            Text("Continue replaces the Authentication root with Main.")
                 .foregroundStyle(.secondary)
         }
         .padding()
