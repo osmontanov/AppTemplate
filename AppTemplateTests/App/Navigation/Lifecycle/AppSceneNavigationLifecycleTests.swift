@@ -298,12 +298,23 @@ struct AppSceneNavigationLifecycleTests {
         _ = first.apply(appFlowRouter.transition)
         _ = second.apply(appFlowRouter.transition)
 
-        #expect(first.router.selectedSection == .browse)
-        #expect(first.router.browse.path.count == 1)
-        #expect(first.router.projects.path.isEmpty)
-        #expect(second.router.selectedSection == .projects)
-        #expect(second.router.browse.path.isEmpty)
-        #expect(second.router.projects.path.count == 2)
+        let expectedFirst = makeRouter()
+        expectedFirst.selectedSection = .browse
+        expectedFirst.browse.push(BrowseRoute.item(id: "swiftui"))
+        let expectedSecond = makeRouter()
+        expectedSecond.selectedSection = .projects
+        expectedSecond.projects.push(
+            ProjectsRoute.project(id: "project-1")
+        )
+        expectedSecond.projects.push(
+            ProjectDetailsRoute.task(
+                projectID: "project-1",
+                taskID: "task-1"
+            )
+        )
+
+        #expect(first.router.snapshot == expectedFirst.snapshot)
+        #expect(second.router.snapshot == expectedSecond.snapshot)
         #expect(first.router.pendingIntent == nil)
         #expect(second.router.pendingIntent == nil)
         #expect(first.router !== second.router)
