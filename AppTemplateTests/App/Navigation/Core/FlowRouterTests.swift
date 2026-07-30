@@ -85,7 +85,8 @@ private final class AppFlowRouterSpy: IAppFlowRouter {
     }
 }
 
-private nonisolated enum TestRoute: String, NavigationRoute {
+nonisolated
+private enum TestRoute: String, NavigationRoute {
     case first
 }
 
