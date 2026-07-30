@@ -7,9 +7,9 @@ final class HomeDetailsViewModel {
     let systemImage = "point.topleft.down.to.point.bottomright.curvepath"
     let message = "This screen uses the router of the flow that opened it."
 
-    private let router: any IFlowRouter
+    private let router: any IRouter
 
-    init(router: any IFlowRouter) {
+    init(router: any IRouter) {
         self.router = router
     }
 

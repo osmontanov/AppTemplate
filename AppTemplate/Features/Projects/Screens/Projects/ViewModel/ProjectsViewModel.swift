@@ -4,7 +4,7 @@ import Observation
 @Observable
 final class ProjectsViewModel {
     let store: ProjectsStore
-    private let router: any IFlowRouter
+    private let router: any IRouter
     var sheet: ProjectsSheetRoute?
 
     var projects: [ProjectItem] {
@@ -13,7 +13,7 @@ final class ProjectsViewModel {
 
     init(
         store: ProjectsStore,
-        router: any IFlowRouter
+        router: any IRouter
     ) {
         self.store = store
         self.router = router

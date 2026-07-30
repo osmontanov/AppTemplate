@@ -4,11 +4,11 @@ import Observation
 @Observable
 final class ProjectOptionsViewModel {
     let draft: CreateProjectDraftState
-    private let router: any IFlowRouter
+    private let router: any IRouter
 
     init(
         draft: CreateProjectDraftState,
-        router: any IFlowRouter
+        router: any IRouter
     ) {
         self.draft = draft
         self.router = router

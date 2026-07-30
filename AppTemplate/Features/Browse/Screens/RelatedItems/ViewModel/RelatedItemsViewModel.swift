@@ -6,14 +6,14 @@ final class RelatedItemsViewModel {
     let sourceItemID: BrowseItem.ID
     private(set) var state: RelatedItemsState = .idle
     private let dependencies: BrowseDependencies
-    private let router: any IFlowRouter
+    private let router: any IRouter
     private var requestVersion = 0
     private var loadTask: Task<Void, Never>?
 
     init(
         sourceItemID: BrowseItem.ID,
         dependencies: BrowseDependencies,
-        router: any IFlowRouter
+        router: any IRouter
     ) {
         self.sourceItemID = sourceItemID
         self.dependencies = dependencies

@@ -16,6 +16,20 @@ struct ProjectConfigurationTests {
 
     @MainActor
     @Test
+    func createProjectFlowReceivesThePresentingAppFlowRouter() {
+        let appFlowRouter = AppFlowRouter(flow: .main)
+        let presentingRouter = FlowRouter(appFlowRouter: appFlowRouter)
+
+        _ = CreateProjectFlowView(
+            store: ProjectsStore(),
+            appFlowRouter: presentingRouter
+        )
+
+        #expect(appFlowRouter.flow == .main)
+    }
+
+    @MainActor
+    @Test
     func navigationRootCanBeConstructed() {
         let appFlowRouter = AppFlowRouter(flow: .main)
         let router = AppRouter(appFlowRouter: appFlowRouter)
@@ -80,7 +94,8 @@ struct ProjectConfigurationTests {
         let projectsStore = ProjectsStore()
         let draft = CreateProjectDraftState()
         _ = CreateProjectFlowView(
-            store: projectsStore
+            store: projectsStore,
+            appFlowRouter: router.projects
         )
         _ = ProjectInfoView(
             projectID: "project-1",
@@ -132,7 +147,8 @@ extension ProjectConfigurationTests {
             rootView: CreateProjectSheetHarness(
                 presentation: presentation,
                 draft: draft,
-                store: store
+                store: store,
+                appFlowRouter: FlowRouter()
             )
         )
         let window = NSWindow(
@@ -177,13 +193,15 @@ private struct CreateProjectSheetHarness: View {
     @Bindable var presentation: CreateProjectSheetPresentation
     let draft: CreateProjectDraftState
     let store: ProjectsStore
+    let appFlowRouter: any IAppFlowRouter
 
     var body: some View {
         Color.clear
             .sheet(isPresented: $presentation.isPresented) {
                 CreateProjectFlowView(
                     store: store,
-                    draft: draft
+                    draft: draft,
+                    appFlowRouter: appFlowRouter
                 )
             }
     }

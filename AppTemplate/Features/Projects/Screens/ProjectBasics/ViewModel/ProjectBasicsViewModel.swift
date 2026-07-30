@@ -5,13 +5,13 @@ import Observation
 @Observable
 final class ProjectBasicsViewModel {
     let draft: CreateProjectDraftState
-    private let router: any IFlowRouter
+    private let router: any IRouter
 
     var validationMessage: String?
 
     init(
         draft: CreateProjectDraftState,
-        router: any IFlowRouter
+        router: any IRouter
     ) {
         self.draft = draft
         self.router = router

@@ -6,14 +6,14 @@ final class BrowseDetailViewModel {
     let id: BrowseItem.ID
     private(set) var state: BrowseDetailState = .idle
     private let dependencies: BrowseDependencies
-    private let router: any IFlowRouter
+    private let router: any IRouter
     private var requestVersion = 0
     private var loadTask: Task<Void, Never>?
 
     init(
         id: BrowseItem.ID,
         dependencies: BrowseDependencies,
-        router: any IFlowRouter
+        router: any IRouter
     ) {
         self.id = id
         self.dependencies = dependencies

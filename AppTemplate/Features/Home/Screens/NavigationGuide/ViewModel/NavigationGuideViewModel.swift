@@ -9,9 +9,9 @@ final class NavigationGuideViewModel {
         NavigationGuideModel.items
     }
 
-    private let router: any IFlowRouter
+    private let router: any IRouter
 
-    init(router: any IFlowRouter) {
+    init(router: any IRouter) {
         self.router = router
     }
 

@@ -5,7 +5,7 @@ import Observation
 final class ProjectDetailsViewModel {
     let projectID: ProjectItem.ID
     let store: ProjectsStore
-    private let router: any IFlowRouter
+    private let router: any IRouter
     var sheet: ProjectDetailsSheetRoute?
 
     var project: ProjectItem? {
@@ -19,7 +19,7 @@ final class ProjectDetailsViewModel {
     init(
         projectID: ProjectItem.ID,
         store: ProjectsStore,
-        router: any IFlowRouter
+        router: any IRouter
     ) {
         self.projectID = projectID
         self.store = store

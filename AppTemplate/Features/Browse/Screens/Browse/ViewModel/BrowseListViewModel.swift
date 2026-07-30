@@ -6,14 +6,14 @@ final class BrowseListViewModel {
     private(set) var state: BrowseListState = .idle
     var sheet: BrowseSheetRoute?
     private let dependencies: BrowseDependencies
-    private let router: any IFlowRouter
+    private let router: any IRouter
     private let preferences: BrowsePreferencesStore
     private var requestVersion = 0
     private var loadTask: Task<Void, Never>?
 
     init(
         dependencies: BrowseDependencies,
-        router: any IFlowRouter,
+        router: any IRouter,
         preferences: BrowsePreferencesStore
     ) {
         self.dependencies = dependencies

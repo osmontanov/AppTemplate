@@ -4,7 +4,7 @@ import Observation
 @Observable
 final class SettingsViewModel {
     private let sessionStore: SessionStore
-    private let router: any IFlowRouter
+    private let router: any IRouter
     var sheet: SettingsSheetRoute?
 
     var phase: SessionPhase {
@@ -17,7 +17,7 @@ final class SettingsViewModel {
 
     init(
         sessionStore: SessionStore,
-        router: any IFlowRouter
+        router: any IRouter
     ) {
         self.sessionStore = sessionStore
         self.router = router

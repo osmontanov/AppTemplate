@@ -2,20 +2,31 @@ import SwiftUI
 
 struct CreateProjectFlowView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var router = FlowRouter()
-    @State private var draft = CreateProjectDraftState()
+    @State private var router: FlowRouter
+    @State private var draft: CreateProjectDraftState
 
     let store: ProjectsStore
 
-    init(store: ProjectsStore) {
+    init(
+        store: ProjectsStore,
+        appFlowRouter: any IAppFlowRouter
+    ) {
         self.init(
             store: store,
-            draft: CreateProjectDraftState()
+            draft: CreateProjectDraftState(),
+            appFlowRouter: appFlowRouter
         )
     }
 
-    init(store: ProjectsStore, draft: CreateProjectDraftState) {
+    init(
+        store: ProjectsStore,
+        draft: CreateProjectDraftState,
+        appFlowRouter: any IAppFlowRouter
+    ) {
         self.store = store
+        _router = State(
+            initialValue: FlowRouter(appFlowRouter: appFlowRouter)
+        )
         _draft = State(initialValue: draft)
     }
 
