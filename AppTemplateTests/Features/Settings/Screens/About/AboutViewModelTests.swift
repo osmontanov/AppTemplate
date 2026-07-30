@@ -5,24 +5,6 @@ import Testing
 @MainActor
 struct AboutViewModelTests {
     @Test
-    func aboutProvidesSupportedPlatformPresentation() {
-        let viewModel = AboutViewModel(router: FlowRouter())
-
-        #expect(viewModel.supportedPlatforms == [
-            "iOS 26",
-            "iPadOS 26",
-            "macOS 26"
-        ])
-        #expect(
-            viewModel.exampleDescription
-                == """
-                Home, Browse, Projects, and Settings are replaceable feature \
-                examples.
-                """
-        )
-    }
-
-    @Test
     func aboutPushesPlatformDetails() {
         let router = FlowRouter()
         let viewModel = AboutViewModel(router: router)

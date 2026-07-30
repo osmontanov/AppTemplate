@@ -1,19 +1,18 @@
 import Testing
+import SwiftUI
 @testable import AppTemplate
 
 @MainActor
 struct GuideTopicViewModelTests {
     @Test
-    func topicResolvesItsStableGuideItemID() {
+    func topicRetainsItsSuppliedStableID() {
         let viewModel = GuideTopicViewModel(id: "independent-flows")
 
-        #expect(viewModel.item?.title == "Independent flows")
+        #expect(viewModel.id == "independent-flows")
     }
 
     @Test
-    func unknownTopicUsesAnEmptyState() {
-        let viewModel = GuideTopicViewModel(id: "missing")
-
-        #expect(viewModel.item == nil)
+    func guideTopicScreenCanBeConstructed() {
+        _ = GuideTopicView(id: "independent-flows")
     }
 }

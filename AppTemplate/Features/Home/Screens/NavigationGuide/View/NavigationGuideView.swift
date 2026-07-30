@@ -1,6 +1,12 @@
 import SwiftUI
 
 struct NavigationGuideView: View {
+    private struct TopicRow: Identifiable {
+        let id: String
+        let title: String
+        let systemImage: String
+    }
+
     private let router: FlowRouter
     @State private var viewModel: NavigationGuideViewModel
 
@@ -13,16 +19,16 @@ struct NavigationGuideView: View {
 
     var body: some View {
         List {
-            ForEach(viewModel.items) { item in
+            ForEach(topicRows) { row in
                 Button {
-                    viewModel.openTopic(id: item.id)
+                    viewModel.openTopic(id: row.id)
                 } label: {
-                    Label(item.title, systemImage: item.systemImage)
+                    Label(row.title, systemImage: row.systemImage)
                 }
                 .buttonStyle(.plain)
             }
         }
-        .navigationTitle(viewModel.title)
+        .navigationTitle("Navigation Guide")
         .navigationDestination(for: NavigationGuideRoute.self) { route in
             switch route {
             case let .topic(id):
@@ -37,4 +43,22 @@ struct NavigationGuideView: View {
             }
         }
     }
+
+    private let topicRows = [
+        TopicRow(
+            id: "screen-owned-routes",
+            title: "Screen-owned routes",
+            systemImage: "list.bullet.rectangle"
+        ),
+        TopicRow(
+            id: "independent-flows",
+            title: "Independent flows",
+            systemImage: "square.3.layers.3d"
+        ),
+        TopicRow(
+            id: "scene-restoration",
+            title: "Scene restoration",
+            systemImage: "arrow.clockwise"
+        )
+    ]
 }

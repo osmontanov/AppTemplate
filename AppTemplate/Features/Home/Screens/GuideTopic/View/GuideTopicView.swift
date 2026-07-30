@@ -8,23 +8,13 @@ struct GuideTopicView: View {
     }
 
     var body: some View {
-        Group {
-            if let item = viewModel.item {
-                VStack(spacing: 16) {
-                    Image(systemName: item.systemImage)
-                        .font(.largeTitle)
-                    Text(item.title)
-                        .font(.title)
-                }
-            } else {
-                EmptyStateView(
-                    title: "Topic unavailable",
-                    systemImage: "exclamationmark.triangle",
-                    message: "This guide topic is no longer available."
-                )
-            }
+        VStack(spacing: 16) {
+            Image(systemName: "list.bullet.rectangle")
+                .font(.largeTitle)
+            Text(viewModel.id)
+                .font(.title)
         }
         .padding()
-        .navigationTitle(viewModel.item?.title ?? "Guide Topic")
+        .navigationTitle("Guide Topic")
     }
 }

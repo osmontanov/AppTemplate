@@ -8,9 +8,15 @@ struct QuickStartView: View {
         VStack(spacing: 16) {
             Image(systemName: "bolt.fill")
                 .font(.largeTitle)
-            Text(viewModel.title)
+            Text("Quick Start")
                 .font(.title)
-            Text(viewModel.message)
+            Text(
+                """
+                Explore five independent flows—Authentication, Home, Browse, Projects, \
+                and Settings—plus screen-owned simple sheets and the independent \
+                create-project modal flow.
+                """
+            )
                 .foregroundStyle(.secondary)
             Button("Done") {
                 dismiss()

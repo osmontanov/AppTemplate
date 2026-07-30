@@ -3,12 +3,6 @@ import Observation
 @MainActor
 @Observable
 final class NavigationGuideViewModel {
-    let title = "Navigation Guide"
-
-    var items: [NavigationGuideItem] {
-        NavigationGuideModel.items
-    }
-
     private let router: any IRouter
 
     init(router: any IRouter) {

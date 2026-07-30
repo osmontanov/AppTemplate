@@ -14,14 +14,20 @@ struct AboutView: View {
     var body: some View {
         List {
             Section("Platforms") {
-                ForEach(viewModel.supportedPlatforms, id: \.self) { platform in
-                    Button(platform) {
-                        viewModel.openPlatform(name: platform)
-                    }
+                Button("iOS 26") {
+                    viewModel.openPlatform(name: "iOS 26")
+                }
+                Button("iPadOS 26") {
+                    viewModel.openPlatform(name: "iPadOS 26")
+                }
+                Button("macOS 26") {
+                    viewModel.openPlatform(name: "macOS 26")
                 }
             }
             Section("Examples") {
-                Text(viewModel.exampleDescription)
+                Text(
+                    "Home, Browse, Projects, and Settings are replaceable feature examples."
+                )
             }
         }
         .navigationTitle("About")

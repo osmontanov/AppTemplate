@@ -5,17 +5,6 @@ import Testing
 @MainActor
 struct NavigationGuideViewModelTests {
     @Test
-    func guideExposesPresentationItems() {
-        let guide = NavigationGuideViewModel(router: FlowRouter())
-
-        #expect(guide.items.map(\.title) == [
-            "Screen-owned routes",
-            "Independent flows",
-            "Scene restoration"
-        ])
-    }
-
-    @Test
     func closePopsTheCurrentFlowRouter() {
         let router = FlowRouter()
         router.push(HomeRoute.navigationGuide)
@@ -27,12 +16,11 @@ struct NavigationGuideViewModelTests {
     }
 
     @Test
-    func guidePushesItsOwnTopicRoute() throws {
+    func guidePushesItsOwnTopicRoute() {
         let router = FlowRouter()
         let viewModel = NavigationGuideViewModel(router: router)
-        let item = try #require(viewModel.items.first)
 
-        viewModel.openTopic(id: item.id)
+        viewModel.openTopic(id: "screen-owned-routes")
 
         #expect(router.path.count == 1)
     }

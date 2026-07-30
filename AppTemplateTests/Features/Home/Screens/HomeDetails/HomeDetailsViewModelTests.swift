@@ -5,17 +5,6 @@ import Testing
 @MainActor
 struct HomeDetailsViewModelTests {
     @Test
-    func detailsExposePresentationModel() {
-        let details = HomeDetailsViewModel(router: FlowRouter())
-
-        #expect(details.title == "Reusable Destination")
-        #expect(
-            details.message
-                == "This screen uses the router of the flow that opened it."
-        )
-    }
-
-    @Test
     func detailsPushTheirOwnRouteIntoTheParentFlow() {
         let router = FlowRouter()
         let details = HomeDetailsViewModel(router: router)

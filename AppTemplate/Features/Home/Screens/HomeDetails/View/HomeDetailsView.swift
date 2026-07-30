@@ -14,9 +14,9 @@ struct HomeDetailsView: View {
     var body: some View {
         VStack(spacing: 16) {
             EmptyStateView(
-                title: viewModel.title,
-                systemImage: viewModel.systemImage,
-                message: viewModel.message
+                title: "Reusable Destination",
+                systemImage: "point.topleft.down.to.point.bottomright.curvepath",
+                message: "This screen uses the router of the flow that opened it."
             )
 
             Button("Open navigation guide") {
