@@ -231,15 +231,6 @@ private struct CreateProjectSheetHarness: View {
 }
 
 @MainActor
-private final class CreateProjectAppFlowRouterSpy: IAppFlowRouter {
-    private(set) var receivedFlows: [AppFlow] = []
-
-    func setFlow(_ flow: AppFlow) {
-        receivedFlows.append(flow)
-    }
-}
-
-@MainActor
 private func eventually(
     _ condition: @escaping @MainActor () -> Bool
 ) async throws -> Bool {
@@ -252,6 +243,15 @@ private func eventually(
     return condition()
 }
 #endif
+
+@MainActor
+private final class CreateProjectAppFlowRouterSpy: IAppFlowRouter {
+    private(set) var receivedFlows: [AppFlow] = []
+
+    func setFlow(_ flow: AppFlow) {
+        receivedFlows.append(flow)
+    }
+}
 
 extension ProjectConfigurationTests {
     @Test
