@@ -6,7 +6,7 @@ import Testing
 struct HomeViewModelTests {
     @Test
     func userIntentsPushScreenOwnedRoutes() {
-        let router = FlowRouter()
+        let router = makeTestFlowRouter()
         let viewModel = HomeViewModel(router: router)
 
         viewModel.openDetails()
@@ -18,7 +18,7 @@ struct HomeViewModelTests {
 
     @Test
     func resetAlertIsLocalAndConfirmationClearsTheFlow() {
-        let router = FlowRouter()
+        let router = makeTestFlowRouter()
         router.push(HomeRoute.details)
         let viewModel = HomeViewModel(router: router)
 
@@ -34,7 +34,7 @@ struct HomeViewModelTests {
 
     @Test
     func dismissingResetBindingClearsTheAlert() {
-        let router = FlowRouter()
+        let router = makeTestFlowRouter()
         let viewModel = HomeViewModel(router: router)
         viewModel.requestNavigationReset()
 
@@ -45,7 +45,7 @@ struct HomeViewModelTests {
 
     @Test
     func homeOwnsQuickStartSheetState() {
-        let viewModel = HomeViewModel(router: FlowRouter())
+        let viewModel = HomeViewModel(router: makeTestFlowRouter())
 
         viewModel.openQuickStart()
         #expect(viewModel.sheet == .quickStart)
@@ -56,8 +56,9 @@ struct HomeViewModelTests {
 
     @Test
     func openingOnboardingChangesTheAppFlow() {
-        let appFlowRouter = AppFlowRouter(flow: .main)
-        let router = FlowRouter(appFlowRouter: appFlowRouter)
+        let coordinator = makeTestAppFlowCoordinator(visibleFlow: .main)
+        let appFlowRouter = coordinator.appFlowRouter
+        let router = FlowRouter(appFlowCoordinator: coordinator)
         let viewModel = HomeViewModel(router: router)
 
         viewModel.openOnboarding()
@@ -67,8 +68,9 @@ struct HomeViewModelTests {
 
     @Test
     func openingMaintenanceChangesTheAppFlow() {
-        let appFlowRouter = AppFlowRouter(flow: .main)
-        let router = FlowRouter(appFlowRouter: appFlowRouter)
+        let coordinator = makeTestAppFlowCoordinator(visibleFlow: .main)
+        let appFlowRouter = coordinator.appFlowRouter
+        let router = FlowRouter(appFlowCoordinator: coordinator)
         let viewModel = HomeViewModel(router: router)
 
         viewModel.openMaintenance()
@@ -78,7 +80,7 @@ struct HomeViewModelTests {
 
     @Test
     func homeFlowAndScreenCanBeConstructed() {
-        let router = FlowRouter()
+        let router = makeTestFlowRouter()
 
         _ = HomeFlowView(router: router)
         _ = HomeView(router: router)

@@ -16,7 +16,7 @@ struct ProjectOptionsViewModelTests {
 }
 
 @MainActor
-private final class ProjectOptionsRouterSpy: IRouter {
+private final class ProjectOptionsRouterSpy: LocalOnlyRouterSpy {
     private(set) var route: ProjectOptionsRoute?
 
     func push<Route: NavigationRoute>(_ route: Route) {
@@ -26,6 +26,4 @@ private final class ProjectOptionsRouterSpy: IRouter {
     func pop() {}
 
     func popToRoot() {}
-
-    func setFlow(_ flow: AppFlow) {}
 }

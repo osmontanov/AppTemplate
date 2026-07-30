@@ -17,12 +17,12 @@ struct ProjectsViewModelTests {
 
     @Test
     func projectsScreenCanBeConstructedWithItsFlowRouter() {
-        _ = ProjectsView(router: FlowRouter())
+        _ = ProjectsView(router: makeTestFlowRouter())
     }
 
     @Test
     func projectsOwnsCreateProjectSheetState() {
-        let viewModel = ProjectsViewModel(router: FlowRouter())
+        let viewModel = ProjectsViewModel(router: makeTestFlowRouter())
 
         viewModel.openCreateProject()
 
@@ -35,7 +35,7 @@ struct ProjectsViewModelTests {
 }
 
 @MainActor
-private final class ProjectsRouterSpy: IRouter {
+private final class ProjectsRouterSpy: LocalOnlyRouterSpy {
     private(set) var projectRoute: ProjectsRoute?
 
     func push<Route: NavigationRoute>(_ route: Route) {
@@ -45,6 +45,4 @@ private final class ProjectsRouterSpy: IRouter {
     func pop() {}
 
     func popToRoot() {}
-
-    func setFlow(_ flow: AppFlow) {}
 }

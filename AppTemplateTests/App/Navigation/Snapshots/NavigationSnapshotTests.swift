@@ -241,7 +241,10 @@ struct NavigationSnapshotTests {
         _ = source.handle(.browseItem(id: "swiftui"))
 
         let restoredAppFlowRouter = AppFlowRouter(flow: .main)
-        let restored = AppRouter(appFlowRouter: restoredAppFlowRouter)
+        let restored = AppRouter(
+            appFlowRouter: restoredAppFlowRouter,
+            appFlowCoordinator: AppFlowCoordinatorSpy()
+        )
         let data = try NavigationSnapshotCodec.encode(source.snapshot)
 
         #expect(restored.restore(from: data) == .restored)
@@ -273,6 +276,7 @@ struct NavigationSnapshotTests {
     ) -> AppRouter {
         AppRouter(
             appFlowRouter: AppFlowRouter(flow: flow),
+            appFlowCoordinator: AppFlowCoordinatorSpy(),
             selectedSection: selectedSection
         )
     }

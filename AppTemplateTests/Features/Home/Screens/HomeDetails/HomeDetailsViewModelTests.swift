@@ -6,7 +6,7 @@ import Testing
 struct HomeDetailsViewModelTests {
     @Test
     func detailsPushTheirOwnRouteIntoTheParentFlow() {
-        let router = FlowRouter()
+        let router = makeTestFlowRouter()
         let details = HomeDetailsViewModel(router: router)
 
         details.openNavigationGuide()
@@ -16,8 +16,8 @@ struct HomeDetailsViewModelTests {
 
     @Test
     func reusedDetailsOperateOnTheRouterThatOpenedThem() {
-        let homeRouter = FlowRouter()
-        let browseRouter = FlowRouter()
+        let homeRouter = makeTestFlowRouter()
+        let browseRouter = makeTestFlowRouter()
         let homeDetails = HomeDetailsViewModel(router: homeRouter)
         let reusedDetails = HomeDetailsViewModel(router: browseRouter)
 
@@ -34,6 +34,6 @@ struct HomeDetailsViewModelTests {
 
     @Test
     func homeDetailsScreenCanBeConstructed() {
-        _ = HomeDetailsView(router: FlowRouter())
+        _ = HomeDetailsView(router: makeTestFlowRouter())
     }
 }

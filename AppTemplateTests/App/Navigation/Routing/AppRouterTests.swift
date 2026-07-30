@@ -6,51 +6,34 @@ import Testing
 @MainActor
 struct AppRouterTests {
     @Test
-    func everyFlowRouterDelegatesToTheSharedAppFlowRouter() {
+    func everyFlowRouterDelegatesToTheSharedAppFlowCoordinator() {
         let appFlowRouter = AppFlowRouter(flow: .main)
+        let coordinator = AppFlowCoordinatorSpy()
         let router = AppRouter(
             appFlowRouter: appFlowRouter,
+            appFlowCoordinator: coordinator,
             selectedSection: .settings
         )
 
         router.authentication.setFlow(.authentication)
-        let authenticationTransition = appFlowRouter.transition
-        router.onboarding.setFlow(.onboarding)
-        let onboardingTransition = appFlowRouter.transition
-        router.home.setFlow(.main)
-        let homeTransition = appFlowRouter.transition
-        router.browse.setFlow(.authentication)
-        let browseTransition = appFlowRouter.transition
-        router.projects.setFlow(.main)
-        let projectsTransition = appFlowRouter.transition
-        router.settings.setFlow(.authentication)
-        let settingsTransition = appFlowRouter.transition
-        router.maintenance.setFlow(.maintenance)
-        let maintenanceTransition = appFlowRouter.transition
+        router.onboarding.completeOnboarding()
+        router.home.restartOnboarding()
+        router.browse.signIn()
+        router.projects.signOut()
+        router.settings.setMaintenanceEnabled(true)
+        router.maintenance.setMaintenanceEnabled(false)
 
         #expect(router.appFlowRouter === appFlowRouter)
         #expect(router.selectedSection == .settings)
-        #expect(authenticationTransition.flow == .authentication)
-        #expect(onboardingTransition.flow == .onboarding)
-        #expect(homeTransition.flow == .main)
-        #expect(browseTransition.flow == .authentication)
-        #expect(projectsTransition.flow == .main)
-        #expect(settingsTransition.flow == .authentication)
-        #expect(maintenanceTransition.flow == .maintenance)
-        #expect(
-            Set(
-                [
-                    authenticationTransition.id,
-                    onboardingTransition.id,
-                    homeTransition.id,
-                    browseTransition.id,
-                    projectsTransition.id,
-                    settingsTransition.id,
-                    maintenanceTransition.id
-                ]
-            ).count == 7
-        )
-        #expect(appFlowRouter.flow == .maintenance)
+        #expect(coordinator.commands == [
+            .setFlow(.authentication),
+            .completeOnboarding,
+            .restartOnboarding,
+            .signIn,
+            .signOut,
+            .setMaintenanceEnabled(true),
+            .setMaintenanceEnabled(false)
+        ])
     }
 
     @Test
@@ -120,7 +103,10 @@ struct AppRouterTests {
     @Test
     func projectTaskIntentDefersAndReplaysAfterAuthentication() {
         let appFlowRouter = AppFlowRouter(flow: .authentication)
-        let router = AppRouter(appFlowRouter: appFlowRouter)
+        let router = AppRouter(
+            appFlowRouter: appFlowRouter,
+            appFlowCoordinator: AppFlowCoordinatorSpy()
+        )
 
         #expect(
             router.handle(.projectTask(projectID: "project-1", taskID: "task-1"))
@@ -141,7 +127,10 @@ struct AppRouterTests {
     @Test
     func mainRootTransitionResetsHistoriesBeforeReplayingIntent() {
         let appFlowRouter = AppFlowRouter(flow: .authentication)
-        let router = AppRouter(appFlowRouter: appFlowRouter)
+        let router = AppRouter(
+            appFlowRouter: appFlowRouter,
+            appFlowCoordinator: AppFlowCoordinatorSpy()
+        )
         router.authentication.push(AuthenticationTestRoute.step)
         router.home.push(HomeRoute.details)
         router.settings.push(SettingsRoute.about)
@@ -165,7 +154,10 @@ struct AppRouterTests {
     @Test
     func discardTransitionClearsPendingIntentAndAuthenticationHistory() {
         let appFlowRouter = AppFlowRouter(flow: .authentication)
-        let router = AppRouter(appFlowRouter: appFlowRouter)
+        let router = AppRouter(
+            appFlowRouter: appFlowRouter,
+            appFlowCoordinator: AppFlowCoordinatorSpy()
+        )
         router.authentication.push(AuthenticationTestRoute.step)
         _ = router.handle(.selectSection(.settings))
 
@@ -180,7 +172,10 @@ struct AppRouterTests {
     @Test
     func explicitFlowTransitionResetsEveryHistory() {
         let appFlowRouter = AppFlowRouter(flow: .main)
-        let router = AppRouter(appFlowRouter: appFlowRouter)
+        let router = AppRouter(
+            appFlowRouter: appFlowRouter,
+            appFlowCoordinator: AppFlowCoordinatorSpy()
+        )
         router.home.push(HomeRoute.details)
         router.browse.push(BrowseRoute.item(id: "swiftui"))
         router.projects.push(ProjectsRoute.project(id: "project-1"))
@@ -222,8 +217,15 @@ struct AppRouterTests {
     @Test
     func multipleScenesShareRootFlowButKeepIndependentRouterState() {
         let appFlowRouter = AppFlowRouter(flow: .main)
-        let firstScene = AppRouter(appFlowRouter: appFlowRouter)
-        let secondScene = AppRouter(appFlowRouter: appFlowRouter)
+        let coordinator = AppFlowCoordinatorSpy()
+        let firstScene = AppRouter(
+            appFlowRouter: appFlowRouter,
+            appFlowCoordinator: coordinator
+        )
+        let secondScene = AppRouter(
+            appFlowRouter: appFlowRouter,
+            appFlowCoordinator: coordinator
+        )
 
         _ = firstScene.handle(.browseItem(id: "swiftui"))
 
@@ -243,7 +245,10 @@ struct AppRouterTests {
             store: store,
             appFlowRouter: appFlowRouter
         )
-        let router = AppRouter(appFlowRouter: appFlowRouter)
+        let router = AppRouter(
+            appFlowRouter: appFlowRouter,
+            appFlowCoordinator: coordinator
+        )
         #expect(router.handle(.browseItem(id: "swiftui")) == .deferred)
 
         coordinator.completeOnboarding()
@@ -273,7 +278,10 @@ struct AppRouterTests {
             store: store,
             appFlowRouter: appFlowRouter
         )
-        let router = AppRouter(appFlowRouter: appFlowRouter)
+        let router = AppRouter(
+            appFlowRouter: appFlowRouter,
+            appFlowCoordinator: coordinator
+        )
         #expect(
             router.handle(
                 .projectTask(projectID: "project-1", taskID: "task-1")
@@ -312,8 +320,14 @@ struct AppRouterTests {
             store: store,
             appFlowRouter: appFlowRouter
         )
-        let first = AppRouter(appFlowRouter: appFlowRouter)
-        let second = AppRouter(appFlowRouter: appFlowRouter)
+        let first = AppRouter(
+            appFlowRouter: appFlowRouter,
+            appFlowCoordinator: coordinator
+        )
+        let second = AppRouter(
+            appFlowRouter: appFlowRouter,
+            appFlowCoordinator: coordinator
+        )
         _ = first.handle(.browseItem(id: "swiftui"))
         _ = second.handle(
             .projectTask(projectID: "project-1", taskID: "task-1")
@@ -337,6 +351,7 @@ struct AppRouterTests {
     ) -> AppRouter {
         AppRouter(
             appFlowRouter: AppFlowRouter(flow: flow),
+            appFlowCoordinator: AppFlowCoordinatorSpy(),
             selectedSection: selectedSection
         )
     }

@@ -10,8 +10,14 @@ final class AppSceneNavigationLifecycle {
     private var lastAppliedTransitionID: UUID?
     private var queuedURLs: [URL] = []
 
-    init(appFlowRouter: AppFlowRouter) {
-        router = AppRouter(appFlowRouter: appFlowRouter)
+    init(
+        appFlowRouter: AppFlowRouter,
+        appFlowCoordinator: any IAppFlowCoordinator
+    ) {
+        router = AppRouter(
+            appFlowRouter: appFlowRouter,
+            appFlowCoordinator: appFlowCoordinator
+        )
         parser = DeepLinkParser()
     }
 

@@ -29,7 +29,7 @@ struct ProjectDetailsViewModelTests {
     func projectDetailsScreenCanBeConstructedWithItsFlowRouter() {
         _ = ProjectDetailsView(
             projectID: "project-from-deep-link",
-            router: FlowRouter()
+            router: makeTestFlowRouter()
         )
     }
 
@@ -38,7 +38,7 @@ struct ProjectDetailsViewModelTests {
         let projectID = "project-from-deep-link"
         let viewModel = ProjectDetailsViewModel(
             projectID: projectID,
-            router: FlowRouter()
+            router: makeTestFlowRouter()
         )
 
         viewModel.openProjectInfo()
@@ -52,7 +52,7 @@ struct ProjectDetailsViewModelTests {
 }
 
 @MainActor
-private final class ProjectDetailsRouterSpy: IRouter {
+private final class ProjectDetailsRouterSpy: LocalOnlyRouterSpy {
     private(set) var taskRoute: ProjectDetailsRoute?
 
     func push<Route: NavigationRoute>(_ route: Route) {
@@ -62,6 +62,4 @@ private final class ProjectDetailsRouterSpy: IRouter {
     func pop() {}
 
     func popToRoot() {}
-
-    func setFlow(_ flow: AppFlow) {}
 }

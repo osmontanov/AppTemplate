@@ -13,7 +13,7 @@ struct RelatedItemsViewModelTests {
     func relatedItemsRetainTheirSourceIdentifier() {
         let viewModel = RelatedItemsViewModel(
             sourceItemID: "swiftui",
-            router: FlowRouter()
+            router: makeTestFlowRouter()
         )
 
         #expect(viewModel.sourceItemID == "swiftui")
@@ -21,7 +21,7 @@ struct RelatedItemsViewModelTests {
 
     @Test
     func openingAnItemPushesTheRelatedItemsRoute() {
-        let router = FlowRouter()
+        let router = makeTestFlowRouter()
         let viewModel = RelatedItemsViewModel(
             sourceItemID: "swiftui",
             router: router
@@ -34,6 +34,9 @@ struct RelatedItemsViewModelTests {
 
     @Test
     func relatedItemsScreenUsesNavigationOnlyInitializer() {
-        _ = RelatedItemsView(sourceItemID: "swiftui", router: FlowRouter())
+        _ = RelatedItemsView(
+            sourceItemID: "swiftui",
+            router: makeTestFlowRouter()
+        )
     }
 }

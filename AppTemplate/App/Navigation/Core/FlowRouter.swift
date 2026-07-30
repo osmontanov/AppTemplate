@@ -5,18 +5,38 @@ import SwiftUI
 @Observable
 final class FlowRouter: IRouter {
     var path: NavigationPath
-    private let appFlowRouter: any IAppFlowRouter
+    private let appFlowCoordinator: any IAppFlowCoordinator
 
     init(
         path: NavigationPath = NavigationPath(),
-        appFlowRouter: (any IAppFlowRouter)? = nil
+        appFlowCoordinator: any IAppFlowCoordinator
     ) {
         self.path = path
-        self.appFlowRouter = appFlowRouter ?? AppFlowRouter(flow: .main)
+        self.appFlowCoordinator = appFlowCoordinator
     }
 
     func setFlow(_ flow: AppFlow) {
-        appFlowRouter.setFlow(flow)
+        appFlowCoordinator.setFlow(flow)
+    }
+
+    func completeOnboarding() {
+        appFlowCoordinator.completeOnboarding()
+    }
+
+    func restartOnboarding() {
+        appFlowCoordinator.restartOnboarding()
+    }
+
+    func signIn() {
+        appFlowCoordinator.signIn()
+    }
+
+    func signOut() {
+        appFlowCoordinator.signOut()
+    }
+
+    func setMaintenanceEnabled(_ isEnabled: Bool) {
+        appFlowCoordinator.setMaintenanceEnabled(isEnabled)
     }
 
     func push<Route: NavigationRoute>(_ route: Route) {

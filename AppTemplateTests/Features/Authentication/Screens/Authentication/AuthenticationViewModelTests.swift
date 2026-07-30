@@ -6,9 +6,12 @@ import Testing
 struct AuthenticationViewModelTests {
     @Test
     func continueOpensMainAndReplaysTheReceivingScene() {
-        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let coordinator = makeTestAppFlowCoordinator(
+            visibleFlow: .authentication
+        )
+        let appFlowRouter = coordinator.appFlowRouter
         let viewModel = AuthenticationViewModel(
-            router: FlowRouter(appFlowRouter: appFlowRouter)
+            router: FlowRouter(appFlowCoordinator: coordinator)
         )
 
         viewModel.continueToApp()
@@ -19,8 +22,11 @@ struct AuthenticationViewModelTests {
 
     @Test
     func cancellationPublishesFreshAuthenticationDiscardTransition() {
-        let appFlowRouter = AppFlowRouter(flow: .authentication)
-        let flowRouter = FlowRouter(appFlowRouter: appFlowRouter)
+        let coordinator = makeTestAppFlowCoordinator(
+            visibleFlow: .authentication
+        )
+        let appFlowRouter = coordinator.appFlowRouter
+        let flowRouter = FlowRouter(appFlowCoordinator: coordinator)
         let viewModel = AuthenticationViewModel(router: flowRouter)
         let previousID = appFlowRouter.transition.id
 
@@ -33,7 +39,7 @@ struct AuthenticationViewModelTests {
 
     @Test
     func authenticationHelpUsesAuthenticationFlowRouter() {
-        let flowRouter = FlowRouter()
+        let flowRouter = makeTestFlowRouter()
         let viewModel = AuthenticationViewModel(router: flowRouter)
 
         viewModel.openHelp()
@@ -43,8 +49,10 @@ struct AuthenticationViewModelTests {
 
     @Test
     func authenticationFlowAndScreenCanBeConstructed() {
-        let appFlowRouter = AppFlowRouter(flow: .authentication)
-        let flowRouter = FlowRouter(appFlowRouter: appFlowRouter)
+        let coordinator = makeTestAppFlowCoordinator(
+            visibleFlow: .authentication
+        )
+        let flowRouter = FlowRouter(appFlowCoordinator: coordinator)
 
         _ = AuthenticationView(router: flowRouter)
         _ = AuthenticationFlowView(router: flowRouter)

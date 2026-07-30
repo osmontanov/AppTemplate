@@ -6,7 +6,7 @@ import Testing
 struct AboutViewModelTests {
     @Test
     func aboutPushesPlatformDetails() {
-        let router = FlowRouter()
+        let router = makeTestFlowRouter()
         let viewModel = AboutViewModel(router: router)
 
         viewModel.openPlatform(name: "iOS 26")
@@ -16,6 +16,6 @@ struct AboutViewModelTests {
 
     @Test
     func aboutScreenCanBeConstructed() {
-        _ = AboutView(router: FlowRouter())
+        _ = AboutView(router: makeTestFlowRouter())
     }
 }

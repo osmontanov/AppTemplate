@@ -1,2 +1,2 @@
 @MainActor
-protocol IRouter: IFlowRouter, IAppFlowRouter {}
+protocol IRouter: IFlowRouter, IAppFlowCoordinator {}

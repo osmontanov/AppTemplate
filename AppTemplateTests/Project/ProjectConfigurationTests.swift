@@ -17,26 +17,32 @@ struct ProjectConfigurationTests {
     @MainActor
     @Test
     func createProjectFlowForwardsGlobalFlowFromItsNormalInitializer() {
-        let appFlowRouter = CreateProjectAppFlowRouterSpy()
-        let presentingRouter = FlowRouter(appFlowRouter: appFlowRouter)
-        let flow = CreateProjectFlowView(appFlowRouter: presentingRouter)
+        let coordinator = AppFlowCoordinatorSpy()
+        let presentingRouter = FlowRouter(
+            appFlowCoordinator: coordinator
+        )
+        let flow = CreateProjectFlowView(
+            appFlowCoordinator: presentingRouter
+        )
 
         flow.localRouter.push(ProjectBasicsRoute.options)
         flow.localRouter.setFlow(.onboarding)
 
         #expect(flow.localRouter.path.count == 1)
         #expect(presentingRouter.path.isEmpty)
-        #expect(appFlowRouter.receivedFlows == [.onboarding])
+        #expect(coordinator.commands == [.setFlow(.onboarding)])
     }
 
     @MainActor
     @Test
     func createProjectFlowForwardsGlobalFlowFromItsPresentationInitializer() {
-        let appFlowRouter = CreateProjectAppFlowRouterSpy()
-        let presentingRouter = FlowRouter(appFlowRouter: appFlowRouter)
+        let coordinator = AppFlowCoordinatorSpy()
+        let presentingRouter = FlowRouter(
+            appFlowCoordinator: coordinator
+        )
         let flow = CreateProjectFlowView(
             flowState: CreateProjectFlowState(),
-            appFlowRouter: presentingRouter
+            appFlowCoordinator: presentingRouter
         )
 
         flow.localRouter.push(ProjectBasicsRoute.options)
@@ -44,17 +50,23 @@ struct ProjectConfigurationTests {
 
         #expect(flow.localRouter.path.count == 1)
         #expect(presentingRouter.path.isEmpty)
-        #expect(appFlowRouter.receivedFlows == [.maintenance])
+        #expect(coordinator.commands == [.setFlow(.maintenance)])
     }
 
     @MainActor
     @Test
     func navigationRootCanBeConstructed() {
-        let appFlowRouter = AppFlowRouter(flow: .main)
-        let router = AppRouter(appFlowRouter: appFlowRouter)
+        let appFlowCoordinator = makeTestAppFlowCoordinator(
+            visibleFlow: .main
+        )
+        let appFlowRouter = appFlowCoordinator.appFlowRouter
+        let router = AppRouter(
+            appFlowRouter: appFlowRouter,
+            appFlowCoordinator: appFlowCoordinator
+        )
 
-        _ = ContentView()
-        _ = AppSceneView(appFlowRouter: appFlowRouter)
+        _ = ContentView(appFlowCoordinator: appFlowCoordinator)
+        _ = AppSceneView(appFlowCoordinator: appFlowCoordinator)
         _ = AppRootView(
             appFlowRouter: appFlowRouter,
             router: router
@@ -84,14 +96,14 @@ struct ProjectConfigurationTests {
             taskID: "task-from-restored-navigation"
         )
         let createProjectFlowState = CreateProjectFlowState()
-        _ = CreateProjectFlowView(appFlowRouter: router.projects)
+        _ = CreateProjectFlowView(appFlowCoordinator: router.projects)
         _ = ProjectInfoView(projectID: "project-from-deep-link")
         _ = ProjectBasicsView(
-            router: FlowRouter(),
+            router: makeTestFlowRouter(),
             flowState: createProjectFlowState
         )
         _ = ProjectOptionsView(
-            router: FlowRouter(),
+            router: makeTestFlowRouter(),
             flowState: createProjectFlowState
         )
         _ = ProjectReviewView(flowState: createProjectFlowState)
@@ -116,7 +128,7 @@ extension ProjectConfigurationTests {
             rootView: CreateProjectSheetHarness(
                 presentation: presentation,
                 flowState: flowState,
-                appFlowRouter: FlowRouter()
+                appFlowCoordinator: makeTestFlowRouter()
             )
         )
         let window = NSWindow(
@@ -155,14 +167,14 @@ private final class CreateProjectSheetPresentation {
 private struct CreateProjectSheetHarness: View {
     @Bindable var presentation: CreateProjectSheetPresentation
     let flowState: CreateProjectFlowState
-    let appFlowRouter: any IAppFlowRouter
+    let appFlowCoordinator: any IAppFlowCoordinator
 
     var body: some View {
         Color.clear
             .sheet(isPresented: $presentation.isPresented) {
                 CreateProjectFlowView(
                     flowState: flowState,
-                    appFlowRouter: appFlowRouter
+                    appFlowCoordinator: appFlowCoordinator
                 )
             }
     }
@@ -181,15 +193,6 @@ private func eventually(
     return condition()
 }
 #endif
-
-@MainActor
-private final class CreateProjectAppFlowRouterSpy: IAppFlowRouter {
-    private(set) var receivedFlows: [AppFlow] = []
-
-    func setFlow(_ flow: AppFlow) {
-        receivedFlows.append(flow)
-    }
-}
 
 extension ProjectConfigurationTests {
     @Test

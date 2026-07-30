@@ -6,8 +6,9 @@ import Testing
 struct MaintenanceViewModelTests {
     @Test
     func leavingMaintenanceOpensMain() {
-        let appFlowRouter = AppFlowRouter(flow: .maintenance)
-        let router = FlowRouter(appFlowRouter: appFlowRouter)
+        let coordinator = makeTestAppFlowCoordinator(visibleFlow: .maintenance)
+        let appFlowRouter = coordinator.appFlowRouter
+        let router = FlowRouter(appFlowCoordinator: coordinator)
         let viewModel = MaintenanceViewModel(router: router)
 
         viewModel.returnToApp()
@@ -17,7 +18,7 @@ struct MaintenanceViewModelTests {
 
     @Test
     func maintenanceFlowAndScreenCanBeConstructed() {
-        let router = FlowRouter()
+        let router = makeTestFlowRouter()
 
         _ = MaintenanceFlowView(router: router)
         _ = MaintenanceView(router: router)

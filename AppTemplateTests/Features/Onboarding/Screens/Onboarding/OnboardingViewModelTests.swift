@@ -6,8 +6,9 @@ import Testing
 struct OnboardingViewModelTests {
     @Test
     func finishingOnboardingOpensMain() {
-        let appFlowRouter = AppFlowRouter(flow: .onboarding)
-        let router = FlowRouter(appFlowRouter: appFlowRouter)
+        let coordinator = makeTestAppFlowCoordinator(visibleFlow: .onboarding)
+        let appFlowRouter = coordinator.appFlowRouter
+        let router = FlowRouter(appFlowCoordinator: coordinator)
         let viewModel = OnboardingViewModel(router: router)
 
         viewModel.finish()
@@ -18,7 +19,7 @@ struct OnboardingViewModelTests {
 
     @Test
     func onboardingFlowAndScreenCanBeConstructed() {
-        let router = FlowRouter()
+        let router = makeTestFlowRouter()
 
         _ = OnboardingFlowView(router: router)
         _ = OnboardingView(router: router)

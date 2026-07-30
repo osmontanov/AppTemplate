@@ -9,19 +9,21 @@ struct CreateProjectFlowView: View {
         router
     }
 
-    init(appFlowRouter: any IAppFlowRouter) {
+    init(appFlowCoordinator: any IAppFlowCoordinator) {
         self.init(
             flowState: CreateProjectFlowState(),
-            appFlowRouter: appFlowRouter
+            appFlowCoordinator: appFlowCoordinator
         )
     }
 
     init(
         flowState: CreateProjectFlowState,
-        appFlowRouter: any IAppFlowRouter
+        appFlowCoordinator: any IAppFlowCoordinator
     ) {
         _router = State(
-            initialValue: FlowRouter(appFlowRouter: appFlowRouter)
+            initialValue: FlowRouter(
+                appFlowCoordinator: appFlowCoordinator
+            )
         )
         _flowState = State(initialValue: flowState)
     }

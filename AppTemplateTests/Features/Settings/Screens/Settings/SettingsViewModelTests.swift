@@ -6,9 +6,10 @@ import Testing
 struct SettingsViewModelTests {
     @Test
     func returnToAuthenticationReplacesTheRoot() {
-        let appFlowRouter = AppFlowRouter(flow: .main)
+        let coordinator = makeTestAppFlowCoordinator(visibleFlow: .main)
+        let appFlowRouter = coordinator.appFlowRouter
         let viewModel = SettingsViewModel(
-            router: FlowRouter(appFlowRouter: appFlowRouter)
+            router: FlowRouter(appFlowCoordinator: coordinator)
         )
 
         viewModel.returnToAuthentication()
@@ -19,7 +20,7 @@ struct SettingsViewModelTests {
 
     @Test
     func openingAboutPushesTheSettingsScreenRoute() {
-        let router = FlowRouter()
+        let router = makeTestFlowRouter()
         let viewModel = SettingsViewModel(router: router)
 
         viewModel.openAbout()
@@ -42,13 +43,13 @@ struct SettingsViewModelTests {
 
     @Test
     func settingsFlowAndScreenCanBeConstructed() {
-        let router = FlowRouter()
+        let router = makeTestFlowRouter()
 
         _ = SettingsFlowView(router: router)
         _ = SettingsView(router: router)
     }
 
     private func makeSettingsViewModel() -> SettingsViewModel {
-        SettingsViewModel(router: FlowRouter())
+        SettingsViewModel(router: makeTestFlowRouter())
     }
 }

@@ -19,17 +19,18 @@ final class AppRouter {
 
     init(
         appFlowRouter: AppFlowRouter,
+        appFlowCoordinator: any IAppFlowCoordinator,
         selectedSection: AppSection = .home
     ) {
         self.appFlowRouter = appFlowRouter
         self.selectedSection = selectedSection
-        authentication = FlowRouter(appFlowRouter: appFlowRouter)
-        onboarding = FlowRouter(appFlowRouter: appFlowRouter)
-        home = FlowRouter(appFlowRouter: appFlowRouter)
-        browse = FlowRouter(appFlowRouter: appFlowRouter)
-        projects = FlowRouter(appFlowRouter: appFlowRouter)
-        settings = FlowRouter(appFlowRouter: appFlowRouter)
-        maintenance = FlowRouter(appFlowRouter: appFlowRouter)
+        authentication = FlowRouter(appFlowCoordinator: appFlowCoordinator)
+        onboarding = FlowRouter(appFlowCoordinator: appFlowCoordinator)
+        home = FlowRouter(appFlowCoordinator: appFlowCoordinator)
+        browse = FlowRouter(appFlowCoordinator: appFlowCoordinator)
+        projects = FlowRouter(appFlowCoordinator: appFlowCoordinator)
+        settings = FlowRouter(appFlowCoordinator: appFlowCoordinator)
+        maintenance = FlowRouter(appFlowCoordinator: appFlowCoordinator)
     }
 
     @discardableResult

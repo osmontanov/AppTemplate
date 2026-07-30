@@ -6,7 +6,7 @@ import Testing
 struct NavigationGuideViewModelTests {
     @Test
     func closePopsTheCurrentFlowRouter() {
-        let router = FlowRouter()
+        let router = makeTestFlowRouter()
         router.push(HomeRoute.navigationGuide)
         let guide = NavigationGuideViewModel(router: router)
 
@@ -17,7 +17,7 @@ struct NavigationGuideViewModelTests {
 
     @Test
     func guidePushesItsOwnTopicRoute() {
-        let router = FlowRouter()
+        let router = makeTestFlowRouter()
         let viewModel = NavigationGuideViewModel(router: router)
 
         viewModel.openTopic(id: "screen-owned-routes")
@@ -27,6 +27,6 @@ struct NavigationGuideViewModelTests {
 
     @Test
     func navigationGuideScreenCanBeConstructed() {
-        _ = NavigationGuideView(router: FlowRouter())
+        _ = NavigationGuideView(router: makeTestFlowRouter())
     }
 }

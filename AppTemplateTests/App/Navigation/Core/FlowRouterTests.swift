@@ -6,7 +6,7 @@ import Testing
 struct FlowRouterTests {
     @Test
     func oneRouterStoresDifferentScreenRouteTypes() {
-        let router = FlowRouter()
+        let router = makeTestFlowRouter()
 
         router.push(FirstTestRoute.details)
         router.push(SecondTestRoute.guide)
@@ -17,7 +17,7 @@ struct FlowRouterTests {
 
     @Test
     func popAndPopToRootAreSafe() {
-        let router = FlowRouter()
+        let router = makeTestFlowRouter()
 
         router.pop()
         #expect(router.path.isEmpty)
@@ -33,8 +33,8 @@ struct FlowRouterTests {
 
     @Test
     func routersKeepIndependentHistories() {
-        let first = FlowRouter()
-        let second = FlowRouter()
+        let first = makeTestFlowRouter()
+        let second = makeTestFlowRouter()
 
         first.push(FirstTestRoute.details)
 
@@ -44,7 +44,7 @@ struct FlowRouterTests {
 
     @Test
     func existentialContractCanPushAConcreteScreenRoute() {
-        let concrete = FlowRouter()
+        let concrete = makeTestFlowRouter()
         let router: any IFlowRouter = concrete
 
         router.push(FirstTestRoute.details)
@@ -53,35 +53,40 @@ struct FlowRouterTests {
     }
 
     @Test
-    func flowRouterDelegatesGlobalFlowChanges() {
-        let appFlowRouter = AppFlowRouterSpy()
-        let router = FlowRouter(appFlowRouter: appFlowRouter)
+    func flowRouterDelegatesEveryGlobalCommand() {
+        let coordinator = AppFlowCoordinatorSpy()
+        let router = FlowRouter(appFlowCoordinator: coordinator)
 
         router.setFlow(.authentication)
+        router.completeOnboarding()
+        router.restartOnboarding()
+        router.signIn()
+        router.signOut()
+        router.setMaintenanceEnabled(true)
+        router.setMaintenanceEnabled(false)
 
-        #expect(appFlowRouter.receivedFlows == [.authentication])
+        #expect(coordinator.commands == [
+            .setFlow(.authentication),
+            .completeOnboarding,
+            .restartOnboarding,
+            .signIn,
+            .signOut,
+            .setMaintenanceEnabled(true),
+            .setMaintenanceEnabled(false)
+        ])
     }
 
     @Test
     func compositeContractSupportsLocalAndGlobalNavigation() {
-        let appFlowRouter = AppFlowRouterSpy()
-        let concrete = FlowRouter(appFlowRouter: appFlowRouter)
+        let coordinator = AppFlowCoordinatorSpy()
+        let concrete = FlowRouter(appFlowCoordinator: coordinator)
         let router: any IRouter = concrete
 
         router.push(TestRoute.first)
         router.setFlow(.main)
 
         #expect(concrete.path.count == 1)
-        #expect(appFlowRouter.receivedFlows == [.main])
-    }
-}
-
-@MainActor
-private final class AppFlowRouterSpy: IAppFlowRouter {
-    private(set) var receivedFlows: [AppFlow] = []
-
-    func setFlow(_ flow: AppFlow) {
-        receivedFlows.append(flow)
+        #expect(coordinator.commands == [.setFlow(.main)])
     }
 }
 

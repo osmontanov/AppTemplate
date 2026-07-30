@@ -11,7 +11,7 @@ struct BrowseListViewModelTests {
 
     @Test
     func openingAnItemPushesTheBrowseScreenRoute() {
-        let router = FlowRouter()
+        let router = makeTestFlowRouter()
         let viewModel = BrowseListViewModel(router: router)
 
         viewModel.openItem(id: "swiftui")
@@ -21,7 +21,7 @@ struct BrowseListViewModelTests {
 
     @Test
     func browseOwnsOptionsSheetState() {
-        let viewModel = BrowseListViewModel(router: FlowRouter())
+        let viewModel = BrowseListViewModel(router: makeTestFlowRouter())
 
         viewModel.openOptions()
         #expect(viewModel.sheet == .options)
@@ -31,7 +31,7 @@ struct BrowseListViewModelTests {
 
     @Test
     func browseFlowAndScreenUseNavigationOnlyInitializers() {
-        let router = FlowRouter()
+        let router = makeTestFlowRouter()
 
         _ = BrowseFlowView(router: router)
         _ = BrowseView(router: router)

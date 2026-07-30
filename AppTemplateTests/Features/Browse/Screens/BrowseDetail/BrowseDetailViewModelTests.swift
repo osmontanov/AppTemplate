@@ -11,14 +11,17 @@ struct BrowseDetailViewModelTests {
 
     @Test
     func detailRetainsItsStableIdentifier() {
-        let viewModel = BrowseDetailViewModel(id: "swiftui", router: FlowRouter())
+        let viewModel = BrowseDetailViewModel(
+            id: "swiftui",
+            router: makeTestFlowRouter()
+        )
 
         #expect(viewModel.id == "swiftui")
     }
 
     @Test
     func detailPushesItsOwnRelatedItemsRoute() {
-        let router = FlowRouter()
+        let router = makeTestFlowRouter()
         let viewModel = BrowseDetailViewModel(id: "swiftui", router: router)
 
         viewModel.openRelatedItems()
@@ -28,6 +31,9 @@ struct BrowseDetailViewModelTests {
 
     @Test
     func browseDetailScreenUsesNavigationOnlyInitializer() {
-        _ = BrowseDetailView(id: "swiftui", router: FlowRouter())
+        _ = BrowseDetailView(
+            id: "swiftui",
+            router: makeTestFlowRouter()
+        )
     }
 }

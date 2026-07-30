@@ -2,16 +2,21 @@ import OSLog
 import SwiftUI
 
 struct AppSceneView: View {
-    let appFlowRouter: AppFlowRouter
+    let appFlowCoordinator: AppFlowCoordinator
 
     @State private var lifecycle: AppSceneNavigationLifecycle
     @SceneStorage("AppTemplate.NavigationSnapshot") private var encodedSnapshot: Data?
 
-    init(appFlowRouter: AppFlowRouter) {
-        self.appFlowRouter = appFlowRouter
+    private var appFlowRouter: AppFlowRouter {
+        appFlowCoordinator.appFlowRouter
+    }
+
+    init(appFlowCoordinator: AppFlowCoordinator) {
+        self.appFlowCoordinator = appFlowCoordinator
         _lifecycle = State(
             initialValue: AppSceneNavigationLifecycle(
-                appFlowRouter: appFlowRouter
+                appFlowRouter: appFlowCoordinator.appFlowRouter,
+                appFlowCoordinator: appFlowCoordinator
             )
         )
     }

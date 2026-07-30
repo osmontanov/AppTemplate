@@ -59,7 +59,7 @@ struct ProjectsView: View {
         .sheet(item: $viewModel.sheet) { route in
             switch route {
             case .createProject:
-                CreateProjectFlowView(appFlowRouter: router)
+                CreateProjectFlowView(appFlowCoordinator: router)
             }
         }
     }
