@@ -51,6 +51,42 @@ struct FlowRouterTests {
 
         #expect(concrete.path.count == 1)
     }
+
+    @Test
+    func flowRouterDelegatesGlobalFlowChanges() {
+        let appFlowRouter = AppFlowRouterSpy()
+        let router = FlowRouter(appFlowRouter: appFlowRouter)
+
+        router.setFlow(.authentication)
+
+        #expect(appFlowRouter.receivedFlows == [.authentication])
+    }
+
+    @Test
+    func compositeContractSupportsLocalAndGlobalNavigation() {
+        let appFlowRouter = AppFlowRouterSpy()
+        let concrete = FlowRouter(appFlowRouter: appFlowRouter)
+        let router: any IRouter = concrete
+
+        router.push(TestRoute.first)
+        router.setFlow(.main)
+
+        #expect(concrete.path.count == 1)
+        #expect(appFlowRouter.receivedFlows == [.main])
+    }
+}
+
+@MainActor
+private final class AppFlowRouterSpy: IAppFlowRouter {
+    private(set) var receivedFlows: [AppFlow] = []
+
+    func setFlow(_ flow: AppFlow) {
+        receivedFlows.append(flow)
+    }
+}
+
+private nonisolated enum TestRoute: String, NavigationRoute {
+    case first
 }
 
 private nonisolated enum FirstTestRoute: String, NavigationRoute {

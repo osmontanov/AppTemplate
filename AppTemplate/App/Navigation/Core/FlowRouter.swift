@@ -3,11 +3,20 @@ import SwiftUI
 
 @MainActor
 @Observable
-final class FlowRouter: IFlowRouter {
+final class FlowRouter: IRouter {
     var path: NavigationPath
+    private let appFlowRouter: any IAppFlowRouter
 
-    init(path: NavigationPath = NavigationPath()) {
+    init(
+        path: NavigationPath = NavigationPath(),
+        appFlowRouter: (any IAppFlowRouter)? = nil
+    ) {
         self.path = path
+        self.appFlowRouter = appFlowRouter ?? AppFlowRouter(flow: .main)
+    }
+
+    func setFlow(_ flow: AppFlow) {
+        appFlowRouter.setFlow(flow)
     }
 
     func push<Route: NavigationRoute>(_ route: Route) {
