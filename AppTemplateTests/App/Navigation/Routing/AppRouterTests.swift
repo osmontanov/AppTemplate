@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 import Testing
 @testable import AppTemplate
@@ -231,6 +232,103 @@ struct AppRouterTests {
         #expect(firstScene.browse.path.count == 1)
         #expect(secondScene.selectedSection == .home)
         #expect(secondScene.browse.path.isEmpty)
+    }
+
+    @Test
+    func deferredIntentSurvivesOnboardingAndAuthenticationGates() throws {
+        let storage = AppStateStorageSpy()
+        let store = AppStateStore(storage: storage)
+        let appFlowRouter = AppFlowRouter(flow: .onboarding)
+        let coordinator = AppFlowCoordinator(
+            store: store,
+            appFlowRouter: appFlowRouter
+        )
+        let router = AppRouter(appFlowRouter: appFlowRouter)
+        #expect(router.handle(.browseItem(id: "swiftui")) == .deferred)
+
+        coordinator.completeOnboarding()
+        _ = router.apply(appFlowRouter.transition)
+        #expect(router.pendingIntent == .browseItem(id: "swiftui"))
+
+        coordinator.signIn()
+        #expect(router.apply(appFlowRouter.transition) == .applied)
+        #expect(router.pendingIntent == nil)
+        #expect(router.selectedSection == .browse)
+        #expect(router.browse.path.count == 1)
+    }
+
+    @Test
+    func deferredIntentSurvivesAuthenticationAndMaintenanceGates() throws {
+        let state = AppState(
+            isAuthenticated: false,
+            hasCompletedOnboarding: true,
+            isMaintenanceEnabled: true
+        )
+        let storage = AppStateStorageSpy(
+            loadResult: .data(try JSONEncoder().encode(state))
+        )
+        let store = AppStateStore(storage: storage)
+        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let coordinator = AppFlowCoordinator(
+            store: store,
+            appFlowRouter: appFlowRouter
+        )
+        let router = AppRouter(appFlowRouter: appFlowRouter)
+        #expect(
+            router.handle(
+                .projectTask(projectID: "project-1", taskID: "task-1")
+            ) == .deferred
+        )
+
+        coordinator.signIn()
+        _ = router.apply(appFlowRouter.transition)
+
+        #expect(appFlowRouter.flow == .maintenance)
+        #expect(
+            router.pendingIntent
+                == .projectTask(projectID: "project-1", taskID: "task-1")
+        )
+
+        coordinator.setMaintenanceEnabled(false)
+        #expect(router.apply(appFlowRouter.transition) == .applied)
+        #expect(router.pendingIntent == nil)
+        #expect(router.selectedSection == .projects)
+        #expect(router.projects.path.count == 2)
+    }
+
+    @Test
+    func sharedCoordinatorReplaysEachScenesOwnPendingIntent() throws {
+        let state = AppState(
+            isAuthenticated: false,
+            hasCompletedOnboarding: true,
+            isMaintenanceEnabled: false
+        )
+        let storage = AppStateStorageSpy(
+            loadResult: .data(try JSONEncoder().encode(state))
+        )
+        let store = AppStateStore(storage: storage)
+        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let coordinator = AppFlowCoordinator(
+            store: store,
+            appFlowRouter: appFlowRouter
+        )
+        let first = AppRouter(appFlowRouter: appFlowRouter)
+        let second = AppRouter(appFlowRouter: appFlowRouter)
+        _ = first.handle(.browseItem(id: "swiftui"))
+        _ = second.handle(
+            .projectTask(projectID: "project-1", taskID: "task-1")
+        )
+
+        coordinator.signIn()
+        _ = first.apply(appFlowRouter.transition)
+        _ = second.apply(appFlowRouter.transition)
+
+        #expect(first.selectedSection == .browse)
+        #expect(first.browse.path.count == 1)
+        #expect(first.projects.path.isEmpty)
+        #expect(second.selectedSection == .projects)
+        #expect(second.projects.path.count == 2)
+        #expect(second.browse.path.isEmpty)
     }
 
     private func makeRouter(

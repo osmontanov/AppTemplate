@@ -50,4 +50,26 @@ struct AppFlowRouterTests {
         #expect(router.transition.historyAction == .reset)
         #expect(router.transition.pendingIntentAction == .discard)
     }
+
+    @Test(arguments: [
+        PendingIntentAction.preserve,
+        .replay,
+        .discard
+    ])
+    func policyTransitionResetsWithTheRequestedPendingAction(
+        action: PendingIntentAction
+    ) {
+        let router = AppFlowRouter(flow: .onboarding)
+        let previousID = router.transition.id
+
+        router.transitionForPolicy(
+            to: .authentication,
+            pendingIntentAction: action
+        )
+
+        #expect(router.flow == .authentication)
+        #expect(router.transition.id != previousID)
+        #expect(router.transition.historyAction == .reset)
+        #expect(router.transition.pendingIntentAction == action)
+    }
 }

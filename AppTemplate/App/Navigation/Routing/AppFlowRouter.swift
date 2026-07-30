@@ -27,6 +27,17 @@ final class AppFlowRouter: IAppFlowRouter {
         )
     }
 
+    func transitionForPolicy(
+        to flow: AppFlow,
+        pendingIntentAction: PendingIntentAction
+    ) {
+        transition(
+            to: flow,
+            historyAction: .reset,
+            pendingIntentAction: pendingIntentAction
+        )
+    }
+
     private func transition(
         to flow: AppFlow,
         historyAction: AppFlowHistoryAction,

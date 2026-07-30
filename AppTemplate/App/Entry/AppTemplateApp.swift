@@ -9,12 +9,31 @@ import SwiftUI
 
 @main
 struct AppTemplateApp: App {
-    private let dependencies = AppDependencies.live()
-    @State private var appFlowRouter = AppFlowRouter(flow: .authentication)
+    private let dependencies: AppDependencies
+    @State private var appFlowCoordinator: AppFlowCoordinator
+
+    init() {
+        let dependencies = AppDependencies.live()
+        let store = AppStateStore(
+            storage: dependencies.appStateStorage
+        )
+        let appFlowRouter = AppFlowRouter(
+            flow: AppFlowPolicy.resolve(store.state)
+        )
+        self.dependencies = dependencies
+        _appFlowCoordinator = State(
+            initialValue: AppFlowCoordinator(
+                store: store,
+                appFlowRouter: appFlowRouter
+            )
+        )
+    }
 
     var body: some Scene {
         WindowGroup {
-            AppSceneView(appFlowRouter: appFlowRouter)
+            AppSceneView(
+                appFlowRouter: appFlowCoordinator.appFlowRouter
+            )
         }
     }
 }
