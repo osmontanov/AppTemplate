@@ -10,6 +10,8 @@ struct AppDependenciesTests {
 
         #expect(dependencies.browse.service is BrowseService)
         #expect(dependencies.session.service is SessionService)
+        #expect(dependencies.localDatabase is LocalDatabaseService)
+        #expect(dependencies.remote is RemoteService)
         let _: ProjectsDependencies = dependencies.projects
         #expect(items.map(\.id) == ["swiftui", "observation", "routing"])
         #expect(session == nil)
@@ -44,9 +46,13 @@ struct AppDependenciesTests {
         )
         let browseService = InjectedBrowseService(item: item)
         let service = InjectedSessionService(session: session)
+        let localDatabaseService = InjectedLocalDatabaseService()
+        let remoteService = InjectedRemoteService()
         let dependencies = AppDependencies.test(
             browseService: browseService,
-            sessionService: service
+            sessionService: service,
+            localDatabaseService: localDatabaseService,
+            remoteService: remoteService
         )
         let items = try await dependencies.browse.service.items()
         let restoredSession = try await dependencies.session.service.currentSession()
@@ -56,9 +62,17 @@ struct AppDependenciesTests {
         let resolvedService = try #require(
             dependencies.session.service as? InjectedSessionService
         )
+        let resolvedLocalDatabaseService = try #require(
+            dependencies.localDatabase as? InjectedLocalDatabaseService
+        )
+        let resolvedRemoteService = try #require(
+            dependencies.remote as? InjectedRemoteService
+        )
 
         #expect(resolvedBrowseService === browseService)
         #expect(resolvedService === service)
+        #expect(resolvedLocalDatabaseService === localDatabaseService)
+        #expect(resolvedRemoteService === remoteService)
         #expect(items == [item])
         #expect(restoredSession == session)
         let _: ProjectsDependencies = dependencies.projects
@@ -99,3 +113,6 @@ private actor InjectedSessionService: ISessionService {
     func signOut() {
     }
 }
+
+private actor InjectedLocalDatabaseService: ILocalDatabaseService {}
+private actor InjectedRemoteService: IRemoteService {}

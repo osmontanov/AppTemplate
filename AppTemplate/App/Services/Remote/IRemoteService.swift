@@ -1,0 +1,2 @@
+nonisolated
+protocol IRemoteService: Sendable {}
