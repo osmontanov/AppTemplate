@@ -56,9 +56,7 @@ struct ProjectConfigurationTests {
     func navigationRootCanBeConstructed() {
         let appFlowRouter = AppFlowRouter(flow: .main)
         let router = AppRouter(appFlowRouter: appFlowRouter)
-        let dependencies = AppDependencies.preview(
-            browseItems: []
-        )
+        let dependencies = AppDependencies.preview()
 
         _ = AppSceneView(
             appFlowRouter: appFlowRouter,
@@ -77,31 +75,12 @@ struct ProjectConfigurationTests {
         _ = HomeFlowView(router: router.home)
         _ = GuideTopicView(id: "screen-owned-routes")
         _ = QuickStartView()
-        _ = BrowseFlowView(
-            router: router.browse,
-            dependencies: dependencies.browse
-        )
-        let browsePreferences = BrowsePreferencesStore()
-        _ = BrowseView(
-            router: router.browse,
-            dependencies: dependencies.browse,
-            preferences: browsePreferences
-        )
-        _ = BrowseOptionsView(preferences: browsePreferences)
-        _ = BrowseDetailView(
-            id: "source",
-            dependencies: dependencies.browse,
-            router: router.browse
-        )
-        _ = RelatedItemsView(
-            sourceItemID: "source",
-            dependencies: dependencies.browse,
-            router: router.browse
-        )
-        _ = RelatedItemDetailView(
-            id: "related",
-            dependencies: dependencies.browse
-        )
+        _ = BrowseFlowView(router: router.browse)
+        _ = BrowseView(router: router.browse)
+        _ = BrowseOptionsView()
+        _ = BrowseDetailView(id: "source", router: router.browse)
+        _ = RelatedItemsView(sourceItemID: "source", router: router.browse)
+        _ = RelatedItemDetailView(id: "related")
         _ = ProjectsFlowView(
             router: router.projects,
             dependencies: dependencies.projects

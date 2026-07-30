@@ -2,58 +2,21 @@ import SwiftUI
 
 struct BrowseDetailView: View {
     private let router: FlowRouter
-    private let dependencies: BrowseDependencies
     @State private var viewModel: BrowseDetailViewModel
 
-    init(
-        id: BrowseItem.ID,
-        dependencies: BrowseDependencies,
-        router: FlowRouter
-    ) {
+    init(id: BrowseItem.ID, router: FlowRouter) {
         self.router = router
-        self.dependencies = dependencies
         _viewModel = State(
-            initialValue: BrowseDetailViewModel(
-                id: id,
-                dependencies: dependencies,
-                router: router
-            )
+            initialValue: BrowseDetailViewModel(id: id, router: router)
         )
     }
 
     var body: some View {
-        Group {
-            switch viewModel.state {
-            case .idle, .loading:
-                LoadingStateView(title: "Loading Item…")
-            case let .content(item):
-                Form {
-                    LabeledContent("Identifier", value: item.id)
-                    Text(item.summary)
-                }
-                .navigationTitle(item.title)
-            case .empty:
-                EmptyStateView(
-                    title: "Item Unavailable",
-                    systemImage: "questionmark.folder",
-                    message: "This item no longer exists."
-                )
-            case let .failed(failure):
-                ErrorStateView(
-                    title: "Item Unavailable",
-                    message: failure.message,
-                    retry: {
-                        viewModel.retry()
-                    }
-                )
-            }
+        Form {
+            LabeledContent("Identifier", value: viewModel.id)
+            Text("This static detail keeps the typed Browse route available for navigation examples.")
         }
-        .task(id: viewModel.id) {
-            await viewModel.load()
-        }
-        .onDisappear {
-            viewModel.cancel()
-        }
+        .navigationTitle("Browse Detail")
         .toolbar {
             Button("Related Items", systemImage: "link") {
                 viewModel.openRelatedItems()
@@ -62,11 +25,7 @@ struct BrowseDetailView: View {
         .navigationDestination(for: BrowseDetailRoute.self) { route in
             switch route {
             case let .relatedItems(itemID):
-                RelatedItemsView(
-                    sourceItemID: itemID,
-                    dependencies: dependencies,
-                    router: router
-                )
+                RelatedItemsView(sourceItemID: itemID, router: router)
             }
         }
     }

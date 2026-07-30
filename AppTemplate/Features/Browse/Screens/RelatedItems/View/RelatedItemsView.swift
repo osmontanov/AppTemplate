@@ -2,74 +2,34 @@ import SwiftUI
 
 struct RelatedItemsView: View {
     private let router: FlowRouter
-    private let dependencies: BrowseDependencies
     @State private var viewModel: RelatedItemsViewModel
 
-    init(
-        sourceItemID: BrowseItem.ID,
-        dependencies: BrowseDependencies,
-        router: FlowRouter
-    ) {
+    init(sourceItemID: BrowseItem.ID, router: FlowRouter) {
         self.router = router
-        self.dependencies = dependencies
         _viewModel = State(
-            initialValue: RelatedItemsViewModel(
-                sourceItemID: sourceItemID,
-                dependencies: dependencies,
-                router: router
-            )
+            initialValue: RelatedItemsViewModel(sourceItemID: sourceItemID, router: router)
         )
     }
 
     var body: some View {
-        Group {
-            switch viewModel.state {
-            case .idle, .loading:
-                LoadingStateView(title: "Loading Related Items…")
-            case .empty:
-                EmptyStateView(
-                    title: "No Related Items",
-                    systemImage: "link",
-                    message: "There are no other Browse items."
-                )
-            case let .content(items):
-                List(items) { item in
-                    Button {
-                        viewModel.openItem(id: item.id)
-                    } label: {
-                        VStack(alignment: .leading) {
-                            Text(item.title)
-                            Text(item.summary)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .buttonStyle(.plain)
+        List {
+            Section("Examples") {
+                Button("SwiftUI") {
+                    viewModel.openItem(id: "swiftui")
                 }
-            case let .failed(failure):
-                ErrorStateView(
-                    title: "Related Items Unavailable",
-                    message: failure.message,
-                    retry: {
-                        viewModel.retry()
-                    }
-                )
+                Button("Observation") {
+                    viewModel.openItem(id: "observation")
+                }
+                Button("Typed Routing") {
+                    viewModel.openItem(id: "routing")
+                }
             }
         }
         .navigationTitle("Related Items")
-        .task {
-            await viewModel.load()
-        }
-        .onDisappear {
-            viewModel.cancel()
-        }
         .navigationDestination(for: RelatedItemsRoute.self) { route in
             switch route {
             case let .item(id):
-                RelatedItemDetailView(
-                    id: id,
-                    dependencies: dependencies
-                )
+                RelatedItemDetailView(id: id)
             }
         }
     }

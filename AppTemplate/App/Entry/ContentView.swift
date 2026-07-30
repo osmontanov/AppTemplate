@@ -31,24 +31,6 @@ struct ContentView: View {
 }
 
 #Preview {
-    let dependencies = AppDependencies.preview(
-        browseItems: [
-            BrowseItem(
-                id: "swiftui",
-                title: "SwiftUI",
-                summary: "Adaptive native interfaces."
-            ),
-            BrowseItem(
-                id: "observation",
-                title: "Observation",
-                summary: "Focused state tracking."
-            ),
-            BrowseItem(
-                id: "routing",
-                title: "Typed Routing",
-                summary: "Navigation represented as data."
-            )
-        ]
-    )
+    let dependencies = AppDependencies.preview()
     ContentView(dependencies: dependencies)
 }

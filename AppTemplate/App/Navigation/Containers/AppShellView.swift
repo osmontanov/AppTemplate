@@ -11,10 +11,7 @@ struct AppShellView: View {
             }
 
             Tab("Browse", systemImage: "square.grid.2x2", value: AppSection.browse) {
-                BrowseFlowView(
-                    router: router.browse,
-                    dependencies: dependencies.browse
-                )
+                BrowseFlowView(router: router.browse)
             }
 
             Tab("Projects", systemImage: "folder", value: AppSection.projects) {

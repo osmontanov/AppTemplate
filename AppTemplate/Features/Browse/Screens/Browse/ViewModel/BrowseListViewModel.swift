@@ -3,35 +3,11 @@ import Observation
 @MainActor
 @Observable
 final class BrowseListViewModel {
-    private(set) var state: BrowseListState = .idle
     var sheet: BrowseSheetRoute?
-    private let dependencies: BrowseDependencies
     private let router: any IRouter
-    private let preferences: BrowsePreferencesStore
-    private var requestVersion = 0
-    private var loadTask: Task<Void, Never>?
 
-    init(
-        dependencies: BrowseDependencies,
-        router: any IRouter,
-        preferences: BrowsePreferencesStore
-    ) {
-        self.dependencies = dependencies
+    init(router: any IRouter) {
         self.router = router
-        self.preferences = preferences
-    }
-
-    var visibleItems: [BrowseItem] {
-        guard case let .content(items) = state else {
-            return []
-        }
-
-        return switch preferences.sortOrder {
-        case .titleAscending:
-            items.sorted { $0.title < $1.title }
-        case .titleDescending:
-            items.sorted { $0.title > $1.title }
-        }
     }
 
     func openItem(id: BrowseItem.ID) {
@@ -44,78 +20,5 @@ final class BrowseListViewModel {
 
     func dismissSheet() {
         sheet = nil
-    }
-
-    func load() async {
-        let task = beginLoad()
-        await withTaskCancellationHandler {
-            await task.value
-        } onCancel: {
-            task.cancel()
-        }
-    }
-
-    @discardableResult
-    func retry() -> Task<Void, Never> {
-        beginLoad()
-    }
-
-    func cancel() {
-        requestVersion += 1
-        loadTask?.cancel()
-        loadTask = nil
-        if state == .loading {
-            state = .idle
-        }
-    }
-
-    private func beginLoad() -> Task<Void, Never> {
-        requestVersion += 1
-        let version = requestVersion
-        loadTask?.cancel()
-        state = .loading
-
-        let service = dependencies.service
-        let task = Task { @MainActor [weak self, service] in
-            do {
-                let items = try await service.items()
-                try Task.checkCancellation()
-                self?.finish(items, version: version)
-            } catch is CancellationError {
-                self?.finishCancellation(version: version)
-            } catch {
-                if Task.isCancelled {
-                    self?.finishCancellation(version: version)
-                } else {
-                    self?.finishFailure(version: version)
-                }
-            }
-        }
-        loadTask = task
-        return task
-    }
-
-    private func finish(_ items: [BrowseItem], version: Int) {
-        guard version == requestVersion else {
-            return
-        }
-        loadTask = nil
-        state = items.isEmpty ? .empty : .content(items)
-    }
-
-    private func finishCancellation(version: Int) {
-        guard version == requestVersion else {
-            return
-        }
-        loadTask = nil
-        state = .idle
-    }
-
-    private func finishFailure(version: Int) {
-        guard version == requestVersion else {
-            return
-        }
-        loadTask = nil
-        state = .failed(.load)
     }
 }
