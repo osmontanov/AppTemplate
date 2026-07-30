@@ -14,10 +14,12 @@ struct AuthenticationViewModelTests {
                 restorationFails: false
             )
         )
+        let flowRouter = FlowRouter(
+            appFlowRouter: AppFlowRouter(flow: .authentication)
+        )
         let viewModel = AuthenticationViewModel(
             sessionStore: store,
-            router: AppRouter(flow: .authentication),
-            flowRouter: FlowRouter()
+            router: flowRouter
         )
 
         await viewModel.signIn()
@@ -27,21 +29,22 @@ struct AuthenticationViewModelTests {
     }
 
     @Test
-    func cancellationClearsTheScenePendingIntent() {
+    func cancellationPublishesFreshAuthenticationDiscardTransition() {
         let service = SessionService(initialSession: nil)
         let store = SessionStore(service: service)
-        let router = AppRouter(flow: .authentication)
-        _ = router.handle(.browseItem(id: "swiftui"))
+        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let flowRouter = FlowRouter(appFlowRouter: appFlowRouter)
         let viewModel = AuthenticationViewModel(
             sessionStore: store,
-            router: router,
-            flowRouter: FlowRouter()
+            router: flowRouter
         )
+        let previousID = appFlowRouter.transition.id
 
         viewModel.cancelAuthentication()
 
-        #expect(router.pendingIntent == nil)
-        #expect(router.flow == .authentication)
+        #expect(appFlowRouter.flow == .authentication)
+        #expect(appFlowRouter.transition.id != previousID)
+        #expect(appFlowRouter.transition.pendingIntentAction == .discard)
     }
 
     @Test
@@ -50,8 +53,7 @@ struct AuthenticationViewModelTests {
         let flowRouter = FlowRouter()
         let viewModel = AuthenticationViewModel(
             sessionStore: store,
-            router: AppRouter(flow: .authentication),
-            flowRouter: flowRouter
+            router: flowRouter
         )
 
         viewModel.openHelp()
@@ -73,8 +75,7 @@ struct AuthenticationViewModelTests {
         )
         let viewModel = AuthenticationViewModel(
             sessionStore: store,
-            router: AppRouter(flow: .launching),
-            flowRouter: FlowRouter()
+            router: FlowRouter()
         )
 
         await store.start()
@@ -92,8 +93,7 @@ struct AuthenticationViewModelTests {
         let store = SessionStore(service: service)
         let viewModel = AuthenticationViewModel(
             sessionStore: store,
-            router: AppRouter(flow: .launching),
-            flowRouter: FlowRouter()
+            router: FlowRouter()
         )
         await store.start()
         #expect(store.failure == .restoration)
@@ -110,26 +110,29 @@ struct AuthenticationViewModelTests {
     func authenticationFlowAndScreenCanBeConstructed() {
         let service = SessionService(initialSession: nil)
         let store = SessionStore(service: service)
-        let appRouter = AppRouter(flow: .authentication)
+        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let flowRouter = FlowRouter(appFlowRouter: appFlowRouter)
 
         _ = AuthenticationView(
             sessionStore: store,
-            router: appRouter,
-            flowRouter: appRouter.authentication
+            router: flowRouter
         )
         _ = AuthenticationFlowView(
-            router: appRouter.authentication,
-            sessionStore: store,
-            appRouter: appRouter
+            router: flowRouter,
+            sessionStore: store
         )
     }
 }
 
-private nonisolated enum AuthenticationTestError: Error {
+private
+nonisolated
+enum AuthenticationTestError: Error {
     case restoration
 }
 
-private nonisolated struct AuthenticationSessionService: ISessionService {
+private
+nonisolated
+struct AuthenticationSessionService: ISessionService {
     let restoredSession: UserSession?
     let signedInSession: UserSession
     let restorationFails: Bool

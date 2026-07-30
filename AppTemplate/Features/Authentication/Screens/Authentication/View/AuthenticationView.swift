@@ -5,14 +5,12 @@ struct AuthenticationView: View {
 
     init(
         sessionStore: SessionStore,
-        router: AppRouter,
-        flowRouter: FlowRouter
+        router: FlowRouter
     ) {
         _viewModel = State(
             initialValue: AuthenticationViewModel(
                 sessionStore: sessionStore,
-                router: router,
-                flowRouter: flowRouter
+                router: router
             )
         )
     }

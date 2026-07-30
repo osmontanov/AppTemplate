@@ -5,35 +5,34 @@ import Testing
 @MainActor
 struct AppRouterTests {
     @Test
-    func designatedInitializerKeepsInjectedFlowRouters() {
-        let authentication = FlowRouter()
-        let home = FlowRouter()
-        let browse = FlowRouter()
-        let projects = FlowRouter()
-        let settings = FlowRouter()
-
+    func everyFlowRouterDelegatesToTheSharedAppFlowRouter() {
+        let appFlowRouter = AppFlowRouter(flow: .main)
         let router = AppRouter(
-            flow: .launching,
-            selectedSection: .settings,
-            authentication: authentication,
-            home: home,
-            browse: browse,
-            projects: projects,
-            settings: settings
+            appFlowRouter: appFlowRouter,
+            selectedSection: .settings
         )
 
-        #expect(router.flow == .launching)
+        router.authentication.setFlow(.authentication)
+        let authenticationTransition = appFlowRouter.transition.id
+        router.home.setFlow(.main)
+        let homeTransition = appFlowRouter.transition.id
+        router.browse.setFlow(.authentication)
+        let browseTransition = appFlowRouter.transition.id
+        router.projects.setFlow(.main)
+        let projectsTransition = appFlowRouter.transition.id
+        router.settings.setFlow(.authentication)
+
+        #expect(router.appFlowRouter === appFlowRouter)
         #expect(router.selectedSection == .settings)
-        #expect(router.authentication === authentication)
-        #expect(router.home === home)
-        #expect(router.browse === browse)
-        #expect(router.projects === projects)
-        #expect(router.settings === settings)
+        #expect(authenticationTransition != homeTransition)
+        #expect(homeTransition != browseTransition)
+        #expect(browseTransition != projectsTransition)
+        #expect(appFlowRouter.flow == .authentication)
     }
 
     @Test
     func browseIntentSelectsBrowseAndBuildsCanonicalPath() {
-        let router = AppRouter()
+        let router = makeRouter()
 
         let outcome = router.handle(.browseItem(id: "swiftui"))
 
@@ -44,7 +43,7 @@ struct AppRouterTests {
 
     @Test
     func unknownBrowseIdentifierStillBuildsRouteAndPreservesOtherFlows() {
-        let router = AppRouter(selectedSection: .settings)
+        let router = makeRouter(selectedSection: .settings)
         router.home.push(HomeRoute.details)
         router.settings.push(SettingsRoute.about)
 
@@ -59,7 +58,7 @@ struct AppRouterTests {
 
     @Test
     func projectIntentResetsOnlyProjectsHistoryAndPreservesOtherFlows() {
-        let router = AppRouter(selectedSection: .settings)
+        let router = makeRouter(selectedSection: .settings)
         router.home.push(HomeRoute.details)
         router.browse.push(BrowseRoute.item(id: "swiftui"))
         router.projects.push(ProjectsRoute.project(id: "stale-project"))
@@ -83,7 +82,7 @@ struct AppRouterTests {
 
     @Test
     func projectTaskIntentBuildsCanonicalProjectsRouteSequence() {
-        let router = AppRouter()
+        let router = makeRouter()
         router.projects.push(ProjectsRoute.project(id: "stale-project"))
 
         let outcome = router.handle(
@@ -97,7 +96,8 @@ struct AppRouterTests {
 
     @Test
     func projectTaskIntentDefersAndReplaysAfterAuthentication() {
-        let router = AppRouter(flow: .authentication)
+        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let router = AppRouter(appFlowRouter: appFlowRouter)
 
         #expect(
             router.handle(.projectTask(projectID: "project-1", taskID: "task-1"))
@@ -108,7 +108,8 @@ struct AppRouterTests {
                 == .projectTask(projectID: "project-1", taskID: "task-1")
         )
 
-        #expect(router.completeAuthentication(succeeded: true) == .applied)
+        appFlowRouter.setFlow(.main)
+        #expect(router.apply(appFlowRouter.transition) == .applied)
         #expect(router.pendingIntent == nil)
         #expect(router.selectedSection == .projects)
         #expect(router.projects.path.count == 2)
@@ -116,17 +117,19 @@ struct AppRouterTests {
 
     @Test
     func successfulNewAuthenticationResetsHistoriesBeforeReplayingIntent() {
-        let router = AppRouter(flow: .authentication)
+        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let router = AppRouter(appFlowRouter: appFlowRouter)
         router.authentication.push(AuthenticationTestRoute.step)
         router.home.push(HomeRoute.details)
         router.settings.push(SettingsRoute.about)
         router.projects.push(ProjectsRoute.project(id: "project-1"))
         _ = router.handle(.browseItem(id: "swiftui"))
 
-        let outcome = router.completeAuthentication(succeeded: true)
+        appFlowRouter.setFlow(.main)
+        let outcome = router.apply(appFlowRouter.transition)
 
         #expect(outcome == .applied)
-        #expect(router.flow == .main)
+        #expect(appFlowRouter.flow == .main)
         #expect(router.pendingIntent == nil)
         #expect(router.authentication.path.isEmpty)
         #expect(router.home.path.isEmpty)
@@ -137,41 +140,52 @@ struct AppRouterTests {
     }
 
     @Test
-    func cancelledAuthenticationClearsPendingIntentAndAuthenticationHistory() {
-        let router = AppRouter(flow: .authentication)
+    func discardTransitionClearsPendingIntentAndAuthenticationHistory() {
+        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let router = AppRouter(appFlowRouter: appFlowRouter)
         router.authentication.push(AuthenticationTestRoute.step)
         _ = router.handle(.selectSection(.settings))
 
-        #expect(router.completeAuthentication(succeeded: false) == nil)
+        appFlowRouter.setFlow(.authentication)
+
+        #expect(router.apply(appFlowRouter.transition) == nil)
         #expect(router.pendingIntent == nil)
-        #expect(router.flow == .authentication)
+        #expect(appFlowRouter.flow == .authentication)
         #expect(router.authentication.path.isEmpty)
     }
 
     @Test
     func authenticatedColdLaunchPreservesRestoredTabHistories() {
-        let router = AppRouter(flow: .launching)
+        let appFlowRouter = AppFlowRouter(flow: .launching)
+        let router = AppRouter(appFlowRouter: appFlowRouter)
+        router.selectedSection = .settings
         router.home.push(HomeRoute.details)
-        router.authentication.push(AuthenticationTestRoute.step)
+        router.settings.push(SettingsRoute.about)
+        let session = UserSession(id: "one", displayName: "One")
 
-        _ = router.finishLaunching(isAuthenticated: true)
+        appFlowRouter.synchronizeSession(.loading)
+        appFlowRouter.synchronizeSession(.authenticated(session))
+        _ = router.apply(appFlowRouter.transition)
 
-        #expect(router.flow == .main)
+        #expect(appFlowRouter.flow == .main)
+        #expect(router.selectedSection == .settings)
         #expect(router.home.path.count == 1)
-        #expect(router.authentication.path.isEmpty)
+        #expect(router.settings.path.count == 1)
     }
 
     @Test
-    func requiringAuthenticationResetsEveryHistory() {
-        let router = AppRouter()
+    func explicitFlowTransitionResetsEveryHistory() {
+        let appFlowRouter = AppFlowRouter(flow: .main)
+        let router = AppRouter(appFlowRouter: appFlowRouter)
         router.home.push(HomeRoute.details)
         router.browse.push(BrowseRoute.item(id: "swiftui"))
         router.projects.push(ProjectsRoute.project(id: "project-1"))
         router.settings.push(SettingsRoute.about)
 
-        router.requireAuthentication()
+        appFlowRouter.setFlow(.authentication)
+        _ = router.apply(appFlowRouter.transition)
 
-        #expect(router.flow == .authentication)
+        #expect(appFlowRouter.flow == .authentication)
         #expect(router.selectedSection == .home)
         #expect(router.authentication.path.isEmpty)
         #expect(router.home.path.isEmpty)
@@ -181,20 +195,10 @@ struct AppRouterTests {
     }
 
     @Test
-    func appRouterOwnsAndResetsProjectsHistory() {
-        let router = AppRouter()
-        router.projects.push(ProjectsRoute.project(id: "project-1"))
-
-        router.requireAuthentication()
-
-        #expect(router.projects.path.isEmpty)
-    }
-
-    @Test
     func schemaThreeRestoreReplacesExistingProjectsHistory() throws {
-        let source = AppRouter(selectedSection: .projects)
+        let source = makeRouter(selectedSection: .projects)
         source.projects.push(ProjectsRoute.project(id: "project-1"))
-        let restored = AppRouter()
+        let restored = makeRouter()
         restored.projects.push(ProjectsRoute.project(id: "stale-project"))
         restored.projects.push(
             ProjectDetailsRoute.task(
@@ -212,19 +216,33 @@ struct AppRouterTests {
     }
 
     @Test
-    func multipleScenesKeepIndependentRouterState() {
-        let firstScene = AppRouter()
-        let secondScene = AppRouter()
+    func multipleScenesShareRootFlowButKeepIndependentRouterState() {
+        let appFlowRouter = AppFlowRouter(flow: .main)
+        let firstScene = AppRouter(appFlowRouter: appFlowRouter)
+        let secondScene = AppRouter(appFlowRouter: appFlowRouter)
 
         _ = firstScene.handle(.browseItem(id: "swiftui"))
 
+        #expect(firstScene.appFlowRouter === secondScene.appFlowRouter)
         #expect(firstScene.selectedSection == .browse)
         #expect(firstScene.browse.path.count == 1)
         #expect(secondScene.selectedSection == .home)
         #expect(secondScene.browse.path.isEmpty)
     }
+
+    private func makeRouter(
+        flow: AppFlow = .main,
+        selectedSection: AppSection = .home
+    ) -> AppRouter {
+        AppRouter(
+            appFlowRouter: AppFlowRouter(flow: flow),
+            selectedSection: selectedSection
+        )
+    }
 }
 
-private nonisolated enum AuthenticationTestRoute: String, NavigationRoute {
+private
+nonisolated
+enum AuthenticationTestRoute: String, NavigationRoute {
     case step
 }

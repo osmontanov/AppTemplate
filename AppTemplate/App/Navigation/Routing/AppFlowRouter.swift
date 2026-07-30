@@ -51,17 +51,24 @@ final class AppFlowRouter: IAppFlowRouter {
                 pendingIntentAction: .preserve
             )
         case .unauthenticated:
-            let action: AppFlowHistoryAction = switch stableSessionState {
-            case .authenticated, .idle:
-                .reset
+            let historyAction: AppFlowHistoryAction
+            let pendingIntentAction: PendingIntentAction
+            switch stableSessionState {
+            case .authenticated:
+                historyAction = .reset
+                pendingIntentAction = .discard
+            case .idle:
+                historyAction = .reset
+                pendingIntentAction = .preserve
             case .unauthenticated:
-                .preserve
+                historyAction = .preserve
+                pendingIntentAction = .preserve
             }
             stableSessionState = .unauthenticated
             transition(
                 to: .authentication,
-                historyAction: action,
-                pendingIntentAction: action == .reset ? .discard : .preserve
+                historyAction: historyAction,
+                pendingIntentAction: pendingIntentAction
             )
         case let .authenticated(session):
             let historyAction: AppFlowHistoryAction = switch stableSessionState {

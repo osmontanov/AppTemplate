@@ -10,6 +10,7 @@ import SwiftUI
 @main
 struct AppTemplateApp: App {
     private let dependencies: AppDependencies
+    @State private var appFlowRouter = AppFlowRouter(flow: .launching)
     @State private var sessionStore: SessionStore
 
     init() {
@@ -22,7 +23,10 @@ struct AppTemplateApp: App {
 
     var body: some Scene {
         WindowGroup {
-            AppSceneView(dependencies: dependencies)
+            AppSceneView(
+                appFlowRouter: appFlowRouter,
+                dependencies: dependencies
+            )
                 .environment(sessionStore)
         }
     }

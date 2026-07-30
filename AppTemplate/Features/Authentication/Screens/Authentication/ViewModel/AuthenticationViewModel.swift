@@ -4,8 +4,7 @@ import Observation
 @Observable
 final class AuthenticationViewModel {
     private let sessionStore: SessionStore
-    private let router: AppRouter
-    private let flowRouter: any IFlowRouter
+    private let router: any IRouter
 
     var failureMessage: String? {
         sessionStore.failure?.message
@@ -17,12 +16,10 @@ final class AuthenticationViewModel {
 
     init(
         sessionStore: SessionStore,
-        router: AppRouter,
-        flowRouter: any IFlowRouter
+        router: any IRouter
     ) {
         self.sessionStore = sessionStore
         self.router = router
-        self.flowRouter = flowRouter
     }
 
     func signIn() async {
@@ -34,10 +31,10 @@ final class AuthenticationViewModel {
     }
 
     func cancelAuthentication() {
-        _ = router.completeAuthentication(succeeded: false)
+        router.setFlow(.authentication)
     }
 
     func openHelp() {
-        flowRouter.push(AuthenticationRoute.help)
+        router.push(AuthenticationRoute.help)
     }
 }

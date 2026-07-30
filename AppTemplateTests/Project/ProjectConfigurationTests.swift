@@ -17,23 +17,30 @@ struct ProjectConfigurationTests {
     @MainActor
     @Test
     func navigationRootCanBeConstructed() {
-        let router = AppRouter()
+        let appFlowRouter = AppFlowRouter(flow: .main)
+        let router = AppRouter(appFlowRouter: appFlowRouter)
         let dependencies = AppDependencies.preview(
             browseItems: [],
             session: nil
         )
         let sessionStore = SessionStore(service: dependencies.session.service)
 
-        _ = AppSceneView(dependencies: dependencies)
+        _ = AppSceneView(
+            appFlowRouter: appFlowRouter,
+            dependencies: dependencies
+        )
             .environment(sessionStore)
-        _ = AppRootView(router: router, dependencies: dependencies)
+        _ = AppRootView(
+            appFlowRouter: appFlowRouter,
+            router: router,
+            dependencies: dependencies
+        )
             .environment(sessionStore)
         _ = AppShellView(router: router, dependencies: dependencies)
             .environment(sessionStore)
         _ = AuthenticationFlowView(
             router: router.authentication,
-            sessionStore: sessionStore,
-            appRouter: router
+            sessionStore: sessionStore
         )
         _ = AuthenticationHelpView()
         _ = HomeFlowView(router: router.home)

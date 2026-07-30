@@ -9,10 +9,24 @@ import SwiftUI
 
 struct ContentView: View {
     let dependencies: AppDependencies
-    @State private var router = AppRouter()
+    @State private var appFlowRouter: AppFlowRouter
+    @State private var router: AppRouter
+
+    init(dependencies: AppDependencies) {
+        let appFlowRouter = AppFlowRouter(flow: .main)
+        self.dependencies = dependencies
+        _appFlowRouter = State(initialValue: appFlowRouter)
+        _router = State(
+            initialValue: AppRouter(appFlowRouter: appFlowRouter)
+        )
+    }
 
     var body: some View {
-        AppRootView(router: router, dependencies: dependencies)
+        AppRootView(
+            appFlowRouter: appFlowRouter,
+            router: router,
+            dependencies: dependencies
+        )
     }
 }
 

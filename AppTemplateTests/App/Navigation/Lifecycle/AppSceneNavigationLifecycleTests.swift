@@ -7,9 +7,9 @@ import Testing
 struct AppSceneNavigationLifecycleTests {
     @Test
     func coldLaunchURLsApplyInArrivalOrderAfterRestoration() throws {
-        let stored = AppRouter(selectedSection: .home)
+        let stored = makeRouter(selectedSection: .home)
         stored.home.push(HomeRoute.details)
-        let router = AppRouter()
+        let router = makeRouter()
         let lifecycle = AppSceneNavigationLifecycle(router: router)
 
         lifecycle.receive(
@@ -30,11 +30,11 @@ struct AppSceneNavigationLifecycleTests {
 
     @Test
     func unknownColdLaunchURLFallsBackToHomeAndPreservesOtherHistories() throws {
-        let stored = AppRouter(selectedSection: .settings)
+        let stored = makeRouter(selectedSection: .settings)
         stored.home.push(HomeRoute.details)
         stored.browse.push(BrowseRoute.item(id: "swiftui"))
         stored.settings.push(SettingsRoute.about)
-        let router = AppRouter()
+        let router = makeRouter()
         let lifecycle = AppSceneNavigationLifecycle(router: router)
 
         lifecycle.receive(
@@ -62,7 +62,7 @@ struct AppSceneNavigationLifecycleTests {
         rawURL: String,
         expectedSection: AppSection
     ) throws {
-        let router = AppRouter()
+        let router = makeRouter()
         let lifecycle = AppSceneNavigationLifecycle(router: router)
         _ = lifecycle.restore(from: nil)
         router.home.push(HomeRoute.details)
@@ -86,7 +86,7 @@ struct AppSceneNavigationLifecycleTests {
 
     @Test
     func projectsRootWarmURLResetsOnlyProjectsHistory() throws {
-        let router = AppRouter(selectedSection: .settings)
+        let router = makeRouter(selectedSection: .settings)
         let lifecycle = AppSceneNavigationLifecycle(router: router)
         _ = lifecycle.restore(from: nil)
         router.home.push(HomeRoute.details)
@@ -113,11 +113,11 @@ struct AppSceneNavigationLifecycleTests {
 
     @Test
     func unknownBrowseRecordColdLaunchKeepsRouteAndOtherHistories() throws {
-        let stored = AppRouter(selectedSection: .settings)
+        let stored = makeRouter(selectedSection: .settings)
         stored.home.push(HomeRoute.details)
         stored.browse.push(BrowseRoute.item(id: "swiftui"))
         stored.settings.push(SettingsRoute.about)
-        let router = AppRouter()
+        let router = makeRouter()
         let lifecycle = AppSceneNavigationLifecycle(router: router)
 
         lifecycle.receive(
@@ -136,22 +136,27 @@ struct AppSceneNavigationLifecycleTests {
 
     @Test
     func authenticationGatedColdLaunchIntentRemainsPending() throws {
-        let router = AppRouter(flow: .authentication)
-        let lifecycle = AppSceneNavigationLifecycle(router: router)
+        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let lifecycle = AppSceneNavigationLifecycle(
+            appFlowRouter: appFlowRouter
+        )
 
         lifecycle.receive(
             try #require(URL(string: "apptemplate://browse/item/swiftui"))
         )
         _ = lifecycle.restore(from: nil)
 
-        #expect(router.pendingIntent == .browseItem(id: "swiftui"))
-        #expect(router.selectedSection == .home)
+        #expect(lifecycle.router.pendingIntent == .browseItem(id: "swiftui"))
+        #expect(lifecycle.router.selectedSection == .home)
     }
 
     @Test
-    func authenticationGatedProjectTaskColdLaunchReplaysCanonicalProjectsPath() throws {
-        let router = AppRouter(flow: .authentication)
-        let lifecycle = AppSceneNavigationLifecycle(router: router)
+    func authenticationGatedProjectTaskColdLaunchReplaysCanonicalProjectsPath()
+        throws {
+        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let lifecycle = AppSceneNavigationLifecycle(
+            appFlowRouter: appFlowRouter
+        )
 
         lifecycle.receive(
             try #require(
@@ -163,45 +168,55 @@ struct AppSceneNavigationLifecycleTests {
         _ = lifecycle.restore(from: nil)
 
         #expect(
-            router.pendingIntent
+            lifecycle.router.pendingIntent
                 == .projectTask(projectID: "project-1", taskID: "task-1")
         )
-        #expect(router.completeAuthentication(succeeded: true) == .applied)
-        #expect(router.selectedSection == .projects)
-        #expect(router.projects.path.count == 2)
+        appFlowRouter.setFlow(.main)
+        #expect(lifecycle.apply(appFlowRouter.transition) == .applied)
+        #expect(lifecycle.router.selectedSection == .projects)
+        #expect(lifecycle.router.projects.path.count == 2)
     }
 
     @Test
     func signedOutColdLaunchIntentReplaysAfterAuthentication() throws {
-        let router = AppRouter(flow: .launching)
-        let lifecycle = AppSceneNavigationLifecycle(router: router)
+        let appFlowRouter = AppFlowRouter(flow: .launching)
+        let lifecycle = AppSceneNavigationLifecycle(
+            appFlowRouter: appFlowRouter
+        )
         let session = UserSession(id: "one", displayName: "One")
 
         lifecycle.receive(
             try #require(URL(string: "apptemplate://browse/item/swiftui"))
         )
         _ = lifecycle.restore(from: nil)
-        lifecycle.synchronizeSession(.unauthenticated)
+        appFlowRouter.synchronizeSession(.unauthenticated)
+        _ = lifecycle.apply(appFlowRouter.transition)
 
-        #expect(router.flow == .authentication)
-        #expect(router.pendingIntent == .browseItem(id: "swiftui"))
+        #expect(appFlowRouter.flow == .authentication)
+        #expect(
+            lifecycle.router.pendingIntent == .browseItem(id: "swiftui")
+        )
 
-        lifecycle.synchronizeSession(.loading)
-        lifecycle.synchronizeSession(.authenticated(session))
+        appFlowRouter.synchronizeSession(.loading)
+        _ = lifecycle.apply(appFlowRouter.transition)
+        appFlowRouter.synchronizeSession(.authenticated(session))
+        _ = lifecycle.apply(appFlowRouter.transition)
 
-        #expect(router.flow == .main)
-        #expect(router.pendingIntent == nil)
-        #expect(router.selectedSection == .browse)
-        #expect(router.browse.path.count == 1)
+        #expect(appFlowRouter.flow == .main)
+        #expect(lifecycle.router.pendingIntent == nil)
+        #expect(lifecycle.router.selectedSection == .browse)
+        #expect(lifecycle.router.browse.path.count == 1)
     }
 
     @Test
     func lastQueuedURLWinsAfterAuthenticationAndOldHistoriesReset() throws {
-        let router = AppRouter(flow: .authentication)
-        let lifecycle = AppSceneNavigationLifecycle(router: router)
+        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let lifecycle = AppSceneNavigationLifecycle(
+            appFlowRouter: appFlowRouter
+        )
         _ = lifecycle.restore(from: nil)
-        router.home.push(HomeRoute.details)
-        router.settings.push(SettingsRoute.about)
+        lifecycle.router.home.push(HomeRoute.details)
+        lifecycle.router.settings.push(SettingsRoute.about)
 
         lifecycle.receive(
             try #require(URL(string: "apptemplate://settings/not-a-route"))
@@ -209,69 +224,109 @@ struct AppSceneNavigationLifecycleTests {
         lifecycle.receive(
             try #require(URL(string: "apptemplate://browse/item/swiftui"))
         )
-        let outcome = router.completeAuthentication(succeeded: true)
+        appFlowRouter.setFlow(.main)
+        let outcome = lifecycle.apply(appFlowRouter.transition)
 
         #expect(outcome == .applied)
-        #expect(router.selectedSection == .browse)
-        #expect(router.home.path.isEmpty)
-        #expect(router.browse.path.count == 1)
-        #expect(router.settings.path.isEmpty)
+        #expect(lifecycle.router.selectedSection == .browse)
+        #expect(lifecycle.router.home.path.isEmpty)
+        #expect(lifecycle.router.browse.path.count == 1)
+        #expect(lifecycle.router.settings.path.isEmpty)
     }
 
     @Test
     func sharedAuthenticatedPhaseReplaysEachScenesOwnPendingIntent() {
-        let firstRouter = AppRouter(flow: .authentication)
-        let secondRouter = AppRouter(flow: .authentication)
-        let first = AppSceneNavigationLifecycle(router: firstRouter)
-        let second = AppSceneNavigationLifecycle(router: secondRouter)
-        _ = firstRouter.handle(.browseItem(id: "swiftui"))
-        _ = secondRouter.handle(.selectSection(.settings))
+        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let first = AppSceneNavigationLifecycle(
+            appFlowRouter: appFlowRouter
+        )
+        let second = AppSceneNavigationLifecycle(
+            appFlowRouter: appFlowRouter
+        )
+        _ = first.router.handle(.browseItem(id: "swiftui"))
+        _ = second.router.handle(.selectSection(.settings))
         let session = UserSession(id: "one", displayName: "One")
 
-        first.synchronizeSession(.authenticated(session))
-        second.synchronizeSession(.authenticated(session))
+        appFlowRouter.synchronizeSession(.authenticated(session))
+        _ = first.apply(appFlowRouter.transition)
+        _ = second.apply(appFlowRouter.transition)
 
-        #expect(firstRouter.browse.path.count == 1)
-        #expect(firstRouter.selectedSection == .browse)
-        #expect(secondRouter.browse.path.isEmpty)
-        #expect(secondRouter.selectedSection == .settings)
-    }
-
-    @Test
-    func unauthenticatedPhaseResetsEverySceneToAuthentication() {
-        let first = AppSceneNavigationLifecycle(router: AppRouter())
-        let second = AppSceneNavigationLifecycle(router: AppRouter())
-        first.router.home.push(HomeRoute.details)
-        second.router.settings.push(SettingsRoute.about)
-
-        first.synchronizeSession(.unauthenticated)
-        second.synchronizeSession(.unauthenticated)
-
-        #expect(first.router.flow == .authentication)
-        #expect(second.router.flow == .authentication)
-        #expect(first.router.home.path.isEmpty)
-        #expect(second.router.settings.path.isEmpty)
+        #expect(first.router.browse.path.count == 1)
+        #expect(first.router.selectedSection == .browse)
+        #expect(second.router.browse.path.isEmpty)
+        #expect(second.router.selectedSection == .settings)
         #expect(first.router !== second.router)
     }
 
     @Test
+    func explicitFlowTransitionResetsEverySceneToAuthentication() {
+        let appFlowRouter = AppFlowRouter(flow: .main)
+        let first = AppSceneNavigationLifecycle(
+            appFlowRouter: appFlowRouter
+        )
+        let second = AppSceneNavigationLifecycle(
+            appFlowRouter: appFlowRouter
+        )
+        first.router.home.push(HomeRoute.details)
+        second.router.projects.push(
+            ProjectsRoute.project(id: "template")
+        )
+
+        appFlowRouter.setFlow(.authentication)
+        _ = first.apply(appFlowRouter.transition)
+        _ = second.apply(appFlowRouter.transition)
+
+        #expect(appFlowRouter.flow == .authentication)
+        #expect(first.router.home.path.isEmpty)
+        #expect(second.router.projects.path.isEmpty)
+        #expect(first.router.selectedSection == .home)
+        #expect(second.router.selectedSection == .home)
+        #expect(first.router !== second.router)
+    }
+
+    @Test
+    func repeatedDeliveryOfOneTransitionDoesNotResetSceneTwice() {
+        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let lifecycle = AppSceneNavigationLifecycle(
+            appFlowRouter: appFlowRouter
+        )
+        _ = lifecycle.router.handle(.browseItem(id: "swiftui"))
+        appFlowRouter.setFlow(.main)
+
+        _ = lifecycle.apply(appFlowRouter.transition)
+        _ = lifecycle.apply(appFlowRouter.transition)
+
+        #expect(lifecycle.router.selectedSection == .browse)
+        #expect(lifecycle.router.browse.path.count == 1)
+    }
+
+    @Test
     func authenticatedColdLaunchPreservesRestoredHistory() {
-        let router = AppRouter(flow: .launching)
-        router.home.push(HomeRoute.details)
-        let lifecycle = AppSceneNavigationLifecycle(router: router)
+        let appFlowRouter = AppFlowRouter(flow: .launching)
+        let lifecycle = AppSceneNavigationLifecycle(
+            appFlowRouter: appFlowRouter
+        )
+        lifecycle.router.selectedSection = .settings
+        lifecycle.router.home.push(HomeRoute.details)
+        lifecycle.router.settings.push(SettingsRoute.about)
         let session = UserSession(id: "one", displayName: "One")
 
-        lifecycle.synchronizeSession(.authenticated(session))
+        appFlowRouter.synchronizeSession(.loading)
+        _ = lifecycle.apply(appFlowRouter.transition)
+        appFlowRouter.synchronizeSession(.authenticated(session))
+        _ = lifecycle.apply(appFlowRouter.transition)
 
-        #expect(router.flow == .main)
-        #expect(router.home.path.count == 1)
+        #expect(appFlowRouter.flow == .main)
+        #expect(lifecycle.router.selectedSection == .settings)
+        #expect(lifecycle.router.home.path.count == 1)
+        #expect(lifecycle.router.settings.path.count == 1)
     }
 
     @Test
     func sceneRestorationKeepsProjectsPathsIsolated() throws {
-        let firstStored = AppRouter(selectedSection: .projects)
+        let firstStored = makeRouter(selectedSection: .projects)
         firstStored.projects.push(ProjectsRoute.project(id: "project-1"))
-        let secondStored = AppRouter(selectedSection: .projects)
+        let secondStored = makeRouter(selectedSection: .projects)
         secondStored.projects.push(ProjectsRoute.project(id: "project-2"))
         secondStored.projects.push(
             ProjectDetailsRoute.task(
@@ -279,8 +334,13 @@ struct AppSceneNavigationLifecycleTests {
                 taskID: "task-2"
             )
         )
-        let first = AppSceneNavigationLifecycle(router: AppRouter())
-        let second = AppSceneNavigationLifecycle(router: AppRouter())
+        let appFlowRouter = AppFlowRouter(flow: .main)
+        let first = AppSceneNavigationLifecycle(
+            appFlowRouter: appFlowRouter
+        )
+        let second = AppSceneNavigationLifecycle(
+            appFlowRouter: appFlowRouter
+        )
 
         _ = first.restore(
             from: try NavigationSnapshotCodec.encode(firstStored.snapshot)
@@ -304,7 +364,9 @@ struct AppSceneNavigationLifecycleTests {
             browsePath: FlowPathSnapshot(path: NavigationPath()),
             settingsPath: FlowPathSnapshot(path: NavigationPath())
         )
-        let lifecycle = AppSceneNavigationLifecycle(router: AppRouter())
+        let lifecycle = AppSceneNavigationLifecycle(
+            appFlowRouter: AppFlowRouter(flow: .main)
+        )
         let replacement = lifecycle.restore(
             from: try JSONEncoder().encode(legacy)
         )
@@ -319,14 +381,30 @@ struct AppSceneNavigationLifecycleTests {
     }
 
     @Test
-    func defaultLifecycleStartsInLaunchingFlow() {
-        let lifecycle = AppSceneNavigationLifecycle()
+    func lifecycleUsesTheProvidedLaunchingFlowRouter() {
+        let appFlowRouter = AppFlowRouter(flow: .launching)
+        let lifecycle = AppSceneNavigationLifecycle(
+            appFlowRouter: appFlowRouter
+        )
 
-        #expect(lifecycle.router.flow == .launching)
+        #expect(lifecycle.router.appFlowRouter === appFlowRouter)
+        #expect(appFlowRouter.flow == .launching)
+    }
+
+    private func makeRouter(
+        flow: AppFlow = .main,
+        selectedSection: AppSection = .home
+    ) -> AppRouter {
+        AppRouter(
+            appFlowRouter: AppFlowRouter(flow: flow),
+            selectedSection: selectedSection
+        )
     }
 }
 
-private nonisolated struct NavigationSnapshotV2: Encodable {
+private
+nonisolated
+struct NavigationSnapshotV2: Encodable {
     let schemaVersion = 2
     let selectedSection: AppSection
     let homePath: FlowPathSnapshot

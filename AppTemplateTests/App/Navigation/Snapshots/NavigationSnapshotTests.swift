@@ -7,12 +7,12 @@ import Testing
 struct NavigationSnapshotTests {
     @Test
     func mixedScreenRoutePathRoundTripsThroughJSON() throws {
-        let source = AppRouter(selectedSection: .home)
+        let source = makeRouter(selectedSection: .home)
         source.home.push(HomeRoute.details)
         source.home.push(HomeDetailsRoute.navigationGuide)
 
         let data = try NavigationSnapshotCodec.encode(source.snapshot)
-        let restored = AppRouter()
+        let restored = makeRouter()
 
         #expect(restored.restore(from: data) == .restored)
         #expect(restored.home.path.count == 2)
@@ -21,7 +21,7 @@ struct NavigationSnapshotTests {
 
     @Test
     func projectsScreenRoutePathRoundTripsThroughJSON() throws {
-        let source = AppRouter(selectedSection: .projects)
+        let source = makeRouter(selectedSection: .projects)
         source.projects.push(ProjectsRoute.project(id: "project-1"))
         source.projects.push(
             ProjectDetailsRoute.task(
@@ -30,7 +30,7 @@ struct NavigationSnapshotTests {
             )
         )
         let data = try NavigationSnapshotCodec.encode(source.snapshot)
-        let restored = AppRouter()
+        let restored = makeRouter()
 
         #expect(restored.restore(from: data) == .restored)
         #expect(restored.projects.path.count == 2)
@@ -48,7 +48,7 @@ struct NavigationSnapshotTests {
             ),
             settingsPath: FlowPathSnapshot(path: NavigationPath())
         )
-        let restored = AppRouter()
+        let restored = makeRouter()
 
         #expect(
             restored.restore(from: try JSONEncoder().encode(legacy))
@@ -61,7 +61,7 @@ struct NavigationSnapshotTests {
 
     @Test
     func unchangedSnapshotDoesNotRequestAnotherEncoding() throws {
-        let router = AppRouter()
+        let router = makeRouter()
         router.home.push(HomeRoute.details)
         let snapshot = router.snapshot
         let storedData = try NavigationSnapshotCodec.encode(snapshot)
@@ -76,8 +76,8 @@ struct NavigationSnapshotTests {
 
     @Test
     func changedSnapshotProducesReplacementEncoding() throws {
-        let storedRouter = AppRouter()
-        let changedRouter = AppRouter(selectedSection: .browse)
+        let storedRouter = makeRouter()
+        let changedRouter = makeRouter(selectedSection: .browse)
         changedRouter.browse.push(BrowseRoute.item(id: "swiftui"))
         let storedData = try NavigationSnapshotCodec.encode(storedRouter.snapshot)
         let candidate = try NavigationSnapshotCodec.encodingIfChanged(
@@ -94,12 +94,12 @@ struct NavigationSnapshotTests {
 
     @Test
     func restorePreservesStructurallyValidUnknownBrowseIdentifiers() throws {
-        let source = AppRouter(selectedSection: .browse)
+        let source = makeRouter(selectedSection: .browse)
         source.home.push(HomeRoute.details)
         source.browse.push(BrowseRoute.item(id: "swiftui"))
         source.browse.push(BrowseRoute.item(id: "deleted"))
         source.settings.push(SettingsRoute.about)
-        let restored = AppRouter()
+        let restored = makeRouter()
 
         let result = restored.restore(
             from: try NavigationSnapshotCodec.encode(source.snapshot)
@@ -112,7 +112,7 @@ struct NavigationSnapshotTests {
 
     @Test
     func corruptDataResetsNavigation() {
-        let router = AppRouter(selectedSection: .settings)
+        let router = makeRouter(selectedSection: .settings)
         router.settings.push(SettingsRoute.about)
 
         #expect(
@@ -125,7 +125,7 @@ struct NavigationSnapshotTests {
 
     @Test
     func corruptFlowPathResetsOnlyTheAffectedFlow() throws {
-        let source = AppRouter(selectedSection: .settings)
+        let source = makeRouter(selectedSection: .settings)
         source.home.push(HomeRoute.details)
         source.browse.push(BrowseRoute.item(id: "swiftui"))
         source.settings.push(SettingsRoute.about)
@@ -133,7 +133,7 @@ struct NavigationSnapshotTests {
         snapshot.settingsPath = FlowPathSnapshot(
             restorationData: Data("not-json".utf8)
         )
-        let restored = AppRouter()
+        let restored = makeRouter()
 
         let result = restored.restore(
             from: try NavigationSnapshotCodec.encode(snapshot)
@@ -148,7 +148,7 @@ struct NavigationSnapshotTests {
 
     @Test
     func corruptProjectsPathResetsOnlyProjectsHistory() throws {
-        let source = AppRouter(selectedSection: .projects)
+        let source = makeRouter(selectedSection: .projects)
         source.home.push(HomeRoute.details)
         source.browse.push(BrowseRoute.item(id: "swiftui"))
         source.settings.push(SettingsRoute.about)
@@ -156,7 +156,7 @@ struct NavigationSnapshotTests {
         snapshot.projectsPath = FlowPathSnapshot(
             restorationData: Data("not-json".utf8)
         )
-        let restored = AppRouter()
+        let restored = makeRouter()
         restored.projects.push(ProjectsRoute.project(id: "stale-project"))
 
         let result = restored.restore(
@@ -173,7 +173,7 @@ struct NavigationSnapshotTests {
 
     @Test
     func snapshotIncludesProjectsPathButExcludesTransientSheetAndDraftState() throws {
-        let router = AppRouter(selectedSection: .projects)
+        let router = makeRouter(selectedSection: .projects)
         router.projects.push(ProjectsRoute.project(id: "project-1"))
 
         let json = String(
@@ -206,7 +206,7 @@ struct NavigationSnapshotTests {
             projectsPath: NavigationPath(),
             settingsPath: NavigationPath([SettingsRoute.about])
         )
-        let router = AppRouter()
+        let router = makeRouter()
 
         #expect(
             router.restore(from: try NavigationSnapshotCodec.encode(snapshot))
@@ -222,7 +222,7 @@ struct NavigationSnapshotTests {
             browsePath: [.item(id: "swiftui")],
             settingsPath: []
         )
-        let router = AppRouter()
+        let router = makeRouter()
 
         #expect(
             router.restore(from: try JSONEncoder().encode(snapshot))
@@ -235,18 +235,19 @@ struct NavigationSnapshotTests {
 
     @Test
     func authenticationAndPendingIntentAreNotRestored() throws {
-        let source = AppRouter(
+        let source = makeRouter(
             flow: .authentication,
             selectedSection: .settings
         )
         source.authentication.push(AuthenticationSnapshotRoute.step)
         _ = source.handle(.browseItem(id: "swiftui"))
 
-        let restored = AppRouter()
+        let restoredAppFlowRouter = AppFlowRouter(flow: .main)
+        let restored = AppRouter(appFlowRouter: restoredAppFlowRouter)
         let data = try NavigationSnapshotCodec.encode(source.snapshot)
 
         #expect(restored.restore(from: data) == .restored)
-        #expect(restored.flow == .main)
+        #expect(restoredAppFlowRouter.flow == .main)
         #expect(restored.selectedSection == .settings)
         #expect(restored.authentication.path.isEmpty)
         #expect(restored.pendingIntent == nil)
@@ -254,10 +255,10 @@ struct NavigationSnapshotTests {
 
     @Test
     func nonCodablePathPersistsAsRecoverableEmptyFlow() throws {
-        let source = AppRouter(selectedSection: .home)
+        let source = makeRouter(selectedSection: .home)
         source.home.path.append(NonCodablePathValue(id: "temporary"))
         source.browse.push(BrowseRoute.item(id: "swiftui"))
-        let restored = AppRouter()
+        let restored = makeRouter()
 
         let result = restored.restore(
             from: try NavigationSnapshotCodec.encode(source.snapshot)
@@ -267,20 +268,36 @@ struct NavigationSnapshotTests {
         #expect(restored.home.path.isEmpty)
         #expect(restored.browse.path.count == 1)
     }
+
+    private func makeRouter(
+        flow: AppFlow = .main,
+        selectedSection: AppSection = .home
+    ) -> AppRouter {
+        AppRouter(
+            appFlowRouter: AppFlowRouter(flow: flow),
+            selectedSection: selectedSection
+        )
+    }
 }
 
-private nonisolated enum AuthenticationSnapshotRoute:
+private
+nonisolated
+enum AuthenticationSnapshotRoute:
     String,
     NavigationRoute
 {
     case step
 }
 
-private nonisolated struct NonCodablePathValue: Hashable {
+private
+nonisolated
+struct NonCodablePathValue: Hashable {
     let id: String
 }
 
-private nonisolated struct LegacyNavigationSnapshot: Encodable {
+private
+nonisolated
+struct LegacyNavigationSnapshot: Encodable {
     let schemaVersion = 1
     let selectedSection: AppSection
     let homePath: [HomeRoute]
@@ -288,7 +305,9 @@ private nonisolated struct LegacyNavigationSnapshot: Encodable {
     let settingsPath: [SettingsRoute]
 }
 
-private nonisolated struct NavigationSnapshotV2: Encodable {
+private
+nonisolated
+struct NavigationSnapshotV2: Encodable {
     let schemaVersion = 2
     let selectedSection: AppSection
     let homePath: FlowPathSnapshot

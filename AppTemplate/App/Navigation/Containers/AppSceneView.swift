@@ -3,18 +3,35 @@ import SwiftUI
 
 struct AppSceneView: View {
     @Environment(SessionStore.self) private var sessionStore
-    @State private var lifecycle = AppSceneNavigationLifecycle()
-    @SceneStorage("AppTemplate.NavigationSnapshot") private var encodedSnapshot: Data?
+    let appFlowRouter: AppFlowRouter
     let dependencies: AppDependencies
 
+    @State private var lifecycle: AppSceneNavigationLifecycle
+    @SceneStorage("AppTemplate.NavigationSnapshot") private var encodedSnapshot: Data?
+
+    init(appFlowRouter: AppFlowRouter, dependencies: AppDependencies) {
+        self.appFlowRouter = appFlowRouter
+        self.dependencies = dependencies
+        _lifecycle = State(
+            initialValue: AppSceneNavigationLifecycle(
+                appFlowRouter: appFlowRouter
+            )
+        )
+    }
+
     var body: some View {
-        AppRootView(router: lifecycle.router, dependencies: dependencies)
+        AppRootView(
+            appFlowRouter: appFlowRouter,
+            router: lifecycle.router,
+            dependencies: dependencies
+        )
             .task {
                 if let snapshot = lifecycle.restore(from: encodedSnapshot) {
                     persist(snapshot)
                 }
                 await sessionStore.start()
-                lifecycle.synchronizeSession(sessionStore.phase)
+                appFlowRouter.synchronizeSession(sessionStore.phase)
+                _ = lifecycle.apply(appFlowRouter.transition)
             }
             .onChange(of: lifecycle.router.snapshot) { _, snapshot in
                 guard lifecycle.hasRestored else {
@@ -23,7 +40,14 @@ struct AppSceneView: View {
                 persist(snapshot)
             }
             .onChange(of: sessionStore.phase) { _, phase in
-                lifecycle.synchronizeSession(phase)
+                appFlowRouter.synchronizeSession(phase)
+            }
+            .onChange(of: appFlowRouter.transition) { _, transition in
+                _ = lifecycle.apply(transition)
+                guard lifecycle.hasRestored else {
+                    return
+                }
+                persist(lifecycle.router.snapshot)
             }
             .onOpenURL { url in
                 if let snapshot = lifecycle.receive(url) {

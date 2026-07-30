@@ -6,7 +6,7 @@ import SwiftUI
 @MainActor
 @Observable
 final class AppRouter {
-    var flow: AppFlow
+    let appFlowRouter: AppFlowRouter
     var selectedSection: AppSection
     let authentication: FlowRouter
     let home: FlowRouter
@@ -16,75 +16,41 @@ final class AppRouter {
     private(set) var pendingIntent: NavigationIntent?
 
     init(
-        flow: AppFlow,
-        selectedSection: AppSection,
-        authentication: FlowRouter,
-        home: FlowRouter,
-        browse: FlowRouter,
-        projects: FlowRouter,
-        settings: FlowRouter
-    ) {
-        self.flow = flow
-        self.selectedSection = selectedSection
-        self.authentication = authentication
-        self.home = home
-        self.browse = browse
-        self.projects = projects
-        self.settings = settings
-    }
-
-    convenience init(
-        flow: AppFlow = .main,
+        appFlowRouter: AppFlowRouter,
         selectedSection: AppSection = .home
     ) {
-        self.init(
-            flow: flow,
-            selectedSection: selectedSection,
-            authentication: FlowRouter(),
-            home: FlowRouter(),
-            browse: FlowRouter(),
-            projects: FlowRouter(),
-            settings: FlowRouter()
-        )
+        self.appFlowRouter = appFlowRouter
+        self.selectedSection = selectedSection
+        authentication = FlowRouter(appFlowRouter: appFlowRouter)
+        home = FlowRouter(appFlowRouter: appFlowRouter)
+        browse = FlowRouter(appFlowRouter: appFlowRouter)
+        projects = FlowRouter(appFlowRouter: appFlowRouter)
+        settings = FlowRouter(appFlowRouter: appFlowRouter)
+    }
+
+    @discardableResult
+    func apply(_ transition: AppFlowTransition) -> NavigationOutcome? {
+        if transition.historyAction == .reset {
+            resetFlowHistories()
+        }
+
+        switch transition.pendingIntentAction {
+        case .preserve:
+            return nil
+        case .discard:
+            pendingIntent = nil
+            return nil
+        case .replay:
+            return replayPendingIntent()
+        }
     }
 
     func handle(_ intent: NavigationIntent) -> NavigationOutcome {
-        guard flow == .main else {
+        guard appFlowRouter.flow == .main else {
             pendingIntent = intent
             return .deferred
         }
         return apply(intent)
-    }
-
-    func finishLaunching(isAuthenticated: Bool) -> NavigationOutcome? {
-        guard isAuthenticated else {
-            resetFlowHistories()
-            flow = .authentication
-            return nil
-        }
-
-        authentication.popToRoot()
-        flow = .main
-        return replayPendingIntent()
-    }
-
-    func completeAuthentication(succeeded: Bool) -> NavigationOutcome? {
-        guard succeeded else {
-            pendingIntent = nil
-            authentication.popToRoot()
-            flow = .authentication
-            return nil
-        }
-
-        resetFlowHistories()
-        flow = .main
-        return replayPendingIntent()
-    }
-
-    func requireAuthentication() {
-        pendingIntent = nil
-        resetFlowHistories()
-        flow = .authentication
     }
 
     func openDefaultDestination(for section: AppSection) {

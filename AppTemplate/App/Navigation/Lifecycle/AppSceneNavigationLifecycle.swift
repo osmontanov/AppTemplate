@@ -7,10 +7,11 @@ final class AppSceneNavigationLifecycle {
     private(set) var hasRestored = false
 
     private let parser: DeepLinkParser
+    private var lastAppliedTransitionID: UUID?
     private var queuedURLs: [URL] = []
 
-    init() {
-        router = AppRouter(flow: .launching)
+    init(appFlowRouter: AppFlowRouter) {
+        router = AppRouter(appFlowRouter: appFlowRouter)
         parser = DeepLinkParser()
     }
 
@@ -24,23 +25,13 @@ final class AppSceneNavigationLifecycle {
         self.parser = parser
     }
 
-    func synchronizeSession(_ phase: SessionPhase) {
-        switch phase {
-        case .idle, .loading:
-            router.flow = .launching
-        case .unauthenticated:
-            if router.flow == .launching {
-                _ = router.finishLaunching(isAuthenticated: false)
-            } else if router.flow == .main {
-                router.requireAuthentication()
-            }
-        case .authenticated:
-            if router.flow == .launching {
-                _ = router.finishLaunching(isAuthenticated: true)
-            } else if router.flow == .authentication {
-                _ = router.completeAuthentication(succeeded: true)
-            }
+    @discardableResult
+    func apply(_ transition: AppFlowTransition) -> NavigationOutcome? {
+        guard transition.id != lastAppliedTransitionID else {
+            return nil
         }
+        lastAppliedTransitionID = transition.id
+        return router.apply(transition)
     }
 
     @discardableResult
