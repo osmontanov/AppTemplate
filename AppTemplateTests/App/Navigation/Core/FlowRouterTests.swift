@@ -90,10 +90,12 @@ private enum TestRoute: String, NavigationRoute {
     case first
 }
 
-private nonisolated enum FirstTestRoute: String, NavigationRoute {
+nonisolated
+private enum FirstTestRoute: String, NavigationRoute {
     case details
 }
 
-private nonisolated enum SecondTestRoute: String, NavigationRoute {
+nonisolated
+private enum SecondTestRoute: String, NavigationRoute {
     case guide
 }

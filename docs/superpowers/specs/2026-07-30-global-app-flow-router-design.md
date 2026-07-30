@@ -3,6 +3,12 @@
 Date: 2026-07-30
 Status: Approved concept; awaiting written-spec review
 
+> Supersession note: The session-service coordination and authenticated
+> cold-restoration sections are superseded by the
+> [Navigation-Only App Shell Design](2026-07-30-navigation-only-app-shell-design.md).
+> The remaining shared-root and scene-local navigation history is preserved
+> here as the original design record.
+
 ## Context
 
 `AppRouter` currently owns two different kinds of navigation state:

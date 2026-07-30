@@ -14,7 +14,8 @@ struct LoadableStateTests {
     }
 }
 
-private nonisolated enum LoadableStateTestFailure:
+nonisolated
+private enum LoadableStateTestFailure:
     Equatable,
     Sendable {
     case load
