@@ -37,12 +37,23 @@ Tests mirror production ownership under `AppTemplateTests`.
 ## Navigation
 
 - `TabView(.sidebarAdaptable)` provides the platform shell.
-- Authentication and every tab own independent `FlowRouter` instances.
+- `AppTemplateApp` owns one app-scoped `AppFlowRouter`, so the root flow is
+  shared by every window. Authentication, Onboarding, Main, and Maintenance
+  therefore change together across all open scenes.
+- Each window owns a separate scene-scoped `AppRouter`. Its selected tab,
+  pending deep link, and the `NavigationPath` in each independent `FlowRouter`
+  remain local to that scene.
+- Authentication, Onboarding, Maintenance, and every tab own independent
+  `FlowRouter` instances.
 - Each `FlowView` owns one `NavigationStack` and passes the same Router through
   its screen hierarchy.
-- Screen ViewModels receive `any IFlowRouter`; each screen owns its outgoing
-  Route and `.navigationDestination` mapping.
-- `AppRouter` is created per window scene.
+- Navigation-aware screen ViewModels receive `any IRouter`, which combines
+  local stack navigation with app-wide root-flow changes. Each screen owns its
+  outgoing Route and `.navigationDestination` mapping.
+- Every public `setFlow(_:)` call is an explicit root replacement. It resets
+  every scene's selected tab and flow histories, including when the requested
+  flow is already visible. Authenticated cold restoration uses an internal
+  preserving transition so restored tabs and paths survive startup.
 - `NavigationSnapshot` restores schema-3 heterogeneous `NavigationPath`
   representations through `SceneStorage`, and migrates schema-2 snapshots by
   restoring their Home, Browse, and Settings histories with an empty Projects
@@ -55,6 +66,20 @@ Tests mirror production ownership under `AppTemplateTests`.
   - `apptemplate://projects/project/<project-id>`
   - `apptemplate://projects/project/<project-id>/task/<task-id>`
   - `apptemplate://settings`
+
+The same injected router handles local navigation and root replacement:
+
+```swift
+router.push(HomeRoute.details)
+router.setFlow(.onboarding)
+router.setFlow(.maintenance)
+router.setFlow(.main)
+```
+
+The `push` changes only the current scene's Home path. Each `setFlow` changes
+the shared root observed by every window and clears each window's own histories.
+Pending deep links are still scene-scoped and replay only in the scene that
+received them after authentication succeeds.
 
 Example features are removable. A new independent flow uses the shared
 `FlowRouter`, owns one navigation container, and keeps destination mappings
@@ -72,6 +97,10 @@ See the
 and
 [implementation plan](docs/superpowers/plans/2026-07-29-hierarchical-flow-navigation.md)
 for the current architectural decisions and implementation details.
+See also the
+[global app flow router design](docs/superpowers/specs/2026-07-30-global-app-flow-router-design.md)
+and
+[implementation plan](docs/superpowers/plans/2026-07-30-global-app-flow-router.md).
 
 ## Dependency Injection
 
@@ -113,10 +142,11 @@ subviews remain plain SwiftUI Views.
 store, and router only when needed. No ViewModel receives the whole application
 container or reads SwiftUI Environment.
 
-`AppRouter` remains scene-scoped and owns one shared-type `FlowRouter` instance
-for Authentication and each tab. Screen ViewModels receive `any IFlowRouter`
-when they initiate stack navigation. ViewModels own transient presentation
-state and async screen behavior. Services own domain and infrastructure work.
+`AppRouter` remains scene-scoped and owns one `FlowRouter` instance for
+Authentication, Onboarding, Maintenance, and each tab. Screen ViewModels
+receive `any IRouter` when they initiate navigation. ViewModels own transient
+presentation state and async screen behavior. Services own domain and
+infrastructure work.
 
 Example:
 
