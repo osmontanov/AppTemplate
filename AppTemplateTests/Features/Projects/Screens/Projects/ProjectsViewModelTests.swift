@@ -5,41 +5,24 @@ import Testing
 @MainActor
 struct ProjectsViewModelTests {
     @Test
-    func projectsAndDetailsPushScreenOwnedRoutes() {
-        let router = FlowRouter()
-        let store = ProjectsStore()
-        let project = store.projects[0]
-        let task = project.tasks[0]
-        let projects = ProjectsViewModel(store: store, router: router)
+    func projectsPushesAnArbitraryStableProjectID() {
+        let router = ProjectsRouterSpy()
+        let projectID = "project-from-restored-navigation"
+        let viewModel = ProjectsViewModel(router: router)
 
-        projects.openProject(id: project.id)
+        viewModel.openProject(id: projectID)
 
-        #expect(router.path.count == 1)
-
-        let details = ProjectDetailsViewModel(
-            projectID: project.id,
-            store: store,
-            router: router
-        )
-        details.openTask(id: task.id)
-
-        #expect(router.path.count == 2)
+        #expect(router.projectRoute == .project(id: projectID))
     }
 
     @Test
-    func projectsScreenCanBeConstructedWithItsFlowRouterAndStore() {
-        _ = ProjectsView(
-            router: FlowRouter(),
-            store: ProjectsStore()
-        )
+    func projectsScreenCanBeConstructedWithItsFlowRouter() {
+        _ = ProjectsView(router: FlowRouter())
     }
 
     @Test
     func projectsOwnsCreateProjectSheetState() {
-        let viewModel = ProjectsViewModel(
-            store: ProjectsStore(),
-            router: FlowRouter()
-        )
+        let viewModel = ProjectsViewModel(router: FlowRouter())
 
         viewModel.openCreateProject()
 
@@ -49,4 +32,19 @@ struct ProjectsViewModelTests {
 
         #expect(viewModel.sheet == nil)
     }
+}
+
+@MainActor
+private final class ProjectsRouterSpy: IRouter {
+    private(set) var projectRoute: ProjectsRoute?
+
+    func push<Route: NavigationRoute>(_ route: Route) {
+        projectRoute = route as? ProjectsRoute
+    }
+
+    func pop() {}
+
+    func popToRoot() {}
+
+    func setFlow(_ flow: AppFlow) {}
 }

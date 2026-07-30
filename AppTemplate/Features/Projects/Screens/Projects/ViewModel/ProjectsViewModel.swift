@@ -3,19 +3,10 @@ import Observation
 @MainActor
 @Observable
 final class ProjectsViewModel {
-    let store: ProjectsStore
     private let router: any IRouter
     var sheet: ProjectsSheetRoute?
 
-    var projects: [ProjectItem] {
-        store.projects
-    }
-
-    init(
-        store: ProjectsStore,
-        router: any IRouter
-    ) {
-        self.store = store
+    init(router: any IRouter) {
         self.router = router
     }
 

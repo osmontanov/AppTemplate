@@ -1,41 +1,24 @@
 import SwiftUI
 
 struct ProjectReviewView: View {
-    @State private var errorMessage: String?
     @State private var viewModel: ProjectReviewViewModel
 
-    init(
-        draft: CreateProjectDraftState,
-        store: ProjectsStore
-    ) {
+    init(flowState: CreateProjectFlowState) {
         _viewModel = State(
-            initialValue: ProjectReviewViewModel(
-                draft: draft,
-                store: store
-            )
+            initialValue: ProjectReviewViewModel(flowState: flowState)
         )
     }
 
     var body: some View {
         Form {
-            Section("Project") {
-                LabeledContent("Name", value: viewModel.draft.title)
-                LabeledContent("Summary", value: viewModel.draft.summary)
-                LabeledContent("Color", value: viewModel.draft.colorName)
-            }
-
-            if let errorMessage {
-                Text(errorMessage)
-                    .foregroundStyle(.red)
+            Section("Presentation Example") {
+                Text("Finishing this step dismisses the containing sheet.")
+                    .foregroundStyle(.secondary)
             }
 
             Section {
-                Button("Save Project") {
-                    do {
-                        _ = try viewModel.save()
-                    } catch {
-                        errorMessage = "Unable to save the project."
-                    }
+                Button("Finish") {
+                    viewModel.finish()
                 }
                 .buttonStyle(.borderedProminent)
             }

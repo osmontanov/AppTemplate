@@ -8,13 +8,11 @@
 import SwiftUI
 
 struct ContentView: View {
-    let dependencies: AppDependencies
     @State private var appFlowRouter: AppFlowRouter
     @State private var router: AppRouter
 
-    init(dependencies: AppDependencies) {
+    init() {
         let appFlowRouter = AppFlowRouter(flow: .authentication)
-        self.dependencies = dependencies
         _appFlowRouter = State(initialValue: appFlowRouter)
         _router = State(
             initialValue: AppRouter(appFlowRouter: appFlowRouter)
@@ -24,13 +22,11 @@ struct ContentView: View {
     var body: some View {
         AppRootView(
             appFlowRouter: appFlowRouter,
-            router: router,
-            dependencies: dependencies
+            router: router
         )
     }
 }
 
 #Preview {
-    let dependencies = AppDependencies.preview()
-    ContentView(dependencies: dependencies)
+    ContentView()
 }

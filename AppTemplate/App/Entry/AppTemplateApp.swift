@@ -14,10 +14,7 @@ struct AppTemplateApp: App {
 
     var body: some Scene {
         WindowGroup {
-            AppSceneView(
-                appFlowRouter: appFlowRouter,
-                dependencies: dependencies
-            )
+            AppSceneView(appFlowRouter: appFlowRouter)
         }
     }
 }

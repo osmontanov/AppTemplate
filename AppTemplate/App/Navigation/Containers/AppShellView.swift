@@ -2,7 +2,6 @@ import SwiftUI
 
 struct AppShellView: View {
     @Bindable var router: AppRouter
-    let dependencies: AppDependencies
 
     var body: some View {
         TabView(selection: $router.selectedSection) {
@@ -15,10 +14,7 @@ struct AppShellView: View {
             }
 
             Tab("Projects", systemImage: "folder", value: AppSection.projects) {
-                ProjectsFlowView(
-                    router: router.projects,
-                    dependencies: dependencies.projects
-                )
+                ProjectsFlowView(router: router.projects)
             }
 
             Tab("Settings", systemImage: "gearshape", value: AppSection.settings) {

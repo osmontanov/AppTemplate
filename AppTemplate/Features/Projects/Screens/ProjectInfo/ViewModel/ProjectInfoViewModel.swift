@@ -4,17 +4,8 @@ import Observation
 @Observable
 final class ProjectInfoViewModel {
     let projectID: ProjectItem.ID
-    private let store: ProjectsStore
 
-    var project: ProjectItem? {
-        store.project(id: projectID)
-    }
-
-    init(
-        projectID: ProjectItem.ID,
-        store: ProjectsStore
-    ) {
+    init(projectID: ProjectItem.ID) {
         self.projectID = projectID
-        self.store = store
     }
 }

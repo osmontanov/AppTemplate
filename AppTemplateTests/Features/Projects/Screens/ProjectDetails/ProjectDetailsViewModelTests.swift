@@ -5,41 +5,39 @@ import Testing
 @MainActor
 struct ProjectDetailsViewModelTests {
     @Test
-    func missingProjectAndTaskResolveToUnavailableContent() {
-        let store = ProjectsStore(projects: [])
-
-        #expect(
-            ProjectDetailsViewModel(
-                projectID: "missing",
-                store: store,
-                router: FlowRouter()
-            ).project == nil
+    func projectDetailsRetainsProjectIDAndPushesAnArbitraryStableTaskID() {
+        let router = ProjectDetailsRouterSpy()
+        let projectID = "project-from-deep-link"
+        let taskID = "task-from-restored-navigation"
+        let viewModel = ProjectDetailsViewModel(
+            projectID: projectID,
+            router: router
         )
+
+        viewModel.openTask(id: taskID)
+
+        #expect(viewModel.projectID == projectID)
         #expect(
-            TaskDetailsViewModel(
-                projectID: "missing",
-                taskID: "missing",
-                store: store
-            ).task == nil
+            router.taskRoute == .task(
+                projectID: projectID,
+                taskID: taskID
+            )
         )
     }
 
     @Test
-    func projectDetailsScreenCanBeConstructedWithItsFlowRouterAndStore() {
+    func projectDetailsScreenCanBeConstructedWithItsFlowRouter() {
         _ = ProjectDetailsView(
-            projectID: "project-1",
-            router: FlowRouter(),
-            store: ProjectsStore()
+            projectID: "project-from-deep-link",
+            router: FlowRouter()
         )
     }
 
     @Test
     func projectDetailsOwnsProjectInfoSheetState() {
-        let store = ProjectsStore()
-        let projectID = store.projects[0].id
+        let projectID = "project-from-deep-link"
         let viewModel = ProjectDetailsViewModel(
             projectID: projectID,
-            store: store,
             router: FlowRouter()
         )
 
@@ -51,4 +49,19 @@ struct ProjectDetailsViewModelTests {
 
         #expect(viewModel.sheet == nil)
     }
+}
+
+@MainActor
+private final class ProjectDetailsRouterSpy: IRouter {
+    private(set) var taskRoute: ProjectDetailsRoute?
+
+    func push<Route: NavigationRoute>(_ route: Route) {
+        taskRoute = route as? ProjectDetailsRoute
+    }
+
+    func pop() {}
+
+    func popToRoot() {}
+
+    func setFlow(_ flow: AppFlow) {}
 }

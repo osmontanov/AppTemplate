@@ -5,37 +5,29 @@ struct TaskDetailsView: View {
 
     init(
         projectID: ProjectItem.ID,
-        taskID: ProjectTaskItem.ID,
-        store: ProjectsStore
+        taskID: ProjectTaskItem.ID
     ) {
         _viewModel = State(
             initialValue: TaskDetailsViewModel(
                 projectID: projectID,
-                taskID: taskID,
-                store: store
+                taskID: taskID
             )
         )
     }
 
     var body: some View {
-        Group {
-            if let task = viewModel.task {
-                Form {
-                    LabeledContent("Identifier", value: task.id)
-                    LabeledContent(
-                        "Status",
-                        value: task.isComplete ? "Complete" : "Incomplete"
-                    )
-                }
-                .navigationTitle(task.title)
-            } else {
-                EmptyStateView(
-                    title: "Task Unavailable",
-                    systemImage: "questionmark.folder",
-                    message: "This task no longer exists."
+        Form {
+            Section("Destination") {
+                LabeledContent(
+                    "Project Identifier",
+                    value: viewModel.projectID
                 )
-                .navigationTitle("Task")
+                LabeledContent(
+                    "Work Item Identifier",
+                    value: viewModel.taskID
+                )
             }
         }
+        .navigationTitle("Work Item Details")
     }
 }

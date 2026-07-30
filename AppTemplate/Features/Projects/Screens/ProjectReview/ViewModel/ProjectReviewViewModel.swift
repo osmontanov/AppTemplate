@@ -3,24 +3,13 @@ import Observation
 @MainActor
 @Observable
 final class ProjectReviewViewModel {
-    let draft: CreateProjectDraftState
-    private let store: ProjectsStore
+    private let flowState: CreateProjectFlowState
 
-    init(
-        draft: CreateProjectDraftState,
-        store: ProjectsStore
-    ) {
-        self.draft = draft
-        self.store = store
+    init(flowState: CreateProjectFlowState) {
+        self.flowState = flowState
     }
 
-    func save() throws -> ProjectItem {
-        if let completedProject = draft.completedProject {
-            return completedProject
-        }
-
-        let project = try store.addProject(from: draft)
-        draft.complete(with: project)
-        return project
+    func finish() {
+        flowState.isFinished = true
     }
 }

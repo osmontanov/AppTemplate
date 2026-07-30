@@ -6,14 +6,12 @@ struct ProjectDetailsView: View {
 
     init(
         projectID: ProjectItem.ID,
-        router: FlowRouter,
-        store: ProjectsStore
+        router: FlowRouter
     ) {
         self.router = router
         _viewModel = State(
             initialValue: ProjectDetailsViewModel(
                 projectID: projectID,
-                store: store,
                 router: router
             )
         )
@@ -22,38 +20,34 @@ struct ProjectDetailsView: View {
     var body: some View {
         @Bindable var viewModel = viewModel
 
-        Group {
-            if let project = viewModel.project {
-                List(viewModel.tasks) { task in
-                    Button {
-                        viewModel.openTask(id: task.id)
-                    } label: {
-                        Label(
-                            task.title,
-                            systemImage: task.isComplete
-                                ? "checkmark.circle.fill"
-                                : "circle"
-                        )
-                    }
-                    .buttonStyle(.plain)
+        List {
+            Section("Destination") {
+                LabeledContent("Project Identifier", value: viewModel.projectID)
+            }
+
+            Section("Navigation Examples") {
+                Button {
+                    viewModel.openTask(id: "work-item-navigation")
+                } label: {
+                    Label("Navigation Structure", systemImage: "circle")
                 }
-                .navigationTitle(project.title)
-            } else {
-                EmptyStateView(
-                    title: "Project Unavailable",
-                    systemImage: "questionmark.folder",
-                    message: "This project no longer exists."
-                )
-                .navigationTitle("Project")
+                .buttonStyle(.plain)
+
+                Button {
+                    viewModel.openTask(id: "work-item-presentation")
+                } label: {
+                    Label("Presentation Structure", systemImage: "circle")
+                }
+                .buttonStyle(.plain)
             }
         }
+        .navigationTitle("Project Details")
         .navigationDestination(for: ProjectDetailsRoute.self) { route in
             switch route {
             case let .task(projectID, taskID):
                 TaskDetailsView(
                     projectID: projectID,
-                    taskID: taskID,
-                    store: viewModel.store
+                    taskID: taskID
                 )
             }
         }
@@ -65,10 +59,7 @@ struct ProjectDetailsView: View {
         .sheet(item: $viewModel.sheet) { route in
             switch route {
             case let .projectInfo(projectID):
-                ProjectInfoView(
-                    projectID: projectID,
-                    store: viewModel.store
-                )
+                ProjectInfoView(projectID: projectID)
             }
         }
     }

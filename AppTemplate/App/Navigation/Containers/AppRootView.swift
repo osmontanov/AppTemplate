@@ -3,7 +3,6 @@ import SwiftUI
 struct AppRootView: View {
     let appFlowRouter: AppFlowRouter
     let router: AppRouter
-    let dependencies: AppDependencies
 
     var body: some View {
         Group {
@@ -13,7 +12,7 @@ struct AppRootView: View {
             case .onboarding:
                 OnboardingFlowView(router: router.onboarding)
             case .main:
-                AppShellView(router: router, dependencies: dependencies)
+                AppShellView(router: router)
             case .maintenance:
                 MaintenanceFlowView(router: router.maintenance)
             }

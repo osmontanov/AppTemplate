@@ -5,16 +5,27 @@ import Testing
 @MainActor
 struct ProjectOptionsViewModelTests {
     @Test
-    func optionsKeepsTheSameDraftAndPushesReview() {
-        let router = FlowRouter()
-        let draft = CreateProjectDraftState()
-        draft.title = "Template"
-        let viewModel = ProjectOptionsViewModel(draft: draft, router: router)
-
-        #expect(viewModel.draft === draft)
+    func optionsAlwaysPushesReview() {
+        let router = ProjectOptionsRouterSpy()
+        let viewModel = ProjectOptionsViewModel(router: router)
 
         viewModel.continueToReview()
 
-        #expect(router.path.count == 1)
+        #expect(router.route == .review)
     }
+}
+
+@MainActor
+private final class ProjectOptionsRouterSpy: IRouter {
+    private(set) var route: ProjectOptionsRoute?
+
+    func push<Route: NavigationRoute>(_ route: Route) {
+        self.route = route as? ProjectOptionsRoute
+    }
+
+    func pop() {}
+
+    func popToRoot() {}
+
+    func setFlow(_ flow: AppFlow) {}
 }

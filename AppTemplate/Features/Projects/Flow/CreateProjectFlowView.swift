@@ -3,35 +3,27 @@ import SwiftUI
 struct CreateProjectFlowView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var router: FlowRouter
-    @State private var draft: CreateProjectDraftState
-
-    let store: ProjectsStore
+    @State private var flowState: CreateProjectFlowState
 
     var localRouter: FlowRouter {
         router
     }
 
-    init(
-        store: ProjectsStore,
-        appFlowRouter: any IAppFlowRouter
-    ) {
+    init(appFlowRouter: any IAppFlowRouter) {
         self.init(
-            store: store,
-            draft: CreateProjectDraftState(),
+            flowState: CreateProjectFlowState(),
             appFlowRouter: appFlowRouter
         )
     }
 
     init(
-        store: ProjectsStore,
-        draft: CreateProjectDraftState,
+        flowState: CreateProjectFlowState,
         appFlowRouter: any IAppFlowRouter
     ) {
-        self.store = store
         _router = State(
             initialValue: FlowRouter(appFlowRouter: appFlowRouter)
         )
-        _draft = State(initialValue: draft)
+        _flowState = State(initialValue: flowState)
     }
 
     var body: some View {
@@ -39,13 +31,12 @@ struct CreateProjectFlowView: View {
 
         NavigationStack(path: $router.path) {
             ProjectBasicsView(
-                draft: draft,
                 router: router,
-                store: store
+                flowState: flowState
             )
         }
-        .onChange(of: draft.isComplete) { _, isComplete in
-            guard isComplete else {
+        .onChange(of: flowState.isFinished) { _, isFinished in
+            guard isFinished else {
                 return
             }
             dismiss()

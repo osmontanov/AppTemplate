@@ -19,10 +19,7 @@ struct ProjectConfigurationTests {
     func createProjectFlowForwardsGlobalFlowFromItsNormalInitializer() {
         let appFlowRouter = CreateProjectAppFlowRouterSpy()
         let presentingRouter = FlowRouter(appFlowRouter: appFlowRouter)
-        let flow = CreateProjectFlowView(
-            store: ProjectsStore(),
-            appFlowRouter: presentingRouter
-        )
+        let flow = CreateProjectFlowView(appFlowRouter: presentingRouter)
 
         flow.localRouter.push(ProjectBasicsRoute.options)
         flow.localRouter.setFlow(.onboarding)
@@ -34,12 +31,11 @@ struct ProjectConfigurationTests {
 
     @MainActor
     @Test
-    func createProjectFlowForwardsGlobalFlowFromItsDraftInitializer() {
+    func createProjectFlowForwardsGlobalFlowFromItsPresentationInitializer() {
         let appFlowRouter = CreateProjectAppFlowRouterSpy()
         let presentingRouter = FlowRouter(appFlowRouter: appFlowRouter)
         let flow = CreateProjectFlowView(
-            store: ProjectsStore(),
-            draft: CreateProjectDraftState(),
+            flowState: CreateProjectFlowState(),
             appFlowRouter: presentingRouter
         )
 
@@ -56,18 +52,14 @@ struct ProjectConfigurationTests {
     func navigationRootCanBeConstructed() {
         let appFlowRouter = AppFlowRouter(flow: .main)
         let router = AppRouter(appFlowRouter: appFlowRouter)
-        let dependencies = AppDependencies.preview()
 
-        _ = AppSceneView(
-            appFlowRouter: appFlowRouter,
-            dependencies: dependencies
-        )
+        _ = ContentView()
+        _ = AppSceneView(appFlowRouter: appFlowRouter)
         _ = AppRootView(
             appFlowRouter: appFlowRouter,
-            router: router,
-            dependencies: dependencies
+            router: router
         )
-        _ = AppShellView(router: router, dependencies: dependencies)
+        _ = AppShellView(router: router)
         _ = AuthenticationFlowView(router: router.authentication)
         _ = AuthenticationHelpView()
         _ = OnboardingFlowView(router: router.onboarding)
@@ -81,38 +73,28 @@ struct ProjectConfigurationTests {
         _ = BrowseDetailView(id: "source", router: router.browse)
         _ = RelatedItemsView(sourceItemID: "source", router: router.browse)
         _ = RelatedItemDetailView(id: "related")
-        _ = ProjectsFlowView(
-            router: router.projects,
-            dependencies: dependencies.projects
+        _ = ProjectsFlowView(router: router.projects)
+        _ = ProjectsView(router: router.projects)
+        _ = ProjectDetailsView(
+            projectID: "project-from-deep-link",
+            router: router.projects
         )
-        let projectsStore = ProjectsStore()
-        let draft = CreateProjectDraftState()
-        _ = CreateProjectFlowView(
-            store: projectsStore,
-            appFlowRouter: router.projects
+        _ = TaskDetailsView(
+            projectID: "project-from-deep-link",
+            taskID: "task-from-restored-navigation"
         )
-        _ = ProjectInfoView(
-            projectID: "project-1",
-            store: projectsStore
-        )
-        _ = ProjectInfoView(
-            projectID: "missing",
-            store: ProjectsStore(projects: [])
-        )
+        let createProjectFlowState = CreateProjectFlowState()
+        _ = CreateProjectFlowView(appFlowRouter: router.projects)
+        _ = ProjectInfoView(projectID: "project-from-deep-link")
         _ = ProjectBasicsView(
-            draft: draft,
             router: FlowRouter(),
-            store: projectsStore
+            flowState: createProjectFlowState
         )
         _ = ProjectOptionsView(
-            draft: draft,
             router: FlowRouter(),
-            store: projectsStore
+            flowState: createProjectFlowState
         )
-        _ = ProjectReviewView(
-            draft: draft,
-            store: projectsStore
-        )
+        _ = ProjectReviewView(flowState: createProjectFlowState)
         _ = SettingsFlowView(router: router.settings)
         _ = SettingsView(router: router.settings)
         _ = AboutView(router: router.settings)
@@ -128,14 +110,12 @@ extension ProjectConfigurationTests {
     @MainActor
     @Test
     func completingCreateProjectFlowDismissesItsContainingSheet() async throws {
-        let store = ProjectsStore(projects: [])
-        let draft = CreateProjectDraftState()
+        let flowState = CreateProjectFlowState()
         let presentation = CreateProjectSheetPresentation()
         let controller = NSHostingController(
             rootView: CreateProjectSheetHarness(
                 presentation: presentation,
-                draft: draft,
-                store: store,
+                flowState: flowState,
                 appFlowRouter: FlowRouter()
             )
         )
@@ -156,18 +136,13 @@ extension ProjectConfigurationTests {
         }
         #expect(didPresent)
 
-        draft.title = "Template"
-        let created = try ProjectReviewViewModel(
-            draft: draft,
-            store: store
-        ).save()
+        ProjectReviewViewModel(flowState: flowState).finish()
 
         let didDismiss = try await eventually {
             !presentation.isPresented && window.attachedSheet == nil
         }
 
         #expect(didDismiss)
-        #expect(store.projects == [created])
     }
 }
 
@@ -179,16 +154,14 @@ private final class CreateProjectSheetPresentation {
 
 private struct CreateProjectSheetHarness: View {
     @Bindable var presentation: CreateProjectSheetPresentation
-    let draft: CreateProjectDraftState
-    let store: ProjectsStore
+    let flowState: CreateProjectFlowState
     let appFlowRouter: any IAppFlowRouter
 
     var body: some View {
         Color.clear
             .sheet(isPresented: $presentation.isPresented) {
                 CreateProjectFlowView(
-                    store: store,
-                    draft: draft,
+                    flowState: flowState,
                     appFlowRouter: appFlowRouter
                 )
             }

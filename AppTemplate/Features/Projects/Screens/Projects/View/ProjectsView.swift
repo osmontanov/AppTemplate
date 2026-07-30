@@ -4,43 +4,41 @@ struct ProjectsView: View {
     private let router: FlowRouter
     @State private var viewModel: ProjectsViewModel
 
-    init(
-        router: FlowRouter,
-        store: ProjectsStore
-    ) {
+    init(router: FlowRouter) {
         self.router = router
         _viewModel = State(
-            initialValue: ProjectsViewModel(
-                store: store,
-                router: router
-            )
+            initialValue: ProjectsViewModel(router: router)
         )
     }
 
     var body: some View {
         @Bindable var viewModel = viewModel
 
-        Group {
-            if viewModel.projects.isEmpty {
-                EmptyStateView(
-                    title: "No Projects",
-                    systemImage: "folder",
-                    message: "There are no projects yet."
-                )
-            } else {
-                List(viewModel.projects) { project in
-                    Button {
-                        viewModel.openProject(id: project.id)
-                    } label: {
-                        VStack(alignment: .leading) {
-                            Text(project.title)
-                            Text(project.summary)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+        List {
+            Section("Navigation Examples") {
+                Button {
+                    viewModel.openProject(id: "project-app-template")
+                } label: {
+                    VStack(alignment: .leading) {
+                        Text("App Template")
+                        Text("Open a stable project destination.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
-                    .buttonStyle(.plain)
                 }
+                .buttonStyle(.plain)
+
+                Button {
+                    viewModel.openProject(id: "project-release-readiness")
+                } label: {
+                    VStack(alignment: .leading) {
+                        Text("Release Readiness")
+                        Text("Open another stable project destination.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
             }
         }
         .navigationTitle("Projects")
@@ -54,18 +52,14 @@ struct ProjectsView: View {
             case let .project(id):
                 ProjectDetailsView(
                     projectID: id,
-                    router: router,
-                    store: viewModel.store
+                    router: router
                 )
             }
         }
         .sheet(item: $viewModel.sheet) { route in
             switch route {
             case .createProject:
-                CreateProjectFlowView(
-                    store: viewModel.store,
-                    appFlowRouter: router
-                )
+                CreateProjectFlowView(appFlowRouter: router)
             }
         }
     }

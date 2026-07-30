@@ -1,40 +1,26 @@
 import SwiftUI
 
 struct ProjectOptionsView: View {
-    private static let colorNames = ["blue", "indigo", "green", "orange"]
-
-    private let draft: CreateProjectDraftState
     private let router: FlowRouter
-    private let store: ProjectsStore
+    private let flowState: CreateProjectFlowState
     @State private var viewModel: ProjectOptionsViewModel
 
     init(
-        draft: CreateProjectDraftState,
         router: FlowRouter,
-        store: ProjectsStore
+        flowState: CreateProjectFlowState
     ) {
-        self.draft = draft
         self.router = router
-        self.store = store
+        self.flowState = flowState
         _viewModel = State(
-            initialValue: ProjectOptionsViewModel(
-                draft: draft,
-                router: router
-            )
+            initialValue: ProjectOptionsViewModel(router: router)
         )
     }
 
     var body: some View {
-        @Bindable var draft = draft
-
         Form {
-            Section("Color") {
-                Picker("Color", selection: $draft.colorName) {
-                    ForEach(Self.colorNames, id: \.self) { colorName in
-                        Text(colorName.capitalized)
-                            .tag(colorName)
-                    }
-                }
+            Section("Presentation Example") {
+                Text("This screen demonstrates an intermediate route.")
+                    .foregroundStyle(.secondary)
             }
 
             Section {
@@ -48,10 +34,7 @@ struct ProjectOptionsView: View {
         .navigationDestination(for: ProjectOptionsRoute.self) { route in
             switch route {
             case .review:
-                ProjectReviewView(
-                    draft: draft,
-                    store: store
-                )
+                ProjectReviewView(flowState: flowState)
             }
         }
     }

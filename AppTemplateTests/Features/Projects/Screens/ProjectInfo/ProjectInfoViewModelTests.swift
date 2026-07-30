@@ -5,24 +5,15 @@ import Testing
 @MainActor
 struct ProjectInfoViewModelTests {
     @Test
-    func projectInfoHandlesUnknownProject() {
-        let viewModel = ProjectInfoViewModel(
-            projectID: "missing",
-            store: ProjectsStore(projects: [])
-        )
+    func projectInfoRetainsAnArbitraryStableProjectID() {
+        let projectID = "project-from-deep-link"
+        let viewModel = ProjectInfoViewModel(projectID: projectID)
 
-        #expect(viewModel.project == nil)
+        #expect(viewModel.projectID == projectID)
     }
 
     @Test
     func projectInfoCanBeConstructedAsStandaloneSheetContent() {
-        _ = ProjectInfoView(
-            projectID: "project-1",
-            store: ProjectsStore()
-        )
-        _ = ProjectInfoView(
-            projectID: "missing",
-            store: ProjectsStore(projects: [])
-        )
+        _ = ProjectInfoView(projectID: "project-from-deep-link")
     }
 }

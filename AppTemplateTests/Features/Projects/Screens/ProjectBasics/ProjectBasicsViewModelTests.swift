@@ -5,20 +5,27 @@ import Testing
 @MainActor
 struct ProjectBasicsViewModelTests {
     @Test
-    func basicsValidatesBeforePushingOptions() {
-        let router = FlowRouter()
-        let draft = CreateProjectDraftState()
-        let viewModel = ProjectBasicsViewModel(draft: draft, router: router)
+    func basicsAlwaysPushesOptions() {
+        let router = ProjectBasicsRouterSpy()
+        let viewModel = ProjectBasicsViewModel(router: router)
 
         viewModel.continueToOptions()
 
-        #expect(viewModel.validationMessage == "Project name is required.")
-        #expect(router.path.isEmpty)
-
-        draft.title = "Template"
-        viewModel.continueToOptions()
-
-        #expect(viewModel.validationMessage == nil)
-        #expect(router.path.count == 1)
+        #expect(router.route == .options)
     }
+}
+
+@MainActor
+private final class ProjectBasicsRouterSpy: IRouter {
+    private(set) var route: ProjectBasicsRoute?
+
+    func push<Route: NavigationRoute>(_ route: Route) {
+        self.route = route as? ProjectBasicsRoute
+    }
+
+    func pop() {}
+
+    func popToRoot() {}
+
+    func setFlow(_ flow: AppFlow) {}
 }

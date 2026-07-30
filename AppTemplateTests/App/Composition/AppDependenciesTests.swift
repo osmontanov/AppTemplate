@@ -8,7 +8,6 @@ struct AppDependenciesTests {
 
         #expect(dependencies.localDatabase is LocalDatabaseService)
         #expect(dependencies.remote is RemoteService)
-        let _: ProjectsDependencies = dependencies.projects
     }
 
     @Test
@@ -28,7 +27,6 @@ struct AppDependenciesTests {
 
         #expect(resolvedLocalDatabaseService === localDatabaseService)
         #expect(resolvedRemoteService === remoteService)
-        let _: ProjectsDependencies = dependencies.projects
     }
 
     @Test
@@ -48,7 +46,6 @@ struct AppDependenciesTests {
 
         #expect(resolvedLocalDatabaseService === localDatabaseService)
         #expect(resolvedRemoteService === remoteService)
-        let _: ProjectsDependencies = dependencies.projects
     }
 }
 

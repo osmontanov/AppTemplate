@@ -3,14 +3,12 @@ import SwiftUI
 
 struct AppSceneView: View {
     let appFlowRouter: AppFlowRouter
-    let dependencies: AppDependencies
 
     @State private var lifecycle: AppSceneNavigationLifecycle
     @SceneStorage("AppTemplate.NavigationSnapshot") private var encodedSnapshot: Data?
 
-    init(appFlowRouter: AppFlowRouter, dependencies: AppDependencies) {
+    init(appFlowRouter: AppFlowRouter) {
         self.appFlowRouter = appFlowRouter
-        self.dependencies = dependencies
         _lifecycle = State(
             initialValue: AppSceneNavigationLifecycle(
                 appFlowRouter: appFlowRouter
@@ -21,8 +19,7 @@ struct AppSceneView: View {
     var body: some View {
         AppRootView(
             appFlowRouter: appFlowRouter,
-            router: lifecycle.router,
-            dependencies: dependencies
+            router: lifecycle.router
         )
             .task {
                 if let snapshot = lifecycle.restore(
