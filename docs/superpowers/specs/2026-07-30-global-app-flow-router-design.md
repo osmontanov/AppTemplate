@@ -36,7 +36,9 @@ access to `flow`.
 - Allow a ViewModel to switch root flow through `setFlow(_:)`.
 - Make every explicit `setFlow(_:)` call a real root transition, including a
   call whose target equals the current flow.
-- Reset every scene's navigation histories on a root transition.
+- Reset every scene's navigation histories on an explicit `setFlow(_:)`.
+- Preserve restored scene histories when startup restores an authenticated
+  session.
 - Preserve the existing authentication-gated deep-link replay behavior.
 - Keep ViewModels explicitly injectable and independently testable.
 - Preserve current iOS 26, iPadOS 26, and macOS 26 behavior.
@@ -136,9 +138,23 @@ same value may not produce the reset event required by the caller.
 
 ```swift
 nonisolated
+enum AppFlowHistoryAction: Equatable, Sendable {
+    case preserve
+    case reset
+}
+
+nonisolated
+enum PendingIntentAction: Equatable, Sendable {
+    case preserve
+    case replay
+    case discard
+}
+
+nonisolated
 struct AppFlowTransition: Equatable, Sendable {
     let id: UUID
     let flow: AppFlow
+    let historyAction: AppFlowHistoryAction
     let pendingIntentAction: PendingIntentAction
 }
 ```
@@ -147,6 +163,7 @@ The concrete names may be adjusted during implementation, but the required
 semantics are:
 
 - every public `setFlow(_:)` creates a new transition identifier;
+- every public `setFlow(_:)` uses `historyAction == .reset`;
 - the concrete router exposes `flow` as `transition.flow` for root switching;
 - `flow` remains read-only to consumers;
 - all mutations pass through router methods;
@@ -262,11 +279,13 @@ keeps its bindable scene router because `TabView` requires a binding to
 Every scene observes the shared `AppFlowTransition`. For each new transition,
 the scene lifecycle:
 
-1. resets Authentication, Onboarding, Home, Browse, Projects, Settings, and
-   Maintenance paths to their roots;
-2. selects Home as the default main section;
-3. applies the transition's pending-intent action;
-4. lets SwiftUI replace the root content from the shared flow.
+1. applies the transition's history action;
+2. when the action is `reset`, clears Authentication, Onboarding, Home,
+   Browse, Projects, Settings, and Maintenance paths and selects Home;
+3. when the action is `preserve`, keeps restored scene paths and the selected
+   section;
+4. applies the transition's pending-intent action;
+5. lets SwiftUI replace the root content from the shared flow.
 
 An explicit call to the same flow is still a transition:
 
@@ -299,6 +318,22 @@ Multiple windows may report the same shared phase. Session synchronization
 must suppress equivalent duplicate transitions so opening two windows does not
 reset both scenes repeatedly. This does not change the public `setFlow(_:)`
 rule: an explicit ViewModel call always creates a transition.
+
+Session synchronization uses a different internal policy from the public
+setter:
+
+- initial authenticated restoration enters Main with `historyAction ==
+  .preserve`, retaining the restored tab and paths;
+- initial unauthenticated restoration enters Authentication with
+  `historyAction == .reset`;
+- a newly authenticated session enters Main with `historyAction == .reset`;
+- logout enters Authentication with `historyAction == .reset`;
+- a failed or cancelled session command returns to its previous stable flow
+  without erasing that flow's history.
+
+The flow router tracks the previous stable `SessionPhase` to distinguish cold
+restoration, new authentication, logout, and a failed command. Transient
+`loading` may show Launching but does not itself erase scene histories.
 
 ## Pending Deep-Link Policy
 
@@ -371,7 +406,10 @@ remain necessary.
 - starts in the configured flow;
 - `setFlow(_:)` publishes the requested flow;
 - two calls with the same flow produce two distinct transitions;
+- public `setFlow(_:)` always requests a history reset;
 - session synchronization is idempotent across duplicate reports;
+- authenticated cold restoration requests history preservation;
+- new authentication and logout request history reset;
 - public flow state is read-only.
 
 ### FlowRouter and ViewModels
@@ -393,6 +431,9 @@ remain necessary.
 
 - startup maps loading to Launching and the final phase to Authentication or
   Main;
+- authenticated cold startup preserves restored tab histories;
+- a newly authenticated session resets old histories before replaying its
+  pending intent;
 - a signed-out deep link survives Authentication and replays only in its
   receiving scene after sign-in;
 - cancellation discards the receiving scene's pending intent;
@@ -419,7 +460,8 @@ remain necessary.
 - A ViewModel with `any IRouter` can call both local navigation operations and
   `setFlow(_:)`.
 - Repeating `setFlow` for the current flow resets the root again.
-- Every root transition resets each scene's flow histories.
+- Every explicit `setFlow(_:)` resets each scene's flow histories.
+- Authenticated cold restoration preserves each scene's restored histories.
 - Session transitions remain driven by `SessionStore`.
 - Authentication-gated deep links replay only in the receiving scene.
 - Authentication no longer receives the full `AppRouter`.
