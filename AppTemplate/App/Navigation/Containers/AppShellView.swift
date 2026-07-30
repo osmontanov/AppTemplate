@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct AppShellView: View {
-    @Environment(SessionStore.self) private var sessionStore
     @Bindable var router: AppRouter
     let dependencies: AppDependencies
 
@@ -26,10 +25,7 @@ struct AppShellView: View {
             }
 
             Tab("Settings", systemImage: "gearshape", value: AppSection.settings) {
-                SettingsFlowView(
-                    router: router.settings,
-                    sessionStore: sessionStore
-                )
+                SettingsFlowView(router: router.settings)
             }
         }
         .tabViewStyle(.sidebarAdaptable)

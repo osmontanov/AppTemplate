@@ -3,15 +3,9 @@ import SwiftUI
 struct AuthenticationView: View {
     @State private var viewModel: AuthenticationViewModel
 
-    init(
-        sessionStore: SessionStore,
-        router: FlowRouter
-    ) {
+    init(router: FlowRouter) {
         _viewModel = State(
-            initialValue: AuthenticationViewModel(
-                sessionStore: sessionStore,
-                router: router
-            )
+            initialValue: AuthenticationViewModel(router: router)
         )
     }
 
@@ -21,12 +15,8 @@ struct AuthenticationView: View {
                 .font(.largeTitle)
             Text("Authentication")
                 .font(.title)
-            Text("Connect the project’s session service here.")
+            Text("Use this screen as a navigation-only authentication entry.")
                 .foregroundStyle(.secondary)
-            if let failureMessage = viewModel.failureMessage {
-                Text(failureMessage)
-                    .foregroundStyle(.secondary)
-            }
             HStack {
                 Button("Cancel") {
                     viewModel.cancelAuthentication()
@@ -34,17 +24,8 @@ struct AuthenticationView: View {
                 Button("Help") {
                     viewModel.openHelp()
                 }
-                if viewModel.canRetryRestoration {
-                    Button("Retry") {
-                        Task {
-                            await viewModel.retryRestoration()
-                        }
-                    }
-                }
                 Button("Continue") {
-                    Task {
-                        await viewModel.signIn()
-                    }
+                    viewModel.continueToApp()
                 }
                 .buttonStyle(.borderedProminent)
             }

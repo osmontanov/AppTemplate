@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct AppRootView: View {
-    @Environment(SessionStore.self) private var sessionStore
     let appFlowRouter: AppFlowRouter
     let router: AppRouter
     let dependencies: AppDependencies
@@ -9,13 +8,8 @@ struct AppRootView: View {
     var body: some View {
         Group {
             switch appFlowRouter.flow {
-            case .launching:
-                ProgressView("Launching…")
             case .authentication:
-                AuthenticationFlowView(
-                    router: router.authentication,
-                    sessionStore: sessionStore
-                )
+                AuthenticationFlowView(router: router.authentication)
             case .onboarding:
                 OnboardingFlowView(router: router.onboarding)
             case .main:

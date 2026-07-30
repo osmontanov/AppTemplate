@@ -177,25 +177,6 @@ struct AppRouterTests {
     }
 
     @Test
-    func authenticatedColdLaunchPreservesRestoredTabHistories() {
-        let appFlowRouter = AppFlowRouter(flow: .launching)
-        let router = AppRouter(appFlowRouter: appFlowRouter)
-        router.selectedSection = .settings
-        router.home.push(HomeRoute.details)
-        router.settings.push(SettingsRoute.about)
-        let session = UserSession(id: "one", displayName: "One")
-
-        appFlowRouter.synchronizeSession(.loading)
-        appFlowRouter.synchronizeSession(.authenticated(session))
-        _ = router.apply(appFlowRouter.transition)
-
-        #expect(appFlowRouter.flow == .main)
-        #expect(router.selectedSection == .settings)
-        #expect(router.home.path.count == 1)
-        #expect(router.settings.path.count == 1)
-    }
-
-    @Test
     func explicitFlowTransitionResetsEveryHistory() {
         let appFlowRouter = AppFlowRouter(flow: .main)
         let router = AppRouter(appFlowRouter: appFlowRouter)

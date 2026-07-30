@@ -3,23 +3,10 @@ import Observation
 @MainActor
 @Observable
 final class SettingsViewModel {
-    private let sessionStore: SessionStore
     private let router: any IRouter
     var sheet: SettingsSheetRoute?
 
-    var phase: SessionPhase {
-        sessionStore.phase
-    }
-
-    var failureMessage: String? {
-        sessionStore.failure?.message
-    }
-
-    init(
-        sessionStore: SessionStore,
-        router: any IRouter
-    ) {
-        self.sessionStore = sessionStore
+    init(router: any IRouter) {
         self.router = router
     }
 
@@ -35,7 +22,7 @@ final class SettingsViewModel {
         sheet = nil
     }
 
-    func signOut() async {
-        await sessionStore.signOut()
+    func returnToAuthentication() {
+        router.setFlow(.authentication)
     }
 }

@@ -57,28 +57,20 @@ struct ProjectConfigurationTests {
         let appFlowRouter = AppFlowRouter(flow: .main)
         let router = AppRouter(appFlowRouter: appFlowRouter)
         let dependencies = AppDependencies.preview(
-            browseItems: [],
-            session: nil
+            browseItems: []
         )
-        let sessionStore = SessionStore(service: dependencies.session.service)
 
         _ = AppSceneView(
             appFlowRouter: appFlowRouter,
             dependencies: dependencies
         )
-            .environment(sessionStore)
         _ = AppRootView(
             appFlowRouter: appFlowRouter,
             router: router,
             dependencies: dependencies
         )
-            .environment(sessionStore)
         _ = AppShellView(router: router, dependencies: dependencies)
-            .environment(sessionStore)
-        _ = AuthenticationFlowView(
-            router: router.authentication,
-            sessionStore: sessionStore
-        )
+        _ = AuthenticationFlowView(router: router.authentication)
         _ = AuthenticationHelpView()
         _ = OnboardingFlowView(router: router.onboarding)
         _ = OnboardingView(router: router.onboarding)
@@ -142,17 +134,11 @@ struct ProjectConfigurationTests {
             draft: draft,
             store: projectsStore
         )
-        _ = SettingsFlowView(
-            router: router.settings,
-            sessionStore: sessionStore
-        )
-        _ = SettingsView(
-            router: router.settings,
-            sessionStore: sessionStore
-        )
+        _ = SettingsFlowView(router: router.settings)
+        _ = SettingsView(router: router.settings)
         _ = AboutView(router: router.settings)
         _ = PlatformDetailsView(name: "macOS 26")
-        _ = SessionInfoView(sessionStore: sessionStore)
+        _ = SessionInfoView()
         _ = MaintenanceFlowView(router: router.maintenance)
         _ = MaintenanceView(router: router.maintenance)
     }

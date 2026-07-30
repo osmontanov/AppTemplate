@@ -2,7 +2,6 @@ import OSLog
 import SwiftUI
 
 struct AppSceneView: View {
-    @Environment(SessionStore.self) private var sessionStore
     let appFlowRouter: AppFlowRouter
     let dependencies: AppDependencies
 
@@ -32,18 +31,12 @@ struct AppSceneView: View {
                 ) {
                     persist(snapshot)
                 }
-                await sessionStore.start()
-                appFlowRouter.synchronizeSession(sessionStore.phase)
-                _ = lifecycle.apply(appFlowRouter.transition)
             }
             .onChange(of: lifecycle.router.snapshot) { _, snapshot in
                 guard lifecycle.hasRestored else {
                     return
                 }
                 persist(snapshot)
-            }
-            .onChange(of: sessionStore.phase) { _, phase in
-                appFlowRouter.synchronizeSession(phase)
             }
             .onChange(of: appFlowRouter.transition) { _, transition in
                 guard lifecycle.hasRestored else {

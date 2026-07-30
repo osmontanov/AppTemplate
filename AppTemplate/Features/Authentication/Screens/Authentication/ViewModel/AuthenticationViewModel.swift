@@ -3,31 +3,14 @@ import Observation
 @MainActor
 @Observable
 final class AuthenticationViewModel {
-    private let sessionStore: SessionStore
     private let router: any IRouter
 
-    var failureMessage: String? {
-        sessionStore.failure?.message
-    }
-
-    var canRetryRestoration: Bool {
-        sessionStore.failure == .restoration
-    }
-
-    init(
-        sessionStore: SessionStore,
-        router: any IRouter
-    ) {
-        self.sessionStore = sessionStore
+    init(router: any IRouter) {
         self.router = router
     }
 
-    func signIn() async {
-        await sessionStore.signIn()
-    }
-
-    func retryRestoration() async {
-        await sessionStore.retryStart()
+    func continueToApp() {
+        router.setFlow(.main)
     }
 
     func cancelAuthentication() {

@@ -5,54 +5,22 @@ import Testing
 @MainActor
 struct SettingsViewModelTests {
     @Test
-    func settingsReflectsAndMutatesTheSharedSession() async {
-        let session = UserSession(id: "user", displayName: "User")
-        let service = SessionService(initialSession: session)
-        let store = SessionStore(service: service)
-        await store.start()
+    func returnToAuthenticationReplacesTheRoot() {
+        let appFlowRouter = AppFlowRouter(flow: .main)
         let viewModel = SettingsViewModel(
-            sessionStore: store,
-            router: FlowRouter()
+            router: FlowRouter(appFlowRouter: appFlowRouter)
         )
 
-        #expect(viewModel.phase == .authenticated(session))
+        viewModel.returnToAuthentication()
 
-        await viewModel.signOut()
-
-        #expect(viewModel.phase == .unauthenticated)
-        #expect(viewModel.failureMessage == nil)
-    }
-
-    @Test
-    func failedSignOutExposesSafeFailureAndKeepsTheSession() async {
-        let session = UserSession(id: "user", displayName: "User")
-        let store = SessionStore(
-            service: FailingSettingsSessionService(session: session)
-        )
-        await store.start()
-        let viewModel = SettingsViewModel(
-            sessionStore: store,
-            router: FlowRouter()
-        )
-
-        await viewModel.signOut()
-
-        #expect(viewModel.phase == .authenticated(session))
-        #expect(
-            viewModel.failureMessage
-                == "Sign out could not be completed."
-        )
+        #expect(appFlowRouter.flow == .authentication)
+        #expect(appFlowRouter.transition.pendingIntentAction == .discard)
     }
 
     @Test
     func openingAboutPushesTheSettingsScreenRoute() {
-        let service = SessionService(initialSession: nil)
-        let store = SessionStore(service: service)
         let router = FlowRouter()
-        let viewModel = SettingsViewModel(
-            sessionStore: store,
-            router: router
-        )
+        let viewModel = SettingsViewModel(router: router)
 
         viewModel.openAbout()
 
@@ -74,43 +42,13 @@ struct SettingsViewModelTests {
 
     @Test
     func settingsFlowAndScreenCanBeConstructed() {
-        let service = SessionService(initialSession: nil)
-        let store = SessionStore(service: service)
         let router = FlowRouter()
 
-        _ = SettingsFlowView(
-            router: router,
-            sessionStore: store
-        )
-        _ = SettingsView(router: router, sessionStore: store)
+        _ = SettingsFlowView(router: router)
+        _ = SettingsView(router: router)
     }
 
     private func makeSettingsViewModel() -> SettingsViewModel {
-        SettingsViewModel(
-            sessionStore: SessionStore(
-                service: SessionService(initialSession: nil)
-            ),
-            router: FlowRouter()
-        )
-    }
-}
-
-private nonisolated enum SettingsViewModelTestError: Error {
-    case signOut
-}
-
-private nonisolated struct FailingSettingsSessionService: ISessionService {
-    let session: UserSession
-
-    func currentSession() -> UserSession? {
-        session
-    }
-
-    func signIn() -> UserSession {
-        session
-    }
-
-    func signOut() throws {
-        throw SettingsViewModelTestError.signOut
+        SettingsViewModel(router: FlowRouter())
     }
 }

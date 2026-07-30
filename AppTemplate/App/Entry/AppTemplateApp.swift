@@ -9,17 +9,8 @@ import SwiftUI
 
 @main
 struct AppTemplateApp: App {
-    private let dependencies: AppDependencies
-    @State private var appFlowRouter = AppFlowRouter(flow: .launching)
-    @State private var sessionStore: SessionStore
-
-    init() {
-        let dependencies = AppDependencies.live()
-        self.dependencies = dependencies
-        _sessionStore = State(
-            initialValue: SessionStore(service: dependencies.session.service)
-        )
-    }
+    private let dependencies = AppDependencies.live()
+    @State private var appFlowRouter = AppFlowRouter(flow: .authentication)
 
     var body: some Scene {
         WindowGroup {
@@ -27,7 +18,6 @@ struct AppTemplateApp: App {
                 appFlowRouter: appFlowRouter,
                 dependencies: dependencies
             )
-                .environment(sessionStore)
         }
     }
 }

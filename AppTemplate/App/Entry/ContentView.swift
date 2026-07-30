@@ -13,7 +13,7 @@ struct ContentView: View {
     @State private var router: AppRouter
 
     init(dependencies: AppDependencies) {
-        let appFlowRouter = AppFlowRouter(flow: .main)
+        let appFlowRouter = AppFlowRouter(flow: .authentication)
         self.dependencies = dependencies
         _appFlowRouter = State(initialValue: appFlowRouter)
         _router = State(
@@ -27,24 +27,6 @@ struct ContentView: View {
             router: router,
             dependencies: dependencies
         )
-    }
-}
-
-@MainActor
-private struct PreviewRoot: View {
-    let dependencies: AppDependencies
-    @State private var sessionStore: SessionStore
-
-    init(dependencies: AppDependencies) {
-        self.dependencies = dependencies
-        _sessionStore = State(
-            initialValue: SessionStore(service: dependencies.session.service)
-        )
-    }
-
-    var body: some View {
-        ContentView(dependencies: dependencies)
-            .environment(sessionStore)
     }
 }
 
@@ -66,8 +48,7 @@ private struct PreviewRoot: View {
                 title: "Typed Routing",
                 summary: "Navigation represented as data."
             )
-        ],
-        session: UserSession(id: "preview-user", displayName: "Preview User")
+        ]
     )
-    PreviewRoot(dependencies: dependencies)
+    ContentView(dependencies: dependencies)
 }
