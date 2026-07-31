@@ -1,7 +1,6 @@
 # AppTemplate Hardening Design
 
-**Status:** Draft for written-spec review. The architectural direction was
-approved in conversation on 2026-07-31.
+**Status:** Approved by the user on 2026-07-31.
 
 ## Goal
 
@@ -453,12 +452,12 @@ identifier is available.
 ### CI matrix
 
 Add one GitHub Actions workflow using the official `macos-26` Apple Silicon
-runner and select `/Applications/Xcode_26.4.1.app`. The matrix runs the shared
+runner and select `/Applications/Xcode_26.6.app`. The matrix runs the shared
 scheme against these destinations, all present on that runner image:
 
 - `platform=macOS`;
-- `platform=iOS Simulator,OS=26.4,name=iPhone 17`;
-- `platform=iOS Simulator,OS=26.4,name=iPad (A16)`.
+- `platform=iOS Simulator,OS=26.5,name=iPhone 17`;
+- `platform=iOS Simulator,OS=26.5,name=iPad (A16)`.
 
 The workflow fails on build warnings and test failures, uses fresh DerivedData
 per matrix entry, and uploads xcresult bundles on failure. It prints the active
