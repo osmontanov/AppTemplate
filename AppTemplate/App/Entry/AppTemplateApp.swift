@@ -8,7 +8,7 @@
 import SwiftUI
 
 @main
-struct AppTemplateApp: App {
+struct AppTemplateApp: App { 
     private let dependencies: AppDependencies
     @State private var appFlowCoordinator: AppFlowCoordinator
 
