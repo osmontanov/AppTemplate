@@ -14,6 +14,20 @@ struct AppDependencies: Sendable {
         )
     }
 
+    static func uiTesting(initialState: AppState) -> AppDependencies {
+        AppDependencies(
+            localDatabase: LocalDatabaseService(),
+            remote: RemoteService(),
+            appStateStorage: InMemoryAppStateStorage(initialState: initialState),
+            settings: SettingsDependencies(
+                appInfo: AppInfoService(
+                    displayName: "AppTemplate UI Tests",
+                    version: "1.0"
+                )
+            )
+        )
+    }
+
     static func preview(
         settings: SettingsDependencies,
         appStateStorage: any IAppStateStorage = InMemoryAppStateStorage(),

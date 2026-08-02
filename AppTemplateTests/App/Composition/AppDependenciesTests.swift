@@ -28,6 +28,33 @@ struct AppDependenciesTests {
     }
 
     @Test
+    func uiTestingGraphUsesFreshInMemoryStateAndFixedAppInfo() throws {
+        let initialState = AppState(
+            isAuthenticated: true,
+            hasCompletedOnboarding: true,
+            isMaintenanceEnabled: false
+        )
+        let firstDependencies = AppDependencies.uiTesting(initialState: initialState)
+        let secondDependencies = AppDependencies.uiTesting(initialState: initialState)
+        let firstStorage = try #require(
+            firstDependencies.appStateStorage as? InMemoryAppStateStorage
+        )
+        let secondStorage = try #require(
+            secondDependencies.appStateStorage as? InMemoryAppStateStorage
+        )
+
+        #expect(firstDependencies.localDatabase is LocalDatabaseService)
+        #expect(firstDependencies.remote is RemoteService)
+        #expect(firstDependencies.settings.appInfo.displayName == "AppTemplate UI Tests")
+        #expect(firstDependencies.settings.appInfo.version == "1.0")
+        #expect(try decodedState(from: firstStorage) == initialState)
+
+        try firstStorage.remove()
+
+        #expect(try decodedState(from: secondStorage) == initialState)
+    }
+
+    @Test
     func previewGraphUsesOnlyProvidedValues() throws {
         let localDatabaseService = InjectedLocalDatabaseService()
         let remoteService = InjectedRemoteService()
@@ -94,6 +121,17 @@ struct AppDependenciesTests {
         #expect(dependencies.settings.appInfo.displayName == "Test App")
         #expect(dependencies.settings.appInfo.version == "3.2.1")
     }
+}
+
+private func decodedState(from storage: InMemoryAppStateStorage) throws -> AppState {
+    let data = try #require({
+        if case let .data(data) = try storage.load() {
+            return data
+        }
+        return nil
+    }())
+
+    return try JSONDecoder().decode(AppState.self, from: data)
 }
 
 private actor InjectedLocalDatabaseService: ILocalDatabaseService {}
