@@ -192,7 +192,7 @@ struct AppRouterTests {
     }
 
     @Test
-    func schemaThreeRestoreReplacesExistingProjectsHistory() throws {
+    func currentSchemaRestoreReplacesExistingProjectsHistory() throws {
         let source = makeRouter(selectedSection: .projects)
         source.projects.push(ProjectsRoute.project(id: "project-1"))
         let restored = makeRouter()
@@ -207,7 +207,7 @@ struct AppRouterTests {
         #expect(
             restored.restore(
                 from: try NavigationSnapshotCodec.encode(source.snapshot)
-            ) == .restored
+            ).result == .restored
         )
         #expect(restored.projects.path.count == 1)
     }

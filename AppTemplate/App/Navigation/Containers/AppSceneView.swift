@@ -27,34 +27,37 @@ struct AppSceneView: View {
             router: lifecycle.router
         )
             .task {
-                if let snapshot = lifecycle.restore(
+                if lifecycle.restore(
                     from: encodedSnapshot,
                     applying: appFlowRouter.transition
-                ) {
-                    persist(snapshot)
+                ) != nil {
+                    persist()
                 }
             }
-            .onChange(of: lifecycle.router.snapshot) { _, snapshot in
+            .onChange(of: lifecycle.router.snapshot) { _, _ in
                 guard lifecycle.hasRestored else {
                     return
                 }
-                persist(snapshot)
+                persist()
             }
             .onChange(of: appFlowRouter.transition) { _, transition in
                 guard lifecycle.hasRestored else {
                     return
                 }
                 _ = lifecycle.apply(transition)
-                persist(lifecycle.router.snapshot)
+                persist()
             }
             .onOpenURL { url in
-                if let snapshot = lifecycle.receive(url) {
-                    persist(snapshot)
+                if lifecycle.receive(url) != nil {
+                    persist()
                 }
             }
     }
 
-    private func persist(_ snapshot: NavigationSnapshot) {
+    private func persist() {
+        guard let snapshot = lifecycle.snapshotForPersistence else {
+            return
+        }
         do {
             guard let encoding = try NavigationSnapshotCodec.encodingIfChanged(
                 snapshot,

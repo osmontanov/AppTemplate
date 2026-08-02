@@ -131,7 +131,14 @@ final class AppRouter: IAuthenticationCancellation {
 
 extension AppRouter {
     var snapshot: NavigationSnapshot {
+        makeSnapshot(lastAppliedTransitionID: nil)
+    }
+
+    func makeSnapshot(
+        lastAppliedTransitionID: UUID?
+    ) -> NavigationSnapshot {
         NavigationSnapshot(
+            lastAppliedTransitionID: lastAppliedTransitionID,
             selectedSection: selectedSection,
             homePath: home.path,
             browsePath: browse.path,
@@ -141,9 +148,12 @@ extension AppRouter {
     }
 
     @discardableResult
-    func restore(from data: Data?) -> NavigationRestorationResult {
+    func restore(from data: Data?) -> NavigationRestoration {
         guard let data else {
-            return .noState
+            return NavigationRestoration(
+                result: .noState,
+                lastAppliedTransitionID: nil
+            )
         }
 
         let schemaVersion: Int
@@ -154,7 +164,10 @@ extension AppRouter {
             Logger.navigation.error(
                 "Reset corrupt navigation snapshot: \(String(describing: error), privacy: .public)"
             )
-            return .reset(.corruptData)
+            return NavigationRestoration(
+                result: .reset(.corruptData),
+                lastAppliedTransitionID: nil
+            )
         }
 
         switch schemaVersion {
@@ -167,14 +180,48 @@ extension AppRouter {
                 Logger.navigation.error(
                     "Reset corrupt navigation snapshot: \(String(describing: error), privacy: .public)"
                 )
-                return .reset(.corruptData)
+                return NavigationRestoration(
+                    result: .reset(.corruptData),
+                    lastAppliedTransitionID: nil
+                )
             }
-            return restore(
+            return NavigationRestoration(
+                result: restore(
+                    selectedSection: decoded.selectedSection,
+                    homeSnapshot: decoded.homePath,
+                    browseSnapshot: decoded.browsePath,
+                    projectsSnapshot: decoded.projectsPath,
+                    settingsSnapshot: decoded.settingsPath
+                ),
+                lastAppliedTransitionID: decoded.lastAppliedTransitionID
+            )
+        case 3:
+            let decoded: NavigationSnapshotV3
+            do {
+                decoded = try JSONDecoder().decode(
+                    NavigationSnapshotV3.self,
+                    from: data
+                )
+            } catch {
+                resetNavigation()
+                Logger.navigation.error(
+                    "Reset corrupt navigation snapshot: \(String(describing: error), privacy: .public)"
+                )
+                return NavigationRestoration(
+                    result: .reset(.corruptData),
+                    lastAppliedTransitionID: nil
+                )
+            }
+            let result = restore(
                 selectedSection: decoded.selectedSection,
                 homeSnapshot: decoded.homePath,
                 browseSnapshot: decoded.browsePath,
                 projectsSnapshot: decoded.projectsPath,
                 settingsSnapshot: decoded.settingsPath
+            )
+            return NavigationRestoration(
+                result: result == .restored ? .migrated(from: 3) : result,
+                lastAppliedTransitionID: nil
             )
         case 2:
             let decoded: NavigationSnapshotV2
@@ -188,7 +235,10 @@ extension AppRouter {
                 Logger.navigation.error(
                     "Reset corrupt navigation snapshot: \(String(describing: error), privacy: .public)"
                 )
-                return .reset(.corruptData)
+                return NavigationRestoration(
+                    result: .reset(.corruptData),
+                    lastAppliedTransitionID: nil
+                )
             }
             let result = restore(
                 selectedSection: decoded.selectedSection,
@@ -197,16 +247,29 @@ extension AppRouter {
                 projectsSnapshot: nil,
                 settingsSnapshot: decoded.settingsPath
             )
-            if result == .restored {
-                return .migrated(from: 2)
-            }
-            return result
+            return NavigationRestoration(
+                result: result == .restored ? .migrated(from: 2) : result,
+                lastAppliedTransitionID: nil
+            )
+        case let futureVersion
+            where futureVersion > NavigationSnapshot.currentSchemaVersion:
+            resetNavigation()
+            Logger.navigation.error(
+                "Preserved future navigation schema: \(futureVersion)"
+            )
+            return NavigationRestoration(
+                result: .preservedFutureSchema(futureVersion),
+                lastAppliedTransitionID: nil
+            )
         default:
             resetNavigation()
             Logger.navigation.error(
                 "Reset unsupported navigation schema: \(schemaVersion)"
             )
-            return .reset(.unsupportedSchema(schemaVersion))
+            return NavigationRestoration(
+                result: .reset(.unsupportedSchema(schemaVersion)),
+                lastAppliedTransitionID: nil
+            )
         }
     }
 
@@ -262,6 +325,17 @@ extension AppRouter {
         pendingIntent = nil
         resetFlowHistories()
     }
+}
+
+private
+nonisolated
+struct NavigationSnapshotV3: Decodable {
+    let schemaVersion: Int
+    let selectedSection: AppSection
+    let homePath: FlowPathSnapshot
+    let browsePath: FlowPathSnapshot
+    let projectsPath: FlowPathSnapshot
+    let settingsPath: FlowPathSnapshot
 }
 
 private

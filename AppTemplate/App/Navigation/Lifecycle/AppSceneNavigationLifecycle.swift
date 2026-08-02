@@ -5,8 +5,23 @@ import OSLog
 final class AppSceneNavigationLifecycle {
     let router: AppRouter
     private(set) var hasRestored = false
+    private(set) var restorationResult: NavigationRestorationResult = .noState
+
+    var snapshot: NavigationSnapshot {
+        router.makeSnapshot(
+            lastAppliedTransitionID: lastAppliedTransitionID
+        )
+    }
+
+    var snapshotForPersistence: NavigationSnapshot? {
+        guard allowsSnapshotPersistence else {
+            return nil
+        }
+        return snapshot
+    }
 
     private let parser: DeepLinkParser
+    private var allowsSnapshotPersistence = true
     private var lastAppliedTransitionID: UUID?
     private var queuedURLs: [URL] = []
 
@@ -57,7 +72,16 @@ final class AppSceneNavigationLifecycle {
             return nil
         }
 
-        let restorationResult = router.restore(from: data)
+        let restoration = router.restore(from: data)
+        lastAppliedTransitionID = restoration.lastAppliedTransitionID
+        restorationResult = restoration.result
+        switch restoration.result {
+        case .preservedFutureSchema:
+            allowsSnapshotPersistence = false
+        default:
+            allowsSnapshotPersistence = true
+        }
+        let appliesTransition = transition.id != lastAppliedTransitionID
         let transitionOutcome = apply(transition)
         hasRestored = true
 
@@ -66,15 +90,16 @@ final class AppSceneNavigationLifecycle {
         urls.forEach(handle)
 
         if !urls.isEmpty {
-            return router.snapshot
+            return snapshotForPersistence
         }
-        if transition.historyAction == .reset || transitionOutcome != nil {
-            return router.snapshot
+        if appliesTransition,
+           (transition.historyAction == .reset || transitionOutcome != nil) {
+            return snapshotForPersistence
         }
         switch restorationResult {
         case .migrated, .recovered, .reset:
-            return router.snapshot
-        case .noState, .restored:
+            return snapshotForPersistence
+        case .noState, .restored, .preservedFutureSchema:
             return nil
         }
     }
@@ -87,7 +112,7 @@ final class AppSceneNavigationLifecycle {
         }
 
         handle(url)
-        return router.snapshot
+        return snapshotForPersistence
     }
 
     private func handle(_ url: URL) {

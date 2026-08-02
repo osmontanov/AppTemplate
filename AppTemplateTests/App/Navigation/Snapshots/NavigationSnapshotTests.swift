@@ -14,7 +14,7 @@ struct NavigationSnapshotTests {
         let data = try NavigationSnapshotCodec.encode(source.snapshot)
         let restored = makeRouter()
 
-        #expect(restored.restore(from: data) == .restored)
+        #expect(restored.restore(from: data).result == .restored)
         #expect(restored.home.path.count == 2)
         #expect(restored.snapshot == source.snapshot)
     }
@@ -32,31 +32,55 @@ struct NavigationSnapshotTests {
         let data = try NavigationSnapshotCodec.encode(source.snapshot)
         let restored = makeRouter()
 
-        #expect(restored.restore(from: data) == .restored)
+        #expect(restored.restore(from: data).result == .restored)
         #expect(restored.projects.path.count == 2)
     }
 
     @Test
-    func schemaTwoSnapshotMigratesItsDurableHistories() throws {
-        let legacy = NavigationSnapshotV2(
-            selectedSection: .browse,
-            homePath: FlowPathSnapshot(
-                path: NavigationPath([HomeRoute.details])
-            ),
-            browsePath: FlowPathSnapshot(
-                path: NavigationPath([BrowseRoute.item(id: "swiftui")])
-            ),
-            settingsPath: FlowPathSnapshot(path: NavigationPath())
+    func schemaThreeSnapshotMigratesAllDurableHistories() throws {
+        let legacy = Data(
+            #"{"schemaVersion":3,"selectedSection":"settings","homePath":{"data":"WyJBcHBUZW1wbGF0ZS5Ib21lUm91dGUiLCJcImRldGFpbHNcIiJd"},"browsePath":{"data":"WyJBcHBUZW1wbGF0ZS5Ccm93c2VSb3V0ZSIsIntcIml0ZW1cIjp7XCJpZFwiOlwic3dpZnR1aVwifX0iXQ=="},"projectsPath":{"data":"WyJBcHBUZW1wbGF0ZS5Qcm9qZWN0c1JvdXRlIiwie1wicHJvamVjdFwiOntcImlkXCI6XCJwcm9qZWN0LTFcIn19Il0="},"settingsPath":{"data":"WyJBcHBUZW1wbGF0ZS5TZXR0aW5nc1JvdXRlIiwiXCJhYm91dFwiIl0="}}"#.utf8
         )
         let restored = makeRouter()
 
-        #expect(
-            restored.restore(from: try JSONEncoder().encode(legacy))
-                == .migrated(from: 2)
+        let restoration = restored.restore(from: legacy)
+        let next = try NavigationSnapshotCodec.decode(
+            NavigationSnapshotCodec.encode(restored.snapshot)
         )
+
+        #expect(restoration.result == .migrated(from: 3))
+        #expect(restoration.lastAppliedTransitionID == nil)
+        #expect(restored.selectedSection == .settings)
+        #expect(restored.home.path.count == 1)
+        #expect(restored.browse.path.count == 1)
+        #expect(restored.projects.path.count == 1)
+        #expect(restored.settings.path.count == 1)
+        #expect(next.schemaVersion == 4)
+        #expect(next.lastAppliedTransitionID == nil)
+    }
+
+    @Test
+    func schemaTwoSnapshotMigratesThreeHistoriesWithEmptyProjects() throws {
+        let legacy = Data(
+            #"{"schemaVersion":2,"selectedSection":"settings","homePath":{"data":"WyJBcHBUZW1wbGF0ZS5Ib21lUm91dGUiLCJcImRldGFpbHNcIiJd"},"browsePath":{"data":"WyJBcHBUZW1wbGF0ZS5Ccm93c2VSb3V0ZSIsIntcIml0ZW1cIjp7XCJpZFwiOlwic3dpZnR1aVwifX0iXQ=="},"settingsPath":{"data":"WyJBcHBUZW1wbGF0ZS5TZXR0aW5nc1JvdXRlIiwiXCJhYm91dFwiIl0="}}"#.utf8
+        )
+        let restored = makeRouter()
+        restored.projects.push(ProjectsRoute.project(id: "stale-project"))
+
+        let restoration = restored.restore(from: legacy)
+        let next = try NavigationSnapshotCodec.decode(
+            NavigationSnapshotCodec.encode(restored.snapshot)
+        )
+
+        #expect(restoration.result == .migrated(from: 2))
+        #expect(restoration.lastAppliedTransitionID == nil)
+        #expect(restored.selectedSection == .settings)
         #expect(restored.home.path.count == 1)
         #expect(restored.browse.path.count == 1)
         #expect(restored.projects.path.isEmpty)
+        #expect(restored.settings.path.count == 1)
+        #expect(next.schemaVersion == 4)
+        #expect(next.lastAppliedTransitionID == nil)
     }
 
     @Test
@@ -105,7 +129,7 @@ struct NavigationSnapshotTests {
             from: try NavigationSnapshotCodec.encode(source.snapshot)
         )
 
-        #expect(result == .restored)
+        #expect(result.result == .restored)
         #expect(restored.snapshot == source.snapshot)
         #expect(restored.browse.path.count == 2)
     }
@@ -116,7 +140,7 @@ struct NavigationSnapshotTests {
         router.settings.push(SettingsRoute.about)
 
         #expect(
-            router.restore(from: Data("not-json".utf8))
+            router.restore(from: Data("not-json".utf8)).result
                 == .reset(.corruptData)
         )
         #expect(router.selectedSection == .home)
@@ -139,7 +163,7 @@ struct NavigationSnapshotTests {
             from: try NavigationSnapshotCodec.encode(snapshot)
         )
 
-        #expect(result == .recovered([.settings]))
+        #expect(result.result == .recovered([.settings]))
         #expect(restored.selectedSection == .settings)
         #expect(restored.home.path.count == 1)
         #expect(restored.browse.path.count == 1)
@@ -163,7 +187,7 @@ struct NavigationSnapshotTests {
             from: try NavigationSnapshotCodec.encode(snapshot)
         )
 
-        #expect(result == .recovered([.projects]))
+        #expect(result.result == .recovered([.projects]))
         #expect(restored.selectedSection == .projects)
         #expect(restored.home.path.count == 1)
         #expect(restored.browse.path.count == 1)
@@ -175,10 +199,15 @@ struct NavigationSnapshotTests {
     func snapshotPayloadContainsOnlyDurableNavigationState() throws {
         let router = makeRouter(selectedSection: .projects)
         router.projects.push(ProjectsRoute.project(id: "project-1"))
+        let checkpoint = try #require(
+            UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")
+        )
 
         let payload = try #require(
             JSONSerialization.jsonObject(
-                with: NavigationSnapshotCodec.encode(router.snapshot)
+                with: NavigationSnapshotCodec.encode(
+                    router.makeSnapshot(lastAppliedTransitionID: checkpoint)
+                )
             ) as? [String: Any]
         )
 
@@ -189,27 +218,30 @@ struct NavigationSnapshotTests {
                 "homePath",
                 "browsePath",
                 "projectsPath",
-                "settingsPath"
+                "settingsPath",
+                "lastAppliedTransitionID"
             ])
+        )
+        #expect(
+            payload["lastAppliedTransitionID"] as? String
+                == "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE"
         )
     }
 
     @Test
-    func futureSchemaResetsNavigation() throws {
-        let snapshot = NavigationSnapshot(
-            schemaVersion: 999,
-            selectedSection: .settings,
-            homePath: NavigationPath(),
-            browsePath: NavigationPath(),
-            projectsPath: NavigationPath(),
-            settingsPath: NavigationPath([SettingsRoute.about])
-        )
-        let router = makeRouter()
+    func futureSchemaResetsMemoryButPreservesStorageAuthority() {
+        let future = Data(#"{"schemaVersion":99,"future":"keep"}"#.utf8)
+        let router = makeRouter(selectedSection: .settings)
+        router.home.push(HomeRoute.details)
+        router.settings.push(SettingsRoute.about)
 
-        #expect(
-            router.restore(from: try NavigationSnapshotCodec.encode(snapshot))
-                == .reset(.unsupportedSchema(999))
-        )
+        let restoration = router.restore(from: future)
+
+        #expect(restoration.result == .preservedFutureSchema(99))
+        #expect(restoration.lastAppliedTransitionID == nil)
+        #expect(router.selectedSection == .home)
+        #expect(router.home.path.isEmpty)
+        #expect(router.settings.path.isEmpty)
     }
 
     @Test
@@ -223,7 +255,7 @@ struct NavigationSnapshotTests {
         let router = makeRouter()
 
         #expect(
-            router.restore(from: try JSONEncoder().encode(snapshot))
+            router.restore(from: try JSONEncoder().encode(snapshot)).result
                 == .reset(.unsupportedSchema(1))
         )
         #expect(router.selectedSection == .home)
@@ -247,7 +279,7 @@ struct NavigationSnapshotTests {
         )
         let data = try NavigationSnapshotCodec.encode(source.snapshot)
 
-        #expect(restored.restore(from: data) == .restored)
+        #expect(restored.restore(from: data).result == .restored)
         #expect(restoredAppFlowRouter.flow == .main)
         #expect(restored.selectedSection == .settings)
         #expect(restored.authentication.path.isEmpty)
@@ -265,7 +297,7 @@ struct NavigationSnapshotTests {
             from: try NavigationSnapshotCodec.encode(source.snapshot)
         )
 
-        #expect(result == .recovered([.home]))
+        #expect(result.result == .recovered([.home]))
         #expect(restored.home.path.isEmpty)
         #expect(restored.browse.path.count == 1)
     }
@@ -305,14 +337,4 @@ struct LegacyNavigationSnapshot: Encodable {
     let homePath: [HomeRoute]
     let browsePath: [BrowseRoute]
     let settingsPath: [SettingsRoute]
-}
-
-private
-nonisolated
-struct NavigationSnapshotV2: Encodable {
-    let schemaVersion = 2
-    let selectedSection: AppSection
-    let homePath: FlowPathSnapshot
-    let browsePath: FlowPathSnapshot
-    let settingsPath: FlowPathSnapshot
 }

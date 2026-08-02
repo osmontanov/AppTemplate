@@ -25,7 +25,7 @@ struct AppSceneNavigationLifecycleTests {
         #expect(router.selectedSection == .settings)
         #expect(router.home.path.count == 1)
         #expect(router.browse.path.count == 1)
-        #expect(snapshotToPersist == router.snapshot)
+        #expect(snapshotToPersist == lifecycle.snapshot)
     }
 
     @Test
@@ -48,7 +48,7 @@ struct AppSceneNavigationLifecycleTests {
         #expect(router.home.path.isEmpty)
         #expect(router.browse.path.count == 1)
         #expect(router.settings.path.count == 1)
-        #expect(snapshotToPersist == router.snapshot)
+        #expect(snapshotToPersist == lifecycle.snapshot)
     }
 
     @Test(arguments: [
@@ -131,7 +131,7 @@ struct AppSceneNavigationLifecycleTests {
         #expect(router.home.path.count == 1)
         #expect(router.browse.path.count == 1)
         #expect(router.settings.path.count == 1)
-        #expect(snapshotToPersist == router.snapshot)
+        #expect(snapshotToPersist == lifecycle.snapshot)
     }
 
     @Test
@@ -201,7 +201,7 @@ struct AppSceneNavigationLifecycleTests {
         #expect(lifecycle.router.pendingIntent == nil)
         #expect(lifecycle.router.selectedSection == .browse)
         #expect(lifecycle.router.browse.path.count == 1)
-        #expect(snapshotToPersist == lifecycle.router.snapshot)
+        #expect(snapshotToPersist == lifecycle.snapshot)
     }
 
     @Test
@@ -233,7 +233,7 @@ struct AppSceneNavigationLifecycleTests {
 
         #expect(lifecycle.hasRestored)
         #expect(lifecycle.router.pendingIntent == intent)
-        #expect(snapshotToPersist == lifecycle.router.snapshot)
+        #expect(snapshotToPersist == lifecycle.snapshot)
 
         appFlowRouter.setFlow(.main)
         #expect(lifecycle.apply(appFlowRouter.transition) == .applied)
@@ -410,30 +410,77 @@ struct AppSceneNavigationLifecycleTests {
     }
 
     @Test
-    func schemaTwoLifecycleRestorationReturnsSchemaThreeReplacement() throws {
-        let legacy = NavigationSnapshotV2(
-            selectedSection: .home,
-            homePath: FlowPathSnapshot(
-                path: NavigationPath([HomeRoute.details])
-            ),
-            browsePath: FlowPathSnapshot(path: NavigationPath()),
-            settingsPath: FlowPathSnapshot(path: NavigationPath())
+    func schemaTwoLifecycleRestorationReturnsSchemaFourReplacement() throws {
+        let legacy = Data(
+            #"{"schemaVersion":2,"selectedSection":"settings","homePath":{"data":"WyJBcHBUZW1wbGF0ZS5Ib21lUm91dGUiLCJcImRldGFpbHNcIiJd"},"browsePath":{"data":"WyJBcHBUZW1wbGF0ZS5Ccm93c2VSb3V0ZSIsIntcIml0ZW1cIjp7XCJpZFwiOlwic3dpZnR1aVwifX0iXQ=="},"settingsPath":{"data":"WyJBcHBUZW1wbGF0ZS5TZXR0aW5nc1JvdXRlIiwiXCJhYm91dFwiIl0="}}"#.utf8
         )
         let lifecycle = AppSceneNavigationLifecycle(
             appFlowRouter: AppFlowRouter(flow: .main),
             appFlowCoordinator: AppFlowCoordinatorSpy()
         )
-        let replacement = lifecycle.restore(
-            from: try JSONEncoder().encode(legacy)
+        let replacement = lifecycle.restore(from: legacy)
+        let decoded = try NavigationSnapshotCodec.decode(
+            NavigationSnapshotCodec.encode(#require(replacement))
         )
 
+        #expect(decoded.schemaVersion == 4)
         #expect(
-            try NavigationSnapshotCodec.schemaVersion(
-                in: NavigationSnapshotCodec.encode(#require(replacement))
-            ) == 3
+            decoded.lastAppliedTransitionID
+                == lifecycle.router.appFlowRouter.transition.id
         )
+        #expect(lifecycle.restorationResult == .migrated(from: 2))
         #expect(lifecycle.router.home.path.count == 1)
         #expect(lifecycle.router.projects.path.isEmpty)
+    }
+
+    @Test
+    func futureSnapshotDisablesWritesWithoutChangingOriginalBytes() throws {
+        let future = Data(#"{"schemaVersion":99,"future":"keep"}"#.utf8)
+        var persistedData = future
+        let lifecycle = AppSceneNavigationLifecycle(router: makeRouter())
+
+        let replacement = lifecycle.restore(from: future)
+        lifecycle.router.home.push(HomeRoute.details)
+        if let snapshot = lifecycle.snapshotForPersistence {
+            persistedData = try NavigationSnapshotCodec.encode(snapshot)
+        }
+
+        #expect(replacement == nil)
+        #expect(lifecycle.snapshotForPersistence == nil)
+        #expect(lifecycle.restorationResult == .preservedFutureSchema(99))
+        #expect(persistedData == future)
+    }
+
+    @Test
+    func recreatedSceneSkipsItsPersistedRootTransitionCheckpoint() throws {
+        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        appFlowRouter.setFlow(.main)
+        let transition = appFlowRouter.transition
+        let coordinator = AppFlowCoordinatorSpy()
+        let original = AppSceneNavigationLifecycle(
+            appFlowRouter: appFlowRouter,
+            appFlowCoordinator: coordinator
+        )
+        _ = original.restore(from: nil, applying: transition)
+        original.router.home.push(HomeRoute.details)
+        let persisted = try NavigationSnapshotCodec.encode(original.snapshot)
+        let recreated = AppSceneNavigationLifecycle(
+            appFlowRouter: appFlowRouter,
+            appFlowCoordinator: coordinator
+        )
+
+        let replacement = recreated.restore(
+            from: persisted,
+            applying: transition
+        )
+        recreated.router.home.push(HomeDetailsRoute.navigationGuide)
+
+        #expect(replacement == nil)
+        #expect(recreated.restorationResult == .restored)
+        #expect(recreated.router.home.path.count == 2)
+        #expect(recreated.snapshot.lastAppliedTransitionID == transition.id)
+        #expect(recreated.apply(transition) == nil)
+        #expect(recreated.router.home.path.count == 2)
     }
 
     @Test
@@ -551,14 +598,4 @@ struct AppSceneNavigationLifecycleTests {
             selectedSection: selectedSection
         )
     }
-}
-
-private
-nonisolated
-struct NavigationSnapshotV2: Encodable {
-    let schemaVersion = 2
-    let selectedSection: AppSection
-    let homePath: FlowPathSnapshot
-    let browsePath: FlowPathSnapshot
-    let settingsPath: FlowPathSnapshot
 }
