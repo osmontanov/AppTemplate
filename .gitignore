@@ -1,2 +1,21 @@
 .worktrees/
 .superpowers/
+
+# macOS and Xcode user state
+.DS_Store
+xcuserdata/
+*.xcuserstate
+DerivedData/
+
+# Build products and local configuration
+.build/
+build/
+*.local.xcconfig
+.swiftpm/
+
+# Common editor state
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
