@@ -79,6 +79,13 @@ struct AppStateStoreTests {
     }
 
     @Test
+    func missingValueLeavesInitialStateWritable() {
+        let store = AppStateStore(storage: AppStateStorageSpy())
+
+        #expect(store.persistenceStatus == .writable)
+    }
+
+    @Test
     func validCurrentRecordRestoresWithoutWriting() throws {
         let state = AppState(
             isAuthenticated: true,
@@ -91,6 +98,65 @@ struct AppStateStoreTests {
         let store = AppStateStore(storage: storage)
 
         #expect(store.state == state)
+        #expect(storage.savedData.isEmpty)
+    }
+
+    @Test
+    func validCurrentRecordLeavesRestoredStateWritable() throws {
+        let storedState = AppState(
+            isAuthenticated: true,
+            hasCompletedOnboarding: true,
+            isMaintenanceEnabled: true
+        )
+        let storage = AppStateStorageSpy(
+            loadResult: .data(try JSONEncoder().encode(storedState))
+        )
+        let store = AppStateStore(storage: storage)
+
+        #expect(store.persistenceStatus == .writable)
+    }
+
+    @Test(arguments: [
+        AppStateStorageLoadResult.invalidValue,
+        .data(Data("not-json".utf8)),
+        .data(
+            Data(
+                #"{"schemaVersion":0,"isAuthenticated":true,"hasCompletedOnboarding":true,"isMaintenanceEnabled":true}"#.utf8
+            )
+        )
+    ])
+    func repairedRecordLeavesInitialStateWritable(
+        result: AppStateStorageLoadResult
+    ) {
+        let store = AppStateStore(
+            storage: AppStateStorageSpy(loadResult: result)
+        )
+
+        #expect(store.persistenceStatus == .writable)
+    }
+
+    @Test
+    func repairEncodingFailureMakesStoreReadOnly() {
+        let storage = AppStateStorageSpy(loadResult: .invalidValue)
+        let store = AppStateStore(storage: storage, encode: { _ in
+            throw EncodingErrorStub.failed
+        })
+
+        #expect(store.state == .initial)
+        #expect(store.persistenceStatus == .readOnly(.encodingFailed))
+        #expect(storage.savedData.isEmpty)
+    }
+
+    @Test
+    func repairSaveFailureMakesStoreReadOnly() {
+        let storage = AppStateStorageSpy(
+            loadResult: .invalidValue,
+            saveError: StorageError.failed
+        )
+        let store = AppStateStore(storage: storage)
+
+        #expect(store.state == .initial)
+        #expect(store.persistenceStatus == .readOnly(.saveFailed))
         #expect(storage.savedData.isEmpty)
     }
 
