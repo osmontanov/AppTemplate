@@ -8,13 +8,15 @@ struct GuideTopicView: View {
     }
 
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "list.bullet.rectangle")
-                .font(.largeTitle)
-            Text(verbatim: viewModel.id)
-                .font(.title)
+        AdaptiveContentContainer {
+            VStack(spacing: 16) {
+                Image(systemName: "list.bullet.rectangle")
+                    .font(.largeTitle)
+                    .accessibilityHidden(true)
+                Text(verbatim: viewModel.id)
+                    .font(.title)
+            }
         }
-        .padding()
         .navigationTitle("Guide Topic")
     }
 }

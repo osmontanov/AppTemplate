@@ -17,27 +17,43 @@ struct AuthenticationView: View {
     }
 
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "person.badge.key")
-                .font(.largeTitle)
-            Text("Authentication")
-                .font(.title)
-            Text("Continue saves a demo authenticated flag. No credentials are stored.")
-                .foregroundStyle(.secondary)
-            HStack {
-                Button("Cancel") {
-                    viewModel.cancelAuthentication()
+        AdaptiveContentContainer {
+            VStack(spacing: 16) {
+                Image(systemName: "person.badge.key")
+                    .font(.largeTitle)
+                    .accessibilityHidden(true)
+                Text("Authentication")
+                    .font(.title)
+                Text("Continue saves a demo authenticated flag. No credentials are stored.")
+                    .foregroundStyle(.secondary)
+                ViewThatFits(in: .horizontal) {
+                    HStack {
+                        Button("Cancel") {
+                            viewModel.cancelAuthentication()
+                        }
+                        Button("Help") {
+                            viewModel.openHelp()
+                        }
+                        Button("Continue") {
+                            viewModel.continueToApp()
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    VStack {
+                        Button("Cancel") {
+                            viewModel.cancelAuthentication()
+                        }
+                        Button("Help") {
+                            viewModel.openHelp()
+                        }
+                        Button("Continue") {
+                            viewModel.continueToApp()
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
                 }
-                Button("Help") {
-                    viewModel.openHelp()
-                }
-                Button("Continue") {
-                    viewModel.continueToApp()
-                }
-                .buttonStyle(.borderedProminent)
             }
         }
-        .padding()
         .navigationDestination(for: AuthenticationRoute.self) { route in
             switch route {
             case .help:
@@ -45,4 +61,9 @@ struct AuthenticationView: View {
             }
         }
     }
+}
+
+#Preview("Accessibility Size") {
+    PreviewFixtures.authenticationFlow()
+        .environment(\.dynamicTypeSize, .accessibility5)
 }

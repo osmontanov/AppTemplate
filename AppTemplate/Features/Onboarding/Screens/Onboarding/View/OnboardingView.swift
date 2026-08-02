@@ -12,16 +12,22 @@ struct OnboardingView: View {
     }
 
     var body: some View {
-        VStack(spacing: 16) {
-            Text("Welcome to AppTemplate")
-            Text("Completion is saved and the next required app flow opens automatically.")
-                .foregroundStyle(.secondary)
-            Button("Finish Onboarding") {
-                viewModel.finish()
+        AdaptiveContentContainer {
+            VStack(spacing: 16) {
+                Text("Welcome to AppTemplate")
+                Text("Completion is saved and the next required app flow opens automatically.")
+                    .foregroundStyle(.secondary)
+                Button("Finish Onboarding") {
+                    viewModel.finish()
+                }
+                .buttonStyle(.borderedProminent)
             }
-            .buttonStyle(.borderedProminent)
         }
-        .padding()
         .navigationTitle("Onboarding")
     }
+}
+
+#Preview("Accessibility Size") {
+    PreviewFixtures.onboardingFlow()
+        .environment(\.dynamicTypeSize, .accessibility5)
 }

@@ -9,18 +9,19 @@ struct BrowseOptionsView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Browse Options")
-                .font(.title2)
+        AdaptiveContentContainer {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Browse Options")
+                    .font(.title2)
 
-            Text("This template uses static Browse examples while preserving the Options sheet.")
-                .foregroundStyle(.secondary)
+                Text("This template uses static Browse examples while preserving the Options sheet.")
+                    .foregroundStyle(.secondary)
 
-            Button("Done") {
-                dismiss()
+                Button("Done") {
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
             }
-            .buttonStyle(.borderedProminent)
         }
-        .padding()
     }
 }

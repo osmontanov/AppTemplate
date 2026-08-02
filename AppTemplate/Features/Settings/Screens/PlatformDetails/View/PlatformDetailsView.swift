@@ -10,15 +10,17 @@ struct PlatformDetailsView: View {
     }
 
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "laptopcomputer")
-                .font(.largeTitle)
-            Text(viewModel.platform.localizedTitle)
-                .font(.title)
-            Text("Platform Details")
-                .foregroundStyle(.secondary)
+        AdaptiveContentContainer {
+            VStack(spacing: 16) {
+                Image(systemName: "laptopcomputer")
+                    .font(.largeTitle)
+                    .accessibilityHidden(true)
+                Text(viewModel.platform.localizedTitle)
+                    .font(.title)
+                Text("Platform Details")
+                    .foregroundStyle(.secondary)
+            }
         }
-        .padding()
         .navigationTitle("Platform Details")
     }
 }
