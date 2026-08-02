@@ -6,16 +6,29 @@ import Testing
 struct AboutViewModelTests {
     @Test
     func aboutPushesPlatformDetails() {
-        let router = makeTestFlowRouter()
+        let router = AboutRouterSpy()
         let viewModel = AboutViewModel(router: router)
 
         viewModel.openPlatform(.iPadOS)
 
-        #expect(router.path.count == 1)
+        #expect(router.route == .platform(.iPadOS))
     }
 
     @Test
     func aboutScreenCanBeConstructed() {
         _ = AboutView(router: makeTestFlowRouter())
     }
+}
+
+@MainActor
+private final class AboutRouterSpy: LocalOnlyRouterSpy {
+    private(set) var route: AboutRoute?
+
+    func push<Route: NavigationRoute>(_ route: Route) {
+        self.route = route as? AboutRoute
+    }
+
+    func pop() {}
+
+    func popToRoot() {}
 }

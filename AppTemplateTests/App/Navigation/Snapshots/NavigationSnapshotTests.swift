@@ -46,7 +46,33 @@ struct NavigationSnapshotTests {
 
         #expect(restored.restore(from: data).result == .restored)
         #expect(restored.settings.path.count == 2)
-        #expect(restored.snapshot == source.snapshot)
+        #expect(
+            try decodeAboutRoute(from: restored.snapshot.settingsPath)
+                == .platform(.iPadOS)
+        )
+    }
+
+    @Test
+    func legacyPlatformRouteRestoresAsTypedStablePlatform() throws {
+        let source = makeRouter(selectedSection: .settings)
+        var snapshot = source.snapshot
+        snapshot.settingsPath = FlowPathSnapshot(
+            restorationData: try legacyAboutSettingsPathData(
+                platformName: "iPadOS 26"
+            )
+        )
+        let restored = makeRouter()
+
+        let result = restored.restore(
+            from: try NavigationSnapshotCodec.encode(snapshot)
+        )
+
+        #expect(result.result == .restored)
+        #expect(restored.settings.path.count == 2)
+        #expect(
+            try decodeAboutRoute(from: restored.snapshot.settingsPath)
+                == .platform(.iPadOS)
+        )
     }
 
     @Test
@@ -354,6 +380,45 @@ struct NavigationSnapshotTests {
             appFlowCoordinator: AppFlowCoordinatorSpy(),
             selectedSection: selectedSection
         )
+    }
+
+    private func decodeAboutRoute(
+        from snapshot: FlowPathSnapshot
+    ) throws -> AboutRoute {
+        let data = try #require(snapshot.data)
+        let pathElements = try JSONDecoder().decode([String].self, from: data)
+        let typeIndex = try #require(
+            pathElements.firstIndex { $0.hasSuffix(".AboutRoute") }
+        )
+        let payloadIndex = pathElements.index(after: typeIndex)
+        let routePayload = try #require(
+            pathElements.dropFirst(payloadIndex).first
+        )
+        let payload = Data(routePayload.utf8)
+
+        return try JSONDecoder().decode(AboutRoute.self, from: payload)
+    }
+
+    private func legacyAboutSettingsPathData(
+        platformName: String
+    ) throws -> Data {
+        let routeData = try JSONSerialization.data(
+            withJSONObject: [
+                "platform": [
+                    "name": platformName
+                ]
+            ]
+        )
+        let routePayload = try #require(
+            String(data: routeData, encoding: .utf8)
+        )
+
+        return try JSONEncoder().encode([
+            "AppTemplate.SettingsRoute",
+            #""about""#,
+            "AppTemplate.AboutRoute",
+            routePayload
+        ])
     }
 }
 
