@@ -24,8 +24,10 @@ struct AuthenticationViewModelTests {
     func cancellationCallsOnlyTheSceneCollaborator() {
         let coordinator = AppFlowCoordinatorSpy()
         let cancellation = AuthenticationCancellationSpy()
+        let router = FlowRouter(appFlowCoordinator: coordinator)
+        router.push(AuthenticationRoute.help)
         let viewModel = AuthenticationViewModel(
-            router: FlowRouter(appFlowCoordinator: coordinator),
+            router: router,
             authenticationActions: coordinator,
             authenticationCancellation: cancellation
         )
@@ -34,6 +36,7 @@ struct AuthenticationViewModelTests {
 
         #expect(cancellation.callCount == 1)
         #expect(coordinator.commands.isEmpty)
+        #expect(router.path.count == 1)
     }
 
     @Test

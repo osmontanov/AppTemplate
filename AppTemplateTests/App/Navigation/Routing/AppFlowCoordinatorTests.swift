@@ -61,8 +61,15 @@ struct AppFlowCoordinatorTests {
         let sut = try makeSUT(state: state)
         let transition = sut.router.transition
 
-        sut.coordinator.setMaintenanceEnabled(true)
+        let result = sut.coordinator.setMaintenanceEnabled(true)
 
+        #expect(
+            result
+                == .applied(
+                    flow: .authentication,
+                    didTransition: false
+                )
+        )
         #expect(sut.store.state.isMaintenanceEnabled)
         #expect(sut.storage.savedData.count == 1)
         #expect(sut.router.transition == transition)
