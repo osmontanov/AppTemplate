@@ -40,11 +40,10 @@ enum AppLaunchConfiguration: Equatable, Sendable {
         let uiTestingMarker = "--ui-testing"
         let uiTestRootOption = "--ui-test-root"
 
-        guard arguments.filter({ $0 == uiTestingMarker }).count == 1,
-              arguments.filter({ $0 == uiTestRootOption }).count == 1,
-              let rootOptionIndex = arguments.firstIndex(of: uiTestRootOption),
-              arguments.indices.contains(rootOptionIndex + 1),
-              let root = UITestRoot(rawValue: arguments[rootOptionIndex + 1])
+        guard arguments.count == 4,
+              arguments[1] == uiTestingMarker,
+              arguments[2] == uiTestRootOption,
+              let root = UITestRoot(rawValue: arguments[3])
         else {
             self = .live
             return

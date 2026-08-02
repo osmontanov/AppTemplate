@@ -49,6 +49,9 @@ struct AppLaunchConfigurationTests {
         ["AppTemplate", "--ui-testing"],
         ["AppTemplate", "--ui-testing", "--ui-test-root"],
         ["AppTemplate", "--ui-testing", "--ui-test-root", "unknown"],
+        ["AppTemplate", "--ui-test-root", "main", "--ui-testing"],
+        ["AppTemplate", "--ui-testing", "extra", "--ui-test-root", "main"],
+        ["AppTemplate", "--ui-testing", "--ui-test-root", "main", "extra"],
         [
             "AppTemplate", "--ui-testing", "--ui-test-root", "main",
             "--ui-test-root", "maintenance"
