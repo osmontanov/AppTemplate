@@ -1,4 +1,4 @@
 nonisolated
 struct SettingsDependencies: Sendable {
-    init() {}
+    let appInfo: any IAppInfoService
 }

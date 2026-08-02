@@ -5,6 +5,27 @@ import Testing
 @MainActor
 struct SettingsViewModelTests {
     @Test
+    func settingsModelUsesInjectedAppMetadata() {
+        let info = AppInfoService(
+            displayName: "Preview App",
+            version: "9.8.7"
+        )
+        let viewModel = SettingsViewModel(
+            router: makeTestFlowRouter(),
+            authenticationActions: AppFlowCoordinatorSpy(),
+            appInfo: info
+        )
+
+        #expect(
+            viewModel.model
+                == SettingsModel(
+                    displayName: "Preview App",
+                    version: "9.8.7"
+                )
+        )
+    }
+
+    @Test
     func signOutAppliesSemanticSignOut() {
         let coordinator = makeTestAppFlowCoordinator(
             state: AppState(
@@ -15,7 +36,8 @@ struct SettingsViewModelTests {
         )
         let viewModel = SettingsViewModel(
             router: makeTestFlowRouter(),
-            authenticationActions: coordinator
+            authenticationActions: coordinator,
+            appInfo: appInfo
         )
 
         viewModel.returnToAuthentication()
@@ -28,7 +50,8 @@ struct SettingsViewModelTests {
         let router = makeTestFlowRouter()
         let viewModel = SettingsViewModel(
             router: router,
-            authenticationActions: router
+            authenticationActions: router,
+            appInfo: appInfo
         )
 
         viewModel.openAbout()
@@ -53,15 +76,31 @@ struct SettingsViewModelTests {
     func settingsFlowAndScreenCanBeConstructed() {
         let router = makeTestFlowRouter()
 
-        _ = SettingsFlowView(router: router)
-        _ = SettingsView(router: router)
+        _ = SettingsFlowView(
+            router: router,
+            dependencies: settingsDependencies
+        )
+        _ = SettingsView(
+            router: router,
+            dependencies: settingsDependencies
+        )
     }
 
     private func makeSettingsViewModel() -> SettingsViewModel {
         let router = makeTestFlowRouter()
         return SettingsViewModel(
             router: router,
-            authenticationActions: router
+            authenticationActions: router,
+            appInfo: appInfo
         )
+    }
+
+    private let appInfo = AppInfoService(
+        displayName: "AppTemplate",
+        version: "1.0"
+    )
+
+    private var settingsDependencies: SettingsDependencies {
+        SettingsDependencies(appInfo: appInfo)
     }
 }

@@ -10,11 +10,19 @@ struct AppDependenciesTests {
         #expect(dependencies.localDatabase is LocalDatabaseService)
         #expect(dependencies.remote is RemoteService)
         #expect(dependencies.appStateStorage is UserDefaultsAppStateStorage)
+        #expect(dependencies.settings.appInfo is AppInfoService)
     }
 
     @Test
     func previewGraphUsesInMemoryStateStorageByDefault() {
-        let dependencies = AppDependencies.preview()
+        let dependencies = AppDependencies.preview(
+            settings: SettingsDependencies(
+                appInfo: AppInfoService(
+                    displayName: "Preview App",
+                    version: "9.8.7"
+                )
+            )
+        )
 
         #expect(dependencies.appStateStorage is InMemoryAppStateStorage)
     }
@@ -24,7 +32,14 @@ struct AppDependenciesTests {
         let localDatabaseService = InjectedLocalDatabaseService()
         let remoteService = InjectedRemoteService()
         let appStateStorage = InjectedAppStateStorage()
+        let settings = SettingsDependencies(
+            appInfo: AppInfoService(
+                displayName: "Preview App",
+                version: "9.8.7"
+            )
+        )
         let dependencies = AppDependencies.preview(
+            settings: settings,
             appStateStorage: appStateStorage,
             localDatabaseService: localDatabaseService,
             remoteService: remoteService
@@ -42,6 +57,8 @@ struct AppDependenciesTests {
         #expect(resolvedLocalDatabaseService === localDatabaseService)
         #expect(resolvedRemoteService === remoteService)
         #expect(resolvedAppStateStorage === appStateStorage)
+        #expect(dependencies.settings.appInfo.displayName == "Preview App")
+        #expect(dependencies.settings.appInfo.version == "9.8.7")
     }
 
     @Test
@@ -49,10 +66,17 @@ struct AppDependenciesTests {
         let localDatabaseService = InjectedLocalDatabaseService()
         let remoteService = InjectedRemoteService()
         let appStateStorage = InjectedAppStateStorage()
+        let settings = SettingsDependencies(
+            appInfo: AppInfoService(
+                displayName: "Test App",
+                version: "3.2.1"
+            )
+        )
         let dependencies = AppDependencies.test(
             localDatabaseService: localDatabaseService,
             remoteService: remoteService,
-            appStateStorage: appStateStorage
+            appStateStorage: appStateStorage,
+            settings: settings
         )
         let resolvedLocalDatabaseService = try #require(
             dependencies.localDatabase as? InjectedLocalDatabaseService
@@ -67,6 +91,8 @@ struct AppDependenciesTests {
         #expect(resolvedLocalDatabaseService === localDatabaseService)
         #expect(resolvedRemoteService === remoteService)
         #expect(resolvedAppStateStorage === appStateStorage)
+        #expect(dependencies.settings.appInfo.displayName == "Test App")
+        #expect(dependencies.settings.appInfo.version == "3.2.1")
     }
 }
 

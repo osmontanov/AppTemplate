@@ -31,7 +31,10 @@ struct AppTemplateApp: App {
 
     var body: some Scene {
         WindowGroup {
-            AppSceneView(appFlowCoordinator: appFlowCoordinator)
+            AppSceneView(
+                appFlowCoordinator: appFlowCoordinator,
+                settings: dependencies.settings
+            )
         }
     }
 }

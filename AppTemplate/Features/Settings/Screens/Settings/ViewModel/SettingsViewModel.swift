@@ -5,14 +5,20 @@ import Observation
 final class SettingsViewModel {
     private let router: any IFlowRouter
     private let authenticationActions: any IAuthenticationActions
+    let model: SettingsModel
     var sheet: SettingsSheetRoute?
 
     init(
         router: any IFlowRouter,
-        authenticationActions: any IAuthenticationActions
+        authenticationActions: any IAuthenticationActions,
+        appInfo: any IAppInfoService
     ) {
         self.router = router
         self.authenticationActions = authenticationActions
+        model = SettingsModel(
+            displayName: appInfo.displayName,
+            version: appInfo.version
+        )
     }
 
     func openAbout() {

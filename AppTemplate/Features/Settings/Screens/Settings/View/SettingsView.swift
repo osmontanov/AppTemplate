@@ -4,12 +4,16 @@ struct SettingsView: View {
     private let router: FlowRouter
     @State private var viewModel: SettingsViewModel
 
-    init(router: FlowRouter) {
+    init(
+        router: FlowRouter,
+        dependencies: SettingsDependencies
+    ) {
         self.router = router
         _viewModel = State(
             initialValue: SettingsViewModel(
                 router: router,
-                authenticationActions: router
+                authenticationActions: router,
+                appInfo: dependencies.appInfo
             )
         )
     }
@@ -18,6 +22,11 @@ struct SettingsView: View {
         @Bindable var viewModel = viewModel
 
         List {
+            Section("App") {
+                LabeledContent("Name", value: viewModel.model.displayName)
+                LabeledContent("Version", value: viewModel.model.version)
+            }
+
             Section("Session") {
                 Text(
                     "The demo authenticated flag is persisted without "

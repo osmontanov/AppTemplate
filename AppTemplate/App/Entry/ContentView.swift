@@ -9,10 +9,15 @@ import Foundation
 import SwiftUI
 
 struct ContentView: View {
+    let settings: SettingsDependencies
     @State private var appFlowCoordinator: AppFlowCoordinator
     @State private var router: AppRouter
 
-    init(appFlowCoordinator: AppFlowCoordinator) {
+    init(
+        appFlowCoordinator: AppFlowCoordinator,
+        settings: SettingsDependencies
+    ) {
+        self.settings = settings
         _appFlowCoordinator = State(initialValue: appFlowCoordinator)
         _router = State(
             initialValue: AppRouter(
@@ -25,7 +30,8 @@ struct ContentView: View {
     var body: some View {
         AppRootView(
             appFlowRouter: appFlowCoordinator.appFlowRouter,
-            router: router
+            router: router,
+            settings: settings
         )
     }
 }
@@ -42,6 +48,12 @@ private func makePreviewAppFlowCoordinator() -> AppFlowCoordinator {
 
 #Preview {
     ContentView(
-        appFlowCoordinator: makePreviewAppFlowCoordinator()
+        appFlowCoordinator: makePreviewAppFlowCoordinator(),
+        settings: SettingsDependencies(
+            appInfo: AppInfoService(
+                displayName: "AppTemplate Preview",
+                version: "1.0"
+            )
+        )
     )
 }
