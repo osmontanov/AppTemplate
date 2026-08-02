@@ -57,7 +57,7 @@ final class AppFlowCoordinator: IAppFlowCoordinator {
         nonMainPendingIntentAction: PendingIntentAction = .preserve,
         forceTransitionWhenStateChanges: Bool = false
     ) {
-        let didChangeState = store.setState(state)
+        let didChangeState = store.setState(state) == .persisted
         let targetFlow = AppFlowPolicy.resolve(store.state)
         let mustForceTransition =
             forceTransitionWhenStateChanges && didChangeState

@@ -13,7 +13,7 @@ struct UserDefaultsAppStateStorage:
         self.userDefaults = userDefaults
     }
 
-    func load() -> AppStateStorageLoadResult {
+    func load() throws -> AppStateStorageLoadResult {
         guard let value = userDefaults.object(forKey: Self.key) else {
             return .missing
         }
@@ -23,11 +23,11 @@ struct UserDefaultsAppStateStorage:
         return .data(data)
     }
 
-    func save(_ data: Data) {
+    func save(_ data: Data) throws {
         userDefaults.set(data, forKey: Self.key)
     }
 
-    func remove() {
+    func remove() throws {
         userDefaults.removeObject(forKey: Self.key)
     }
 }

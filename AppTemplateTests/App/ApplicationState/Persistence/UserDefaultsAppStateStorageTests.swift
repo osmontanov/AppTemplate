@@ -11,18 +11,18 @@ struct UserDefaultsAppStateStorageTests {
         let storage = UserDefaultsAppStateStorage(userDefaults: defaults)
         let data = Data([0x01, 0x02, 0x03])
 
-        #expect(storage.load() == .missing)
+        #expect(try storage.load() == .missing)
 
-        storage.save(data)
+        try storage.save(data)
 
-        #expect(storage.load() == .data(data))
+        #expect(try storage.load() == .data(data))
         #expect(
             defaults.data(forKey: UserDefaultsAppStateStorage.key) == data
         )
 
-        storage.remove()
+        try storage.remove()
 
-        #expect(storage.load() == .missing)
+        #expect(try storage.load() == .missing)
     }
 
     @Test
@@ -36,6 +36,6 @@ struct UserDefaultsAppStateStorageTests {
         )
         let storage = UserDefaultsAppStateStorage(userDefaults: defaults)
 
-        #expect(storage.load() == .invalidValue)
+        #expect(try storage.load() == .invalidValue)
     }
 }

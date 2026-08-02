@@ -13,7 +13,7 @@ struct AppDependencies: Sendable {
     }
 
     static func preview(
-        appStateStorage: any IAppStateStorage,
+        appStateStorage: any IAppStateStorage = InMemoryAppStateStorage(),
         localDatabaseService: any ILocalDatabaseService = LocalDatabaseService(),
         remoteService: any IRemoteService = RemoteService()
     ) -> AppDependencies {

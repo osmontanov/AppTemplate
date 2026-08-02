@@ -13,6 +13,13 @@ struct AppDependenciesTests {
     }
 
     @Test
+    func previewGraphUsesInMemoryStateStorageByDefault() {
+        let dependencies = AppDependencies.preview()
+
+        #expect(dependencies.appStateStorage is InMemoryAppStateStorage)
+    }
+
+    @Test
     func previewGraphUsesOnlyProvidedValues() throws {
         let localDatabaseService = InjectedLocalDatabaseService()
         let remoteService = InjectedRemoteService()
