@@ -5,7 +5,7 @@ import SwiftUI
 
 @MainActor
 @Observable
-final class AppRouter {
+final class AppRouter: IAuthenticationCancellation {
     let appFlowRouter: AppFlowRouter
     var selectedSection: AppSection
     let authentication: FlowRouter
@@ -61,6 +61,11 @@ final class AppRouter {
     func openDefaultDestination(for section: AppSection) {
         selectedSection = section
         router(for: section).popToRoot()
+    }
+
+    func cancelAuthentication() {
+        authentication.popToRoot()
+        pendingIntent = nil
     }
 
     private func replayPendingIntent() -> NavigationOutcome? {

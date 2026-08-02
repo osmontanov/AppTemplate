@@ -3,18 +3,26 @@ import Observation
 @MainActor
 @Observable
 final class AuthenticationViewModel {
-    private let router: any IRouter
+    private let router: any IFlowRouter
+    private let authenticationActions: any IAuthenticationActions
+    private let authenticationCancellation: any IAuthenticationCancellation
 
-    init(router: any IRouter) {
+    init(
+        router: any IFlowRouter,
+        authenticationActions: any IAuthenticationActions,
+        authenticationCancellation: any IAuthenticationCancellation
+    ) {
         self.router = router
+        self.authenticationActions = authenticationActions
+        self.authenticationCancellation = authenticationCancellation
     }
 
     func continueToApp() {
-        router.signIn()
+        authenticationActions.signIn()
     }
 
     func cancelAuthentication() {
-        router.setFlow(.authentication)
+        authenticationCancellation.cancelAuthentication()
     }
 
     func openHelp() {

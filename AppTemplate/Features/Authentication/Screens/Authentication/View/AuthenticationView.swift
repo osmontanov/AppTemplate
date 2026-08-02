@@ -3,9 +3,16 @@ import SwiftUI
 struct AuthenticationView: View {
     @State private var viewModel: AuthenticationViewModel
 
-    init(router: FlowRouter) {
+    init(
+        router: FlowRouter,
+        authenticationCancellation: any IAuthenticationCancellation
+    ) {
         _viewModel = State(
-            initialValue: AuthenticationViewModel(router: router)
+            initialValue: AuthenticationViewModel(
+                router: router,
+                authenticationActions: router,
+                authenticationCancellation: authenticationCancellation
+            )
         )
     }
 

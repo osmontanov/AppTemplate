@@ -3,7 +3,9 @@ import SwiftUI
 
 @MainActor
 @Observable
-final class FlowRouter: IRouter {
+final class FlowRouter:
+    IFlowRouter,
+    IAppFlowCoordinator {
     var path: NavigationPath
     private let appFlowCoordinator: any IAppFlowCoordinator
 
@@ -15,27 +17,28 @@ final class FlowRouter: IRouter {
         self.appFlowCoordinator = appFlowCoordinator
     }
 
-    func setFlow(_ flow: AppFlow) {
-        appFlowCoordinator.setFlow(flow)
-    }
-
-    func completeOnboarding() {
+    @discardableResult
+    func completeOnboarding() -> AppFlowActionResult {
         appFlowCoordinator.completeOnboarding()
     }
 
-    func restartOnboarding() {
+    @discardableResult
+    func restartOnboarding() -> AppFlowActionResult {
         appFlowCoordinator.restartOnboarding()
     }
 
-    func signIn() {
+    @discardableResult
+    func signIn() -> AppFlowActionResult {
         appFlowCoordinator.signIn()
     }
 
-    func signOut() {
+    @discardableResult
+    func signOut() -> AppFlowActionResult {
         appFlowCoordinator.signOut()
     }
 
-    func setMaintenanceEnabled(_ isEnabled: Bool) {
+    @discardableResult
+    func setMaintenanceEnabled(_ isEnabled: Bool) -> AppFlowActionResult {
         appFlowCoordinator.setMaintenanceEnabled(isEnabled)
     }
 

@@ -7,7 +7,7 @@ struct HomeViewModelTests {
     @Test
     func userIntentsPushScreenOwnedRoutes() {
         let router = makeTestFlowRouter()
-        let viewModel = HomeViewModel(router: router)
+        let viewModel = makeHomeViewModel(router: router)
 
         viewModel.openDetails()
         viewModel.openNavigationGuide()
@@ -20,7 +20,7 @@ struct HomeViewModelTests {
     func resetAlertIsLocalAndConfirmationClearsTheFlow() {
         let router = makeTestFlowRouter()
         router.push(HomeRoute.details)
-        let viewModel = HomeViewModel(router: router)
+        let viewModel = makeHomeViewModel(router: router)
 
         viewModel.requestNavigationReset()
         #expect(viewModel.alert == .resetNavigation)
@@ -35,7 +35,7 @@ struct HomeViewModelTests {
     @Test
     func dismissingResetBindingClearsTheAlert() {
         let router = makeTestFlowRouter()
-        let viewModel = HomeViewModel(router: router)
+        let viewModel = makeHomeViewModel(router: router)
         viewModel.requestNavigationReset()
 
         viewModel.isResetAlertPresented = false
@@ -45,7 +45,7 @@ struct HomeViewModelTests {
 
     @Test
     func homeOwnsQuickStartSheetState() {
-        let viewModel = HomeViewModel(router: makeTestFlowRouter())
+        let viewModel = makeHomeViewModel()
 
         viewModel.openQuickStart()
         #expect(viewModel.sheet == .quickStart)
@@ -55,19 +55,29 @@ struct HomeViewModelTests {
     }
 
     @Test
-    func homeRootActionsRequestPersistentPolicyChanges() {
-        let coordinator = AppFlowCoordinatorSpy()
+    func homeRootActionsApplyPersistentPolicyChanges() {
+        let mainState = AppState(
+            isAuthenticated: true,
+            hasCompletedOnboarding: true,
+            isMaintenanceEnabled: false
+        )
+        let onboardingCoordinator = makeTestAppFlowCoordinator(
+            state: mainState
+        )
+        let maintenanceCoordinator = makeTestAppFlowCoordinator(
+            state: mainState
+        )
         let viewModel = HomeViewModel(
-            router: FlowRouter(appFlowCoordinator: coordinator)
+            router: makeTestFlowRouter(),
+            onboardingActions: onboardingCoordinator,
+            maintenanceActions: maintenanceCoordinator
         )
 
         viewModel.openOnboarding()
         viewModel.openMaintenance()
 
-        #expect(coordinator.commands == [
-            .restartOnboarding,
-            .setMaintenanceEnabled(true)
-        ])
+        #expect(onboardingCoordinator.appFlowRouter.flow == .onboarding)
+        #expect(maintenanceCoordinator.appFlowRouter.flow == .maintenance)
     }
 
     @Test
@@ -76,5 +86,16 @@ struct HomeViewModelTests {
 
         _ = HomeFlowView(router: router)
         _ = HomeView(router: router)
+    }
+
+    private func makeHomeViewModel(
+        router: FlowRouter? = nil
+    ) -> HomeViewModel {
+        let router = router ?? makeTestFlowRouter()
+        return HomeViewModel(
+            router: router,
+            onboardingActions: router,
+            maintenanceActions: router
+        )
     }
 }

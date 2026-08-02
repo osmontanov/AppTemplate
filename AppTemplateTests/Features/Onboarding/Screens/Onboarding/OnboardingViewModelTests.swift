@@ -5,15 +5,21 @@ import Testing
 @MainActor
 struct OnboardingViewModelTests {
     @Test
-    func finishRequestsOnboardingCompletion() {
-        let coordinator = AppFlowCoordinatorSpy()
+    func finishAppliesOnboardingCompletion() {
+        let coordinator = makeTestAppFlowCoordinator(
+            state: AppState(
+                isAuthenticated: true,
+                hasCompletedOnboarding: false,
+                isMaintenanceEnabled: false
+            )
+        )
         let viewModel = OnboardingViewModel(
-            router: FlowRouter(appFlowCoordinator: coordinator)
+            onboardingActions: coordinator
         )
 
         viewModel.finish()
 
-        #expect(coordinator.commands == [.completeOnboarding])
+        #expect(coordinator.appFlowRouter.flow == .main)
     }
 
     @Test

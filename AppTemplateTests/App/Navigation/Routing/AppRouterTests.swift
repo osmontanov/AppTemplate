@@ -15,7 +15,6 @@ struct AppRouterTests {
             selectedSection: .settings
         )
 
-        router.authentication.setFlow(.authentication)
         router.onboarding.completeOnboarding()
         router.home.restartOnboarding()
         router.browse.signIn()
@@ -26,7 +25,6 @@ struct AppRouterTests {
         #expect(router.appFlowRouter === appFlowRouter)
         #expect(router.selectedSection == .settings)
         #expect(coordinator.commands == [
-            .setFlow(.authentication),
             .completeOnboarding,
             .restartOnboarding,
             .signIn,
@@ -343,6 +341,33 @@ struct AppRouterTests {
         #expect(second.selectedSection == .projects)
         #expect(second.projects.path.count == 2)
         #expect(second.browse.path.isEmpty)
+    }
+
+    @Test
+    func cancellingAuthenticationClearsOnlyTheCancellingScene() {
+        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let coordinator = AppFlowCoordinatorSpy()
+        let firstScene = AppRouter(
+            appFlowRouter: appFlowRouter,
+            appFlowCoordinator: coordinator
+        )
+        let secondScene = AppRouter(
+            appFlowRouter: appFlowRouter,
+            appFlowCoordinator: coordinator
+        )
+        firstScene.authentication.push(AuthenticationTestRoute.step)
+        secondScene.authentication.push(AuthenticationTestRoute.step)
+        _ = firstScene.handle(.selectSection(.browse))
+        _ = secondScene.handle(.selectSection(.settings))
+        let transition = appFlowRouter.transition
+
+        firstScene.cancelAuthentication()
+
+        #expect(firstScene.authentication.path.isEmpty)
+        #expect(firstScene.pendingIntent == nil)
+        #expect(secondScene.authentication.path.count == 1)
+        #expect(secondScene.pendingIntent == .selectSection(.settings))
+        #expect(appFlowRouter.transition == transition)
     }
 
     private func makeRouter(

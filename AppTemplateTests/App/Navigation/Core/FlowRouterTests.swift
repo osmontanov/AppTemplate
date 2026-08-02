@@ -53,46 +53,53 @@ struct FlowRouterTests {
     }
 
     @Test
-    func flowRouterDelegatesEveryGlobalCommand() {
+    func flowRouterDelegatesEverySemanticCommandAndResult() {
         let coordinator = AppFlowCoordinatorSpy()
+        coordinator.completeOnboardingResult = .applied(
+            flow: .authentication,
+            didTransition: false
+        )
+        coordinator.restartOnboardingResult = .applied(
+            flow: .onboarding,
+            didTransition: true
+        )
+        coordinator.signInResult = .rejected(.saveFailed)
+        coordinator.signOutResult = .applied(
+            flow: .authentication,
+            didTransition: true
+        )
+        coordinator.setMaintenanceEnabledResult = .applied(
+            flow: .maintenance,
+            didTransition: true
+        )
         let router = FlowRouter(appFlowCoordinator: coordinator)
 
-        router.setFlow(.authentication)
-        router.completeOnboarding()
-        router.restartOnboarding()
-        router.signIn()
-        router.signOut()
-        router.setMaintenanceEnabled(true)
-        router.setMaintenanceEnabled(false)
+        #expect(
+            router.completeOnboarding()
+                == .applied(flow: .authentication, didTransition: false)
+        )
+        #expect(
+            router.restartOnboarding()
+                == .applied(flow: .onboarding, didTransition: true)
+        )
+        #expect(router.signIn() == .rejected(.saveFailed))
+        #expect(
+            router.signOut()
+                == .applied(flow: .authentication, didTransition: true)
+        )
+        #expect(
+            router.setMaintenanceEnabled(true)
+                == .applied(flow: .maintenance, didTransition: true)
+        )
 
         #expect(coordinator.commands == [
-            .setFlow(.authentication),
             .completeOnboarding,
             .restartOnboarding,
             .signIn,
             .signOut,
-            .setMaintenanceEnabled(true),
-            .setMaintenanceEnabled(false)
+            .setMaintenanceEnabled(true)
         ])
     }
-
-    @Test
-    func compositeContractSupportsLocalAndGlobalNavigation() {
-        let coordinator = AppFlowCoordinatorSpy()
-        let concrete = FlowRouter(appFlowCoordinator: coordinator)
-        let router: any IRouter = concrete
-
-        router.push(TestRoute.first)
-        router.setFlow(.main)
-
-        #expect(concrete.path.count == 1)
-        #expect(coordinator.commands == [.setFlow(.main)])
-    }
-}
-
-nonisolated
-private enum TestRoute: String, NavigationRoute {
-    case first
 }
 
 nonisolated

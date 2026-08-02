@@ -5,7 +5,9 @@ struct OnboardingView: View {
 
     init(router: FlowRouter) {
         _viewModel = State(
-            initialValue: OnboardingViewModel(router: router)
+            initialValue: OnboardingViewModel(
+                onboardingActions: router
+            )
         )
     }
 

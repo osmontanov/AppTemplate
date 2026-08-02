@@ -4,9 +4,9 @@ import Observation
 @Observable
 final class BrowseListViewModel {
     var sheet: BrowseSheetRoute?
-    private let router: any IRouter
+    private let router: any IFlowRouter
 
-    init(router: any IRouter) {
+    init(router: any IFlowRouter) {
         self.router = router
     }
 

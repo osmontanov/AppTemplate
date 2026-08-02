@@ -5,7 +5,9 @@ struct MaintenanceView: View {
 
     init(router: FlowRouter) {
         _viewModel = State(
-            initialValue: MaintenanceViewModel(router: router)
+            initialValue: MaintenanceViewModel(
+                maintenanceActions: router
+            )
         )
     }
 

@@ -4,12 +4,12 @@ import Observation
 @Observable
 final class ProjectDetailsViewModel {
     let projectID: ProjectItem.ID
-    private let router: any IRouter
+    private let router: any IFlowRouter
     var sheet: ProjectDetailsSheetRoute?
 
     init(
         projectID: ProjectItem.ID,
-        router: any IRouter
+        router: any IFlowRouter
     ) {
         self.projectID = projectID
         self.router = router

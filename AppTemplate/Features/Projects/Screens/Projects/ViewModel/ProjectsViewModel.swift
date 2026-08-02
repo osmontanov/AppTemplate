@@ -3,10 +3,10 @@ import Observation
 @MainActor
 @Observable
 final class ProjectsViewModel {
-    private let router: any IRouter
+    private let router: any IFlowRouter
     var sheet: ProjectsSheetRoute?
 
-    init(router: any IRouter) {
+    init(router: any IFlowRouter) {
         self.router = router
     }
 

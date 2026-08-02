@@ -5,21 +5,31 @@ import Testing
 @MainActor
 struct SettingsViewModelTests {
     @Test
-    func signOutRequestsSemanticSignOut() {
-        let coordinator = AppFlowCoordinatorSpy()
+    func signOutAppliesSemanticSignOut() {
+        let coordinator = makeTestAppFlowCoordinator(
+            state: AppState(
+                isAuthenticated: true,
+                hasCompletedOnboarding: true,
+                isMaintenanceEnabled: false
+            )
+        )
         let viewModel = SettingsViewModel(
-            router: FlowRouter(appFlowCoordinator: coordinator)
+            router: makeTestFlowRouter(),
+            authenticationActions: coordinator
         )
 
         viewModel.returnToAuthentication()
 
-        #expect(coordinator.commands == [.signOut])
+        #expect(coordinator.appFlowRouter.flow == .authentication)
     }
 
     @Test
     func openingAboutPushesTheSettingsScreenRoute() {
         let router = makeTestFlowRouter()
-        let viewModel = SettingsViewModel(router: router)
+        let viewModel = SettingsViewModel(
+            router: router,
+            authenticationActions: router
+        )
 
         viewModel.openAbout()
 
@@ -48,6 +58,10 @@ struct SettingsViewModelTests {
     }
 
     private func makeSettingsViewModel() -> SettingsViewModel {
-        SettingsViewModel(router: makeTestFlowRouter())
+        let router = makeTestFlowRouter()
+        return SettingsViewModel(
+            router: router,
+            authenticationActions: router
+        )
     }
 }

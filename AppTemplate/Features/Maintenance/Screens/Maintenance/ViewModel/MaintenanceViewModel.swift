@@ -3,13 +3,13 @@ import Observation
 @MainActor
 @Observable
 final class MaintenanceViewModel {
-    private let router: any IRouter
+    private let maintenanceActions: any IMaintenanceActions
 
-    init(router: any IRouter) {
-        self.router = router
+    init(maintenanceActions: any IMaintenanceActions) {
+        self.maintenanceActions = maintenanceActions
     }
 
     func returnToApp() {
-        router.setMaintenanceEnabled(false)
+        maintenanceActions.setMaintenanceEnabled(false)
     }
 }

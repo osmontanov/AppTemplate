@@ -5,33 +5,46 @@ import Testing
 @MainActor
 struct AuthenticationViewModelTests {
     @Test
-    func continueRequestsSemanticSignIn() {
-        let coordinator = AppFlowCoordinatorSpy()
+    func continueAppliesSemanticSignIn() {
+        let coordinator = makeTestAppFlowCoordinator()
+        let cancellation = AuthenticationCancellationSpy()
         let viewModel = AuthenticationViewModel(
-            router: FlowRouter(appFlowCoordinator: coordinator)
+            router: FlowRouter(appFlowCoordinator: coordinator),
+            authenticationActions: coordinator,
+            authenticationCancellation: cancellation
         )
 
         viewModel.continueToApp()
 
-        #expect(coordinator.commands == [.signIn])
+        #expect(coordinator.appFlowRouter.flow == .onboarding)
+        #expect(cancellation.callCount == 0)
     }
 
     @Test
-    func cancellationRemainsARawAuthenticationReset() {
+    func cancellationCallsOnlyTheSceneCollaborator() {
         let coordinator = AppFlowCoordinatorSpy()
+        let cancellation = AuthenticationCancellationSpy()
         let viewModel = AuthenticationViewModel(
-            router: FlowRouter(appFlowCoordinator: coordinator)
+            router: FlowRouter(appFlowCoordinator: coordinator),
+            authenticationActions: coordinator,
+            authenticationCancellation: cancellation
         )
 
         viewModel.cancelAuthentication()
 
-        #expect(coordinator.commands == [.setFlow(.authentication)])
+        #expect(cancellation.callCount == 1)
+        #expect(coordinator.commands.isEmpty)
     }
 
     @Test
     func authenticationHelpUsesAuthenticationFlowRouter() {
         let flowRouter = makeTestFlowRouter()
-        let viewModel = AuthenticationViewModel(router: flowRouter)
+        let cancellation = AuthenticationCancellationSpy()
+        let viewModel = AuthenticationViewModel(
+            router: flowRouter,
+            authenticationActions: flowRouter,
+            authenticationCancellation: cancellation
+        )
 
         viewModel.openHelp()
 
@@ -45,7 +58,25 @@ struct AuthenticationViewModelTests {
         )
         let flowRouter = FlowRouter(appFlowCoordinator: coordinator)
 
-        _ = AuthenticationView(router: flowRouter)
-        _ = AuthenticationFlowView(router: flowRouter)
+        let cancellation = AuthenticationCancellationSpy()
+        _ = AuthenticationView(
+            router: flowRouter,
+            authenticationCancellation: cancellation
+        )
+        _ = AuthenticationFlowView(
+            router: flowRouter,
+            authenticationCancellation: cancellation
+        )
+    }
+}
+
+@MainActor
+private final class AuthenticationCancellationSpy:
+    IAuthenticationCancellation
+{
+    private(set) var callCount = 0
+
+    func cancelAuthentication() {
+        callCount += 1
     }
 }

@@ -3,13 +3,13 @@ import Observation
 @MainActor
 @Observable
 final class OnboardingViewModel {
-    private let router: any IRouter
+    private let onboardingActions: any IOnboardingActions
 
-    init(router: any IRouter) {
-        self.router = router
+    init(onboardingActions: any IOnboardingActions) {
+        self.onboardingActions = onboardingActions
     }
 
     func finish() {
-        router.completeOnboarding()
+        onboardingActions.completeOnboarding()
     }
 }

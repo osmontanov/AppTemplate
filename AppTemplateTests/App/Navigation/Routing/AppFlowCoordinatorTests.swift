@@ -102,14 +102,45 @@ struct AppFlowCoordinatorTests {
     }
 
     @Test
-    func rawSetFlowNeverWritesPersistentState() throws {
-        let sut = try makeSUT(state: .initial)
+    func rejectedSignInDoesNotChangeStateOrRootTransition() throws {
+        let sut = try makeSUT(
+            state: .initial,
+            saveError: StorageError.failed
+        )
+        let transition = sut.router.transition
 
-        sut.coordinator.setFlow(.main)
+        let result = sut.coordinator.signIn()
 
+        #expect(result == .rejected(.saveFailed))
         #expect(sut.store.state == .initial)
-        #expect(sut.storage.savedData.isEmpty)
-        #expect(sut.router.flow == .main)
+        #expect(sut.router.transition == transition)
+    }
+
+    @Test
+    func unchangedPolicyActionReturnsUnchanged() throws {
+        let state = AppState(
+            isAuthenticated: true,
+            hasCompletedOnboarding: true,
+            isMaintenanceEnabled: false
+        )
+        let sut = try makeSUT(state: state)
+
+        #expect(sut.coordinator.signIn() == .unchanged)
+    }
+
+    @Test
+    func unchangedStateCanReconcileInfrastructureFlowDrift() throws {
+        let state = AppState(
+            isAuthenticated: true,
+            hasCompletedOnboarding: true,
+            isMaintenanceEnabled: false
+        )
+        let sut = try makeSUT(state: state, visibleFlow: .onboarding)
+
+        #expect(
+            sut.coordinator.signIn()
+                == .applied(flow: .main, didTransition: true)
+        )
     }
 
     @Test
@@ -178,10 +209,12 @@ private struct CoordinatorSUT {
 @MainActor
 private func makeSUT(
     state: AppState,
-    visibleFlow: AppFlow? = nil
+    visibleFlow: AppFlow? = nil,
+    saveError: (any Error)? = nil
 ) throws -> CoordinatorSUT {
     let storage = AppStateStorageSpy(
-        loadResult: .data(try JSONEncoder().encode(state))
+        loadResult: .data(try JSONEncoder().encode(state)),
+        saveError: saveError
     )
     let store = AppStateStore(storage: storage)
     let router = AppFlowRouter(
@@ -196,4 +229,8 @@ private func makeSUT(
             appFlowRouter: router
         )
     )
+}
+
+private enum StorageError: Error {
+    case failed
 }

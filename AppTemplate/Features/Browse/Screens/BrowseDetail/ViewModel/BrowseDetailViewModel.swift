@@ -4,9 +4,9 @@ import Observation
 @Observable
 final class BrowseDetailViewModel {
     let id: BrowseItem.ID
-    private let router: any IRouter
+    private let router: any IFlowRouter
 
-    init(id: BrowseItem.ID, router: any IRouter) {
+    init(id: BrowseItem.ID, router: any IFlowRouter) {
         self.id = id
         self.router = router
     }

@@ -3,11 +3,16 @@ import Observation
 @MainActor
 @Observable
 final class SettingsViewModel {
-    private let router: any IRouter
+    private let router: any IFlowRouter
+    private let authenticationActions: any IAuthenticationActions
     var sheet: SettingsSheetRoute?
 
-    init(router: any IRouter) {
+    init(
+        router: any IFlowRouter,
+        authenticationActions: any IAuthenticationActions
+    ) {
         self.router = router
+        self.authenticationActions = authenticationActions
     }
 
     func openAbout() {
@@ -23,6 +28,6 @@ final class SettingsViewModel {
     }
 
     func returnToAuthentication() {
-        router.signOut()
+        authenticationActions.signOut()
     }
 }

@@ -16,8 +16,8 @@ struct ProjectConfigurationTests {
 
     @MainActor
     @Test
-    func createProjectFlowForwardsGlobalFlowFromItsNormalInitializer() {
-        let coordinator = AppFlowCoordinatorSpy()
+    func createProjectFlowKeepsItsNavigationPathIsolated() {
+        let coordinator = makeTestAppFlowCoordinator()
         let presentingRouter = FlowRouter(
             appFlowCoordinator: coordinator
         )
@@ -26,31 +26,9 @@ struct ProjectConfigurationTests {
         )
 
         flow.localRouter.push(ProjectBasicsRoute.options)
-        flow.localRouter.setFlow(.onboarding)
 
         #expect(flow.localRouter.path.count == 1)
         #expect(presentingRouter.path.isEmpty)
-        #expect(coordinator.commands == [.setFlow(.onboarding)])
-    }
-
-    @MainActor
-    @Test
-    func createProjectFlowForwardsGlobalFlowFromItsPresentationInitializer() {
-        let coordinator = AppFlowCoordinatorSpy()
-        let presentingRouter = FlowRouter(
-            appFlowCoordinator: coordinator
-        )
-        let flow = CreateProjectFlowView(
-            flowState: CreateProjectFlowState(),
-            appFlowCoordinator: presentingRouter
-        )
-
-        flow.localRouter.push(ProjectBasicsRoute.options)
-        flow.localRouter.setFlow(.maintenance)
-
-        #expect(flow.localRouter.path.count == 1)
-        #expect(presentingRouter.path.isEmpty)
-        #expect(coordinator.commands == [.setFlow(.maintenance)])
     }
 
     @MainActor
@@ -72,7 +50,10 @@ struct ProjectConfigurationTests {
             router: router
         )
         _ = AppShellView(router: router)
-        _ = AuthenticationFlowView(router: router.authentication)
+        _ = AuthenticationFlowView(
+            router: router.authentication,
+            authenticationCancellation: router
+        )
         _ = AuthenticationHelpView()
         _ = OnboardingFlowView(router: router.onboarding)
         _ = OnboardingView(router: router.onboarding)

@@ -3,7 +3,6 @@ import SwiftUI
 
 nonisolated
 enum AppFlowCoordinatorCommand: Equatable, Sendable {
-    case setFlow(AppFlow)
     case completeOnboarding
     case restartOnboarding
     case signIn
@@ -14,29 +13,40 @@ enum AppFlowCoordinatorCommand: Equatable, Sendable {
 @MainActor
 final class AppFlowCoordinatorSpy: IAppFlowCoordinator {
     private(set) var commands: [AppFlowCoordinatorCommand] = []
+    var completeOnboardingResult: AppFlowActionResult = .unchanged
+    var restartOnboardingResult: AppFlowActionResult = .unchanged
+    var signInResult: AppFlowActionResult = .unchanged
+    var signOutResult: AppFlowActionResult = .unchanged
+    var setMaintenanceEnabledResult: AppFlowActionResult = .unchanged
 
-    func setFlow(_ flow: AppFlow) {
-        commands.append(.setFlow(flow))
-    }
-
-    func completeOnboarding() {
+    @discardableResult
+    func completeOnboarding() -> AppFlowActionResult {
         commands.append(.completeOnboarding)
+        return completeOnboardingResult
     }
 
-    func restartOnboarding() {
+    @discardableResult
+    func restartOnboarding() -> AppFlowActionResult {
         commands.append(.restartOnboarding)
+        return restartOnboardingResult
     }
 
-    func signIn() {
+    @discardableResult
+    func signIn() -> AppFlowActionResult {
         commands.append(.signIn)
+        return signInResult
     }
 
-    func signOut() {
+    @discardableResult
+    func signOut() -> AppFlowActionResult {
         commands.append(.signOut)
+        return signOutResult
     }
 
-    func setMaintenanceEnabled(_ isEnabled: Bool) {
+    @discardableResult
+    func setMaintenanceEnabled(_ isEnabled: Bool) -> AppFlowActionResult {
         commands.append(.setMaintenanceEnabled(isEnabled))
+        return setMaintenanceEnabledResult
     }
 }
 
@@ -62,13 +72,4 @@ func makeTestAppFlowCoordinator(
 }
 
 @MainActor
-protocol LocalOnlyRouterSpy: IRouter {}
-
-extension LocalOnlyRouterSpy {
-    func setFlow(_ flow: AppFlow) {}
-    func completeOnboarding() {}
-    func restartOnboarding() {}
-    func signIn() {}
-    func signOut() {}
-    func setMaintenanceEnabled(_ isEnabled: Bool) {}
-}
+protocol LocalOnlyRouterSpy: IFlowRouter {}

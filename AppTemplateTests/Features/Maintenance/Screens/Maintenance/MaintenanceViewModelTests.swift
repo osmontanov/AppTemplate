@@ -6,16 +6,20 @@ import Testing
 struct MaintenanceViewModelTests {
     @Test
     func returnToAppDisablesMaintenance() {
-        let coordinator = AppFlowCoordinatorSpy()
+        let coordinator = makeTestAppFlowCoordinator(
+            state: AppState(
+                isAuthenticated: true,
+                hasCompletedOnboarding: true,
+                isMaintenanceEnabled: true
+            )
+        )
         let viewModel = MaintenanceViewModel(
-            router: FlowRouter(appFlowCoordinator: coordinator)
+            maintenanceActions: coordinator
         )
 
         viewModel.returnToApp()
 
-        #expect(
-            coordinator.commands == [.setMaintenanceEnabled(false)]
-        )
+        #expect(coordinator.appFlowRouter.flow == .main)
     }
 
     @Test

@@ -3,7 +3,9 @@ import Observation
 @MainActor
 @Observable
 final class HomeViewModel {
-    private let router: any IRouter
+    private let router: any IFlowRouter
+    private let onboardingActions: any IOnboardingActions
+    private let maintenanceActions: any IMaintenanceActions
     var alert: HomeAlertRoute?
     var sheet: HomeSheetRoute?
 
@@ -16,8 +18,14 @@ final class HomeViewModel {
         }
     }
 
-    init(router: any IRouter) {
+    init(
+        router: any IFlowRouter,
+        onboardingActions: any IOnboardingActions,
+        maintenanceActions: any IMaintenanceActions
+    ) {
         self.router = router
+        self.onboardingActions = onboardingActions
+        self.maintenanceActions = maintenanceActions
     }
 
     func openDetails() {
@@ -29,11 +37,11 @@ final class HomeViewModel {
     }
 
     func openOnboarding() {
-        router.restartOnboarding()
+        onboardingActions.restartOnboarding()
     }
 
     func openMaintenance() {
-        router.setMaintenanceEnabled(true)
+        maintenanceActions.setMaintenanceEnabled(true)
     }
 
     func requestNavigationReset() {

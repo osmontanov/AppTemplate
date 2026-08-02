@@ -3,9 +3,9 @@ import Observation
 @MainActor
 @Observable
 final class AboutViewModel {
-    private let router: any IRouter
+    private let router: any IFlowRouter
 
-    init(router: any IRouter) {
+    init(router: any IFlowRouter) {
         self.router = router
     }
 

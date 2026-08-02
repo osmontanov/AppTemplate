@@ -3,7 +3,7 @@ import Observation
 
 @MainActor
 @Observable
-final class AppFlowRouter: IAppFlowRouter {
+final class AppFlowRouter {
     private(set) var transition: AppFlowTransition
 
     var flow: AppFlow {

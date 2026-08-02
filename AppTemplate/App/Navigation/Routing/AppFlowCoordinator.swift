@@ -14,56 +14,71 @@ final class AppFlowCoordinator: IAppFlowCoordinator {
         self.appFlowRouter = appFlowRouter
     }
 
-    func setFlow(_ flow: AppFlow) {
-        appFlowRouter.setFlow(flow)
-    }
-
-    func completeOnboarding() {
+    @discardableResult
+    func completeOnboarding() -> AppFlowActionResult {
         var state = store.state
         state.hasCompletedOnboarding = true
-        synchronize(with: state)
+        return synchronize(with: state)
     }
 
-    func restartOnboarding() {
+    @discardableResult
+    func restartOnboarding() -> AppFlowActionResult {
         var state = store.state
         state.hasCompletedOnboarding = false
-        synchronize(with: state)
+        return synchronize(with: state)
     }
 
-    func signIn() {
+    @discardableResult
+    func signIn() -> AppFlowActionResult {
         var state = store.state
         state.isAuthenticated = true
-        synchronize(with: state)
+        return synchronize(with: state)
     }
 
-    func signOut() {
+    @discardableResult
+    func signOut() -> AppFlowActionResult {
         var state = store.state
         state.isAuthenticated = false
-        synchronize(
+        return synchronize(
             with: state,
             nonMainPendingIntentAction: .discard,
             forceTransitionWhenStateChanges: true
         )
     }
 
-    func setMaintenanceEnabled(_ isEnabled: Bool) {
+    @discardableResult
+    func setMaintenanceEnabled(_ isEnabled: Bool) -> AppFlowActionResult {
         var state = store.state
         state.isMaintenanceEnabled = isEnabled
-        synchronize(with: state)
+        return synchronize(with: state)
     }
 
     private func synchronize(
         with state: AppState,
         nonMainPendingIntentAction: PendingIntentAction = .preserve,
         forceTransitionWhenStateChanges: Bool = false
-    ) {
-        let didChangeState = store.setState(state) == .persisted
+    ) -> AppFlowActionResult {
+        let didChangeState: Bool
+        switch store.setState(state) {
+        case .unchanged:
+            didChangeState = false
+        case .persisted:
+            didChangeState = true
+        case let .rejected(failure):
+            return .rejected(failure)
+        }
+
         let targetFlow = AppFlowPolicy.resolve(store.state)
         let mustForceTransition =
             forceTransitionWhenStateChanges && didChangeState
+        let didTransition = appFlowRouter.flow != targetFlow
+            || mustForceTransition
 
-        guard appFlowRouter.flow != targetFlow || mustForceTransition else {
-            return
+        guard didTransition else {
+            if didChangeState {
+                return .applied(flow: targetFlow, didTransition: false)
+            }
+            return .unchanged
         }
 
         appFlowRouter.transitionForPolicy(
@@ -72,5 +87,6 @@ final class AppFlowCoordinator: IAppFlowCoordinator {
                 ? .replay
                 : nonMainPendingIntentAction
         )
+        return .applied(flow: targetFlow, didTransition: true)
     }
 }

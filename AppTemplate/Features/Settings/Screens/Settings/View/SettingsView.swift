@@ -7,7 +7,10 @@ struct SettingsView: View {
     init(router: FlowRouter) {
         self.router = router
         _viewModel = State(
-            initialValue: SettingsViewModel(router: router)
+            initialValue: SettingsViewModel(
+                router: router,
+                authenticationActions: router
+            )
         )
     }
 

@@ -7,7 +7,11 @@ struct HomeView: View {
     init(router: FlowRouter) {
         self.router = router
         _viewModel = State(
-            initialValue: HomeViewModel(router: router)
+            initialValue: HomeViewModel(
+                router: router,
+                onboardingActions: router,
+                maintenanceActions: router
+            )
         )
     }
 
