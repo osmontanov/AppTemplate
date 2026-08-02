@@ -9,7 +9,7 @@ final class AboutViewModel {
         self.router = router
     }
 
-    func openPlatform(name: String) {
-        router.push(AboutRoute.platform(name: name))
+    func openPlatform(_ platform: AppPlatform) {
+        router.push(AboutRoute.platform(platform))
     }
 }

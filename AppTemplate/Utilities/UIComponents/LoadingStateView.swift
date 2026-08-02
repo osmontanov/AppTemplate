@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct LoadingStateView: View {
-    let title: String
+    let title: LocalizedStringResource
 
     var body: some View {
         ProgressView(title)

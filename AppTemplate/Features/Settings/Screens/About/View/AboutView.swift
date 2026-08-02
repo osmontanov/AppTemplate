@@ -14,14 +14,14 @@ struct AboutView: View {
     var body: some View {
         List {
             Section("Platforms") {
-                Button("iOS 26") {
-                    viewModel.openPlatform(name: "iOS 26")
+                Button(AppPlatform.iOS.localizedTitle) {
+                    viewModel.openPlatform(.iOS)
                 }
-                Button("iPadOS 26") {
-                    viewModel.openPlatform(name: "iPadOS 26")
+                Button(AppPlatform.iPadOS.localizedTitle) {
+                    viewModel.openPlatform(.iPadOS)
                 }
-                Button("macOS 26") {
-                    viewModel.openPlatform(name: "macOS 26")
+                Button(AppPlatform.macOS.localizedTitle) {
+                    viewModel.openPlatform(.macOS)
                 }
             }
             Section("Examples") {
@@ -33,8 +33,8 @@ struct AboutView: View {
         .navigationTitle("About")
         .navigationDestination(for: AboutRoute.self) { route in
             switch route {
-            case let .platform(name):
-                PlatformDetailsView(name: name)
+            case let .platform(platform):
+                PlatformDetailsView(platform: platform)
             }
         }
     }

@@ -1,4 +1,4 @@
 nonisolated
 enum AboutRoute: NavigationRoute {
-    case platform(name: String)
+    case platform(AppPlatform)
 }

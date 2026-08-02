@@ -14,10 +14,7 @@ struct MaintenanceView: View {
     var body: some View {
         VStack(spacing: 16) {
             Text("Maintenance is in progress")
-            Text(
-                "Disable the saved maintenance flag to return to the "
-                    + "required app flow."
-            )
+            Text("Disable the saved maintenance flag to return to the required app flow.")
                 .foregroundStyle(.secondary)
             Button("Return to App") {
                 viewModel.returnToApp()

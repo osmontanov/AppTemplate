@@ -14,10 +14,7 @@ struct OnboardingView: View {
     var body: some View {
         VStack(spacing: 16) {
             Text("Welcome to AppTemplate")
-            Text(
-                "Completion is saved and the next required app flow "
-                    + "opens automatically."
-            )
+            Text("Completion is saved and the next required app flow opens automatically.")
                 .foregroundStyle(.secondary)
             Button("Finish Onboarding") {
                 viewModel.finish()

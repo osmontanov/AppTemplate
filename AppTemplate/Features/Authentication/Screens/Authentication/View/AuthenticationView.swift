@@ -22,10 +22,7 @@ struct AuthenticationView: View {
                 .font(.largeTitle)
             Text("Authentication")
                 .font(.title)
-            Text(
-                "Continue saves a demo authenticated flag. "
-                    + "No credentials are stored."
-            )
+            Text("Continue saves a demo authenticated flag. No credentials are stored.")
                 .foregroundStyle(.secondary)
             HStack {
                 Button("Cancel") {

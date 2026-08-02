@@ -23,15 +23,20 @@ struct SettingsView: View {
 
         List {
             Section("App") {
-                LabeledContent("Name", value: viewModel.model.displayName)
-                LabeledContent("Version", value: viewModel.model.version)
+                LabeledContent {
+                    Text(verbatim: viewModel.model.displayName)
+                } label: {
+                    Text("Name")
+                }
+                LabeledContent {
+                    Text(verbatim: viewModel.model.version)
+                } label: {
+                    Text("Version")
+                }
             }
 
             Section("Session") {
-                Text(
-                    "The demo authenticated flag is persisted without "
-                        + "credentials or tokens."
-                )
+                Text("The demo authenticated flag is persisted without credentials or tokens.")
 
                 Button("Session Info", systemImage: "info.circle") {
                     viewModel.openSessionInfo()

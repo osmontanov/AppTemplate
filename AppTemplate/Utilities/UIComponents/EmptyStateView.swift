@@ -1,16 +1,16 @@
 import SwiftUI
 
 struct EmptyStateView: View {
-    let title: String
+    let title: LocalizedStringResource
     let systemImage: String
-    let message: String
+    let message: LocalizedStringResource
 
     var body: some View {
-        ContentUnavailableView(
-            title,
-            systemImage: systemImage,
-            description: Text(message)
-        )
+        ContentUnavailableView {
+            Label(title, systemImage: systemImage)
+        } description: {
+            Text(message)
+        }
     }
 }
 

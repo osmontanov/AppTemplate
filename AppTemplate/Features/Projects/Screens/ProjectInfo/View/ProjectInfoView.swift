@@ -13,10 +13,11 @@ struct ProjectInfoView: View {
     var body: some View {
         Form {
             Section("Destination") {
-                LabeledContent(
-                    "Project Identifier",
-                    value: viewModel.projectID
-                )
+                LabeledContent {
+                    Text(verbatim: viewModel.projectID)
+                } label: {
+                    Text("Project Identifier")
+                }
             }
 
             Section {

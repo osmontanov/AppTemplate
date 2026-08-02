@@ -11,7 +11,7 @@ struct GuideTopicView: View {
         VStack(spacing: 16) {
             Image(systemName: "list.bullet.rectangle")
                 .font(.largeTitle)
-            Text(viewModel.id)
+            Text(verbatim: viewModel.id)
                 .font(.title)
         }
         .padding()

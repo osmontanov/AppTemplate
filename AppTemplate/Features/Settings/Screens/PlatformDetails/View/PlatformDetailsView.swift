@@ -3,9 +3,9 @@ import SwiftUI
 struct PlatformDetailsView: View {
     @State private var viewModel: PlatformDetailsViewModel
 
-    init(name: String) {
+    init(platform: AppPlatform) {
         _viewModel = State(
-            initialValue: PlatformDetailsViewModel(name: name)
+            initialValue: PlatformDetailsViewModel(platform: platform)
         )
     }
 
@@ -13,12 +13,25 @@ struct PlatformDetailsView: View {
         VStack(spacing: 16) {
             Image(systemName: "laptopcomputer")
                 .font(.largeTitle)
-            Text(viewModel.name)
+            Text(viewModel.platform.localizedTitle)
                 .font(.title)
             Text("Platform Details")
                 .foregroundStyle(.secondary)
         }
         .padding()
         .navigationTitle("Platform Details")
+    }
+}
+
+extension AppPlatform {
+    var localizedTitle: LocalizedStringResource {
+        switch self {
+        case .iOS:
+            "iOS 26"
+        case .iPadOS:
+            "iPadOS 26"
+        case .macOS:
+            "macOS 26"
+        }
     }
 }

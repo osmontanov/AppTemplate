@@ -9,7 +9,7 @@ struct AboutViewModelTests {
         let router = makeTestFlowRouter()
         let viewModel = AboutViewModel(router: router)
 
-        viewModel.openPlatform(name: "iOS 26")
+        viewModel.openPlatform(.iPadOS)
 
         #expect(router.path.count == 1)
     }

@@ -3,7 +3,7 @@ import SwiftUI
 struct NavigationGuideView: View {
     private struct TopicRow: Identifiable {
         let id: String
-        let title: String
+        let title: LocalizedStringResource
         let systemImage: String
     }
 

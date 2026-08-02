@@ -9,7 +9,11 @@ struct RelatedItemDetailView: View {
 
     var body: some View {
         Form {
-            LabeledContent("Identifier", value: viewModel.id)
+            LabeledContent {
+                Text(verbatim: viewModel.id)
+            } label: {
+                Text("Identifier")
+            }
             Text("This static related-item detail keeps the typed destination available for navigation examples.")
         }
         .navigationTitle("Related Item Detail")

@@ -4,14 +4,14 @@ import Testing
 @MainActor
 struct PlatformDetailsViewModelTests {
     @Test
-    func platformDetailsRetainsTheSelectedPlatformName() {
-        let viewModel = PlatformDetailsViewModel(name: "iPadOS 26")
+    func platformDetailsRetainsTheSelectedPlatform() {
+        let viewModel = PlatformDetailsViewModel(platform: .iPadOS)
 
-        #expect(viewModel.name == "iPadOS 26")
+        #expect(viewModel.platform == .iPadOS)
     }
 
     @Test
     func platformDetailsScreenCanBeConstructed() {
-        _ = PlatformDetailsView(name: "iPadOS 26")
+        _ = PlatformDetailsView(platform: .iPadOS)
     }
 }

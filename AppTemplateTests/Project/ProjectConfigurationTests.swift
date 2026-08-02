@@ -105,7 +105,7 @@ struct ProjectConfigurationTests {
             dependencies: settings
         )
         _ = AboutView(router: router.settings)
-        _ = PlatformDetailsView(name: "macOS 26")
+        _ = PlatformDetailsView(platform: .macOS)
         _ = SessionInfoView()
         _ = MaintenanceFlowView(router: router.maintenance)
         _ = MaintenanceView(router: router.maintenance)

@@ -18,14 +18,16 @@ struct TaskDetailsView: View {
     var body: some View {
         Form {
             Section("Destination") {
-                LabeledContent(
-                    "Project Identifier",
-                    value: viewModel.projectID
-                )
-                LabeledContent(
-                    "Work Item Identifier",
-                    value: viewModel.taskID
-                )
+                LabeledContent {
+                    Text(verbatim: viewModel.projectID)
+                } label: {
+                    Text("Project Identifier")
+                }
+                LabeledContent {
+                    Text(verbatim: viewModel.taskID)
+                } label: {
+                    Text("Work Item Identifier")
+                }
             }
         }
         .navigationTitle("Work Item Details")

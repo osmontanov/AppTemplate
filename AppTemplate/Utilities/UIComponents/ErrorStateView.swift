@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct ErrorStateView: View {
-    let title: String
-    let message: String
+    let title: LocalizedStringResource
+    let message: LocalizedStringResource
     let retry: () -> Void
 
     var body: some View {

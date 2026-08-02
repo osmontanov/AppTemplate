@@ -22,7 +22,11 @@ struct ProjectDetailsView: View {
 
         List {
             Section("Destination") {
-                LabeledContent("Project Identifier", value: viewModel.projectID)
+                LabeledContent {
+                    Text(verbatim: viewModel.projectID)
+                } label: {
+                    Text("Project Identifier")
+                }
             }
 
             Section("Navigation Examples") {

@@ -3,9 +3,9 @@ import Observation
 @MainActor
 @Observable
 final class PlatformDetailsViewModel {
-    let name: String
+    let platform: AppPlatform
 
-    init(name: String) {
-        self.name = name
+    init(platform: AppPlatform) {
+        self.platform = platform
     }
 }

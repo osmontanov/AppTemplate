@@ -37,6 +37,19 @@ struct NavigationSnapshotTests {
     }
 
     @Test
+    func stablePlatformRouteRoundTripsThroughSettingsSnapshot() throws {
+        let source = makeRouter(selectedSection: .settings)
+        source.settings.push(SettingsRoute.about)
+        source.settings.push(AboutRoute.platform(.iPadOS))
+        let data = try NavigationSnapshotCodec.encode(source.snapshot)
+        let restored = makeRouter()
+
+        #expect(restored.restore(from: data).result == .restored)
+        #expect(restored.settings.path.count == 2)
+        #expect(restored.snapshot == source.snapshot)
+    }
+
+    @Test
     func schemaThreeSnapshotMigratesAllDurableHistories() throws {
         let legacy = Data(
             #"{"schemaVersion":3,"selectedSection":"settings","homePath":{"data":"WyJBcHBUZW1wbGF0ZS5Ib21lUm91dGUiLCJcImRldGFpbHNcIiJd"},"browsePath":{"data":"WyJBcHBUZW1wbGF0ZS5Ccm93c2VSb3V0ZSIsIntcIml0ZW1cIjp7XCJpZFwiOlwic3dpZnR1aVwifX0iXQ=="},"projectsPath":{"data":"WyJBcHBUZW1wbGF0ZS5Qcm9qZWN0c1JvdXRlIiwie1wicHJvamVjdFwiOntcImlkXCI6XCJwcm9qZWN0LTFcIn19Il0="},"settingsPath":{"data":"WyJBcHBUZW1wbGF0ZS5TZXR0aW5nc1JvdXRlIiwiXCJhYm91dFwiIl0="}}"#.utf8

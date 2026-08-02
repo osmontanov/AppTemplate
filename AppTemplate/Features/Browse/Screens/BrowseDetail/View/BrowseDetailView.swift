@@ -13,7 +13,11 @@ struct BrowseDetailView: View {
 
     var body: some View {
         Form {
-            LabeledContent("Identifier", value: viewModel.id)
+            LabeledContent {
+                Text(verbatim: viewModel.id)
+            } label: {
+                Text("Identifier")
+            }
             Text("This static detail keeps the typed Browse route available for navigation examples.")
         }
         .navigationTitle("Browse Detail")
