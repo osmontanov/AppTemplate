@@ -13,3 +13,7 @@ struct ProjectsFlowView: View {
         }
     }
 }
+
+#Preview("Projects") {
+    PreviewFixtures.projectsFlow()
+}

@@ -9,3 +9,7 @@ struct BrowseFlowView: View {
         }
     }
 }
+
+#Preview("Browse") {
+    PreviewFixtures.browseFlow()
+}

@@ -9,3 +9,7 @@ struct HomeFlowView: View {
         }
     }
 }
+
+#Preview("Home") {
+    PreviewFixtures.homeFlow()
+}

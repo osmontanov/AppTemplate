@@ -13,3 +13,7 @@ struct SettingsFlowView: View {
         }
     }
 }
+
+#Preview("Settings") {
+    PreviewFixtures.settingsFlow()
+}

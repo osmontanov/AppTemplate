@@ -2,8 +2,15 @@ import SwiftUI
 
 @MainActor
 enum PreviewFixtures {
+    static func appComposition(state: AppState) -> ContentView {
+        ContentView(
+            appFlowCoordinator: appFlowCoordinator(state: state),
+            settings: settingsDependencies()
+        )
+    }
+
     static func authenticationFlow() -> AuthenticationFlowView {
-        let appFlowCoordinator = makeAppFlowCoordinator(
+        let appFlowCoordinator = appFlowCoordinator(
             state: AppState(
                 isAuthenticated: false,
                 hasCompletedOnboarding: true,
@@ -22,7 +29,7 @@ enum PreviewFixtures {
 
     static func onboardingFlow() -> OnboardingFlowView {
         OnboardingFlowView(
-            router: makeFlowRouter(
+            router: flowRouter(
                 state: AppState(
                     isAuthenticated: false,
                     hasCompletedOnboarding: false,
@@ -32,15 +39,40 @@ enum PreviewFixtures {
         )
     }
 
+    static func homeFlow() -> HomeFlowView {
+        HomeFlowView(router: flowRouter(state: mainState))
+    }
+
+    static func browseFlow() -> BrowseFlowView {
+        BrowseFlowView(router: flowRouter(state: mainState))
+    }
+
+    static func projectsFlow() -> ProjectsFlowView {
+        ProjectsFlowView(router: flowRouter(state: mainState))
+    }
+
+    static func settingsFlow() -> SettingsFlowView {
+        SettingsFlowView(
+            router: flowRouter(state: mainState),
+            dependencies: settingsDependencies()
+        )
+    }
+
     static func maintenanceFlow() -> MaintenanceFlowView {
         MaintenanceFlowView(
-            router: makeFlowRouter(
+            router: flowRouter(
                 state: AppState(
                     isAuthenticated: true,
                     hasCompletedOnboarding: true,
                     isMaintenanceEnabled: true
                 )
             )
+        )
+    }
+
+    static func createProjectFlow() -> CreateProjectFlowView {
+        CreateProjectFlowView(
+            appFlowCoordinator: appFlowCoordinator(state: mainState)
         )
     }
 
@@ -53,13 +85,13 @@ enum PreviewFixtures {
         )
     }
 
-    private static func makeFlowRouter(state: AppState) -> FlowRouter {
+    static func flowRouter(state: AppState) -> FlowRouter {
         FlowRouter(
-            appFlowCoordinator: makeAppFlowCoordinator(state: state)
+            appFlowCoordinator: appFlowCoordinator(state: state)
         )
     }
 
-    private static func makeAppFlowCoordinator(
+    static func appFlowCoordinator(
         state: AppState
     ) -> AppFlowCoordinator {
         let storage = InMemoryAppStateStorage(initialState: state)
@@ -70,6 +102,14 @@ enum PreviewFixtures {
         return AppFlowCoordinator(
             store: store,
             appFlowRouter: appFlowRouter
+        )
+    }
+
+    private static var mainState: AppState {
+        AppState(
+            isAuthenticated: true,
+            hasCompletedOnboarding: true,
+            isMaintenanceEnabled: false
         )
     }
 }

@@ -9,3 +9,7 @@ struct OnboardingFlowView: View {
         }
     }
 }
+
+#Preview("Onboarding") {
+    PreviewFixtures.onboardingFlow()
+}

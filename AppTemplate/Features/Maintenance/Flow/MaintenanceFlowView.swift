@@ -9,3 +9,7 @@ struct MaintenanceFlowView: View {
         }
     }
 }
+
+#Preview("Maintenance") {
+    PreviewFixtures.maintenanceFlow()
+}

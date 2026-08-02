@@ -45,3 +45,7 @@ struct CreateProjectFlowView: View {
         }
     }
 }
+
+#Preview("Create Project") {
+    PreviewFixtures.createProjectFlow()
+}

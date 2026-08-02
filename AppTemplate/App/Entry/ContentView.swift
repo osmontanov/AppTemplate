@@ -36,24 +36,12 @@ struct ContentView: View {
     }
 }
 
-@MainActor
-private func makePreviewAppFlowCoordinator() -> AppFlowCoordinator {
-    let defaults = UserDefaults(suiteName: "AppTemplate.Preview")
-        ?? UserDefaults()
-    let storage = UserDefaultsAppStateStorage(userDefaults: defaults)
-    let store = AppStateStore(storage: storage)
-    let router = AppFlowRouter(flow: AppFlowPolicy.resolve(store.state))
-    return AppFlowCoordinator(store: store, appFlowRouter: router)
-}
-
 #Preview {
-    ContentView(
-        appFlowCoordinator: makePreviewAppFlowCoordinator(),
-        settings: SettingsDependencies(
-            appInfo: AppInfoService(
-                displayName: "AppTemplate Preview",
-                version: "1.0"
-            )
+    PreviewFixtures.appComposition(
+        state: AppState(
+            isAuthenticated: true,
+            hasCompletedOnboarding: true,
+            isMaintenanceEnabled: false
         )
     )
 }

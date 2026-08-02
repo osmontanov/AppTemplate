@@ -33,6 +33,12 @@ struct SettingsView: View {
                 } label: {
                     Text("Version")
                 }
+
+                #if os(macOS)
+                SettingsLink {
+                    Label("Settings", systemImage: "gearshape")
+                }
+                #endif
             }
 
             Section("Session") {

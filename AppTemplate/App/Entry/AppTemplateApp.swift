@@ -36,5 +36,11 @@ struct AppTemplateApp: App {
                 settings: dependencies.settings
             )
         }
+
+        #if os(macOS)
+        Settings {
+            AppSettingsView(dependencies: dependencies.settings)
+        }
+        #endif
     }
 }

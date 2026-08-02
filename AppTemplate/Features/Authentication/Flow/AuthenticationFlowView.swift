@@ -13,3 +13,7 @@ struct AuthenticationFlowView: View {
         }
     }
 }
+
+#Preview("Authentication") {
+    PreviewFixtures.authenticationFlow()
+}
