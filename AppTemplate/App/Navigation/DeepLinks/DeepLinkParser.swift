@@ -1,8 +1,14 @@
 import Foundation
 
 struct DeepLinkParser: Sendable {
+    private let scheme: String
+
+    init(scheme: String = Bundle.main.firstRegisteredURLScheme ?? "apptemplate") {
+        self.scheme = scheme.lowercased()
+    }
+
     func fallbackSection(for url: URL) -> AppSection {
-        guard url.scheme?.lowercased() == "apptemplate",
+        guard url.scheme?.lowercased() == scheme,
               let host = url.host?.lowercased(),
               let section = AppSection(rawValue: host) else {
             return .home
@@ -11,7 +17,7 @@ struct DeepLinkParser: Sendable {
     }
 
     func parse(_ url: URL) -> Result<NavigationIntent, DeepLinkError> {
-        guard url.scheme?.lowercased() == "apptemplate" else {
+        guard url.scheme?.lowercased() == scheme else {
             return .failure(.unsupportedScheme)
         }
 
@@ -79,5 +85,24 @@ struct DeepLinkParser: Sendable {
         default:
             return .failure(.unknownDestination)
         }
+    }
+}
+
+private extension Bundle {
+    var firstRegisteredURLScheme: String? {
+        guard let urlTypes = object(forInfoDictionaryKey: "CFBundleURLTypes")
+            as? [Any] else {
+            return nil
+        }
+
+        for case let urlType as [String: Any] in urlTypes {
+            guard let schemes = urlType["CFBundleURLSchemes"] as? [Any] else {
+                continue
+            }
+            for case let scheme as String in schemes where !scheme.isEmpty {
+                return scheme
+            }
+        }
+        return nil
     }
 }

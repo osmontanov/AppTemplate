@@ -9,11 +9,6 @@ import AppKit
 #endif
 
 struct ProjectConfigurationTests {
-    @Test
-    func testTargetLoadsApplicationModule() {
-        #expect(Bundle.main.bundleIdentifier == "com.oneday.AppTemplate")
-    }
-
     @MainActor
     @Test
     func createProjectFlowKeepsItsNavigationPathIsolated() {

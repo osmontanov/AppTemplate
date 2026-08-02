@@ -5,6 +5,22 @@ import Testing
 struct DeepLinkParserTests {
     private let parser = DeepLinkParser()
 
+    @Test
+    func injectedSchemeAcceptsOnlyThatScheme() throws {
+        let parser = DeepLinkParser(scheme: "renamed-template")
+
+        #expect(
+            parser.parse(
+                try #require(URL(string: "renamed-template://settings"))
+            ) == .success(.selectSection(.settings))
+        )
+        #expect(
+            parser.parse(
+                try #require(URL(string: "apptemplate://settings"))
+            ) == .failure(.unsupportedScheme)
+        )
+    }
+
     @Test(arguments: [
         ("apptemplate://home", NavigationIntent.selectSection(.home)),
         ("apptemplate://browse", NavigationIntent.selectSection(.browse)),
