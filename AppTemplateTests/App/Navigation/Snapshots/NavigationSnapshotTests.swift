@@ -147,6 +147,36 @@ struct NavigationSnapshotTests {
         #expect(router.settings.path.isEmpty)
     }
 
+    @Test(arguments: [
+        (2, Data(#"{"schemaVersion":2,"selectedSection":"settings"}"#.utf8)),
+        (3, Data(#"{"schemaVersion":3,"selectedSection":"settings"}"#.utf8)),
+        (4, Data(#"{"schemaVersion":4,"selectedSection":"settings"}"#.utf8))
+    ])
+    func malformedKnownSchemaResetsEveryDurableHistory(
+        schemaVersion: Int,
+        malformedData: Data
+    ) throws {
+        let router = makeRouter(selectedSection: .settings)
+        router.home.push(HomeRoute.details)
+        router.browse.push(BrowseRoute.item(id: "swiftui"))
+        router.projects.push(ProjectsRoute.project(id: "project-1"))
+        router.settings.push(SettingsRoute.about)
+
+        let restoration = router.restore(from: malformedData)
+
+        #expect(
+            try NavigationSnapshotCodec.schemaVersion(in: malformedData)
+                == schemaVersion
+        )
+        #expect(restoration.result == .reset(.corruptData))
+        #expect(restoration.lastAppliedTransitionID == nil)
+        #expect(router.selectedSection == .home)
+        #expect(router.home.path.isEmpty)
+        #expect(router.browse.path.isEmpty)
+        #expect(router.projects.path.isEmpty)
+        #expect(router.settings.path.isEmpty)
+    }
+
     @Test
     func corruptFlowPathResetsOnlyTheAffectedFlow() throws {
         let source = makeRouter(selectedSection: .settings)

@@ -433,6 +433,36 @@ struct AppSceneNavigationLifecycleTests {
         #expect(lifecycle.router.projects.path.isEmpty)
     }
 
+    @Test(arguments: [
+        (2, Data(#"{"schemaVersion":2,"selectedSection":"settings"}"#.utf8)),
+        (3, Data(#"{"schemaVersion":3,"selectedSection":"settings"}"#.utf8)),
+        (4, Data(#"{"schemaVersion":4,"selectedSection":"settings"}"#.utf8))
+    ])
+    func malformedKnownSchemaProducesCheckpointedSchemaFourReplacement(
+        schemaVersion: Int,
+        malformedData: Data
+    ) throws {
+        let appFlowRouter = AppFlowRouter(flow: .main)
+        let transition = appFlowRouter.transition
+        let lifecycle = AppSceneNavigationLifecycle(
+            appFlowRouter: appFlowRouter,
+            appFlowCoordinator: AppFlowCoordinatorSpy()
+        )
+
+        let replacement = try #require(
+            lifecycle.restore(from: malformedData, applying: transition)
+        )
+
+        #expect(
+            try NavigationSnapshotCodec.schemaVersion(in: malformedData)
+                == schemaVersion
+        )
+        #expect(lifecycle.restorationResult == .reset(.corruptData))
+        #expect(replacement.schemaVersion == 4)
+        #expect(replacement.lastAppliedTransitionID == transition.id)
+        #expect(lifecycle.snapshotForPersistence == replacement)
+    }
+
     @Test
     func futureSnapshotDisablesWritesWithoutChangingOriginalBytes() throws {
         let future = Data(#"{"schemaVersion":99,"future":"keep"}"#.utf8)
