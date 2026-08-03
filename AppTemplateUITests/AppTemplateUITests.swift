@@ -1,6 +1,7 @@
 import XCTest
 
-nonisolated final class AppTemplateUITests: XCTestCase {
+nonisolated
+final class AppTemplateUITests: XCTestCase {
     @MainActor
     func testOnboardingRootIsVisible() {
         let app = launch(root: "onboarding")
