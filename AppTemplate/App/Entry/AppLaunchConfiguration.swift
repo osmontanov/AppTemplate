@@ -36,6 +36,15 @@ enum AppLaunchConfiguration: Equatable, Sendable {
     case live
     case uiTesting(initialState: AppState)
 
+    var sceneNavigationPersistencePolicy: AppSceneNavigationPersistencePolicy {
+        switch self {
+        case .live:
+            .restored
+        case .uiTesting:
+            .ephemeral
+        }
+    }
+
     init(arguments: [String]) {
         let uiTestingMarker = "--ui-testing"
         let uiTestRootOption = "--ui-test-root"

@@ -4,6 +4,8 @@ import SwiftUI
 struct AppSceneView: View {
     let appFlowCoordinator: AppFlowCoordinator
     let settings: SettingsDependencies
+    private let navigationPersistencePolicy:
+        AppSceneNavigationPersistencePolicy
 
     @State private var lifecycle: AppSceneNavigationLifecycle
     @SceneStorage("AppTemplate.NavigationSnapshot") private var encodedSnapshot: Data?
@@ -14,10 +16,13 @@ struct AppSceneView: View {
 
     init(
         appFlowCoordinator: AppFlowCoordinator,
-        settings: SettingsDependencies
+        settings: SettingsDependencies,
+        navigationPersistencePolicy:
+            AppSceneNavigationPersistencePolicy = .restored
     ) {
         self.appFlowCoordinator = appFlowCoordinator
         self.settings = settings
+        self.navigationPersistencePolicy = navigationPersistencePolicy
         _lifecycle = State(
             initialValue: AppSceneNavigationLifecycle(
                 appFlowRouter: appFlowCoordinator.appFlowRouter,
@@ -33,8 +38,11 @@ struct AppSceneView: View {
             settings: settings
         )
             .task {
+                let restorationData = navigationPersistencePolicy.restorationData(
+                    from: encodedSnapshot
+                )
                 if lifecycle.restore(
-                    from: encodedSnapshot,
+                    from: restorationData,
                     applying: appFlowRouter.transition
                 ) != nil {
                     persist()
@@ -61,7 +69,9 @@ struct AppSceneView: View {
     }
 
     private func persist() {
-        guard let snapshot = lifecycle.snapshotForPersistence else {
+        guard navigationPersistencePolicy.allowsSnapshotPersistence,
+              let snapshot = lifecycle.snapshotForPersistence
+        else {
             return
         }
         do {

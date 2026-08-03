@@ -11,6 +11,8 @@ import SwiftUI
 @main
 struct AppTemplateApp: App {
     private let dependencies: AppDependencies
+    private let sceneNavigationPersistencePolicy:
+        AppSceneNavigationPersistencePolicy
     @State private var appFlowCoordinator: AppFlowCoordinator
 
     init() {
@@ -33,6 +35,8 @@ struct AppTemplateApp: App {
             flow: AppFlowPolicy.resolve(store.state)
         )
         self.dependencies = dependencies
+        self.sceneNavigationPersistencePolicy =
+            launchConfiguration.sceneNavigationPersistencePolicy
         _appFlowCoordinator = State(
             initialValue: AppFlowCoordinator(
                 store: store,
@@ -45,7 +49,8 @@ struct AppTemplateApp: App {
         WindowGroup {
             AppSceneView(
                 appFlowCoordinator: appFlowCoordinator,
-                settings: dependencies.settings
+                settings: dependencies.settings,
+                navigationPersistencePolicy: sceneNavigationPersistencePolicy
             )
         }
 

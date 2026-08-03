@@ -2,6 +2,18 @@ import Testing
 @testable import AppTemplate
 
 struct AppLaunchConfigurationTests {
+    @Test
+    func launchModeSelectsSceneNavigationPersistence() {
+        #expect(
+            AppLaunchConfiguration.live.sceneNavigationPersistencePolicy
+                == .restored
+        )
+        #expect(
+            AppLaunchConfiguration.uiTesting(initialState: .initial)
+                .sceneNavigationPersistencePolicy == .ephemeral
+        )
+    }
+
     @Test(arguments: [
         (
             "onboarding",
