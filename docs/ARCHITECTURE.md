@@ -44,7 +44,9 @@ commands. `AppFlowCoordinator` saves the proposed state, asks the policy for
 the resulting root, and returns an `AppFlowActionResult`:
 
 - `.unchanged` when neither state nor root changes;
-- `.applied(flow:didTransition:)` after a persisted semantic change; or
+- `.applied(flow:didTransition:)` when persisted state changed and/or the
+  visible root was reconciled; `didTransition` reports whether a root
+  transition was emitted; or
 - `.rejected(...)` when persistence becomes read-only.
 
 Callers can therefore react to persistence failure without confusing it with
