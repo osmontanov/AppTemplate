@@ -138,6 +138,34 @@ struct NavigationSnapshotTests {
     }
 
     @Test
+    func semanticallyUnchangedProjectsPathDoesNotRequestAnotherEncoding() throws {
+        let projectIDFirstPath = Data(
+            #"["AppTemplate.ProjectsRoute","{\"project\":{\"id\":\"project-1\"}}","AppTemplate.ProjectDetailsRoute","{\"task\":{\"projectID\":\"project-1\",\"taskID\":\"task-1\"}}"]"#.utf8
+        )
+        let taskIDFirstPath = Data(
+            #"["AppTemplate.ProjectsRoute","{\"project\":{\"id\":\"project-1\"}}","AppTemplate.ProjectDetailsRoute","{\"task\":{\"taskID\":\"task-1\",\"projectID\":\"project-1\"}}"]"#.utf8
+        )
+        var storedSnapshot = makeRouter(selectedSection: .projects).snapshot
+        storedSnapshot.projectsPath = FlowPathSnapshot(
+            restorationData: projectIDFirstPath
+        )
+        var candidateSnapshot = storedSnapshot
+        candidateSnapshot.projectsPath = FlowPathSnapshot(
+            restorationData: taskIDFirstPath
+        )
+
+        #expect(storedSnapshot.projectsPath.restoredPath?.count == 2)
+        #expect(candidateSnapshot.projectsPath.restoredPath?.count == 2)
+        #expect(storedSnapshot.projectsPath == candidateSnapshot.projectsPath)
+        #expect(
+            try NavigationSnapshotCodec.encodingIfChanged(
+                candidateSnapshot,
+                comparedTo: NavigationSnapshotCodec.encode(storedSnapshot)
+            ) == nil
+        )
+    }
+
+    @Test
     func changedSnapshotProducesReplacementEncoding() throws {
         let storedRouter = makeRouter()
         let changedRouter = makeRouter(selectedSection: .browse)
