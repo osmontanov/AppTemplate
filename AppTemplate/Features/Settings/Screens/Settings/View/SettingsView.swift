@@ -38,6 +38,7 @@ struct SettingsView: View {
                 SettingsLink {
                     Label("Settings", systemImage: "gearshape")
                 }
+                .accessibilityIdentifier("action.openSettingsWindow")
                 #endif
             }
 
@@ -72,5 +73,6 @@ struct SettingsView: View {
                 SessionInfoView()
             }
         }
+        .accessibilityIdentifier("screen.settings")
     }
 }

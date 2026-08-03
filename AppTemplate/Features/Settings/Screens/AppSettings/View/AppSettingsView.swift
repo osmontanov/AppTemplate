@@ -29,5 +29,6 @@ struct AppSettingsView: View {
         .formStyle(.grouped)
         .frame(width: 420, height: 180)
         .scenePadding()
+        .accessibilityIdentifier("screen.appSettings")
     }
 }

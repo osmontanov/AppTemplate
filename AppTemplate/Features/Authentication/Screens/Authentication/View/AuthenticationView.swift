@@ -60,6 +60,7 @@ struct AuthenticationView: View {
                 AuthenticationHelpView()
             }
         }
+        .accessibilityIdentifier("screen.authentication")
     }
 }
 

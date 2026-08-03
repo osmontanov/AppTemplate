@@ -30,6 +30,7 @@ struct BrowseView: View {
             Button("Options", systemImage: "slider.horizontal.3") {
                 viewModel.openOptions()
             }
+            .accessibilityIdentifier("action.openBrowseOptions")
         }
         .navigationDestination(for: BrowseRoute.self) { route in
             switch route {
@@ -45,5 +46,6 @@ struct BrowseView: View {
                 BrowseOptionsView()
             }
         }
+        .accessibilityIdentifier("screen.browse")
     }
 }

@@ -30,6 +30,20 @@
                ReferencedContainer="container:AppTemplate.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting="YES"
+            buildForRunning="NO"
+            buildForProfiling="NO"
+            buildForArchiving="NO"
+            buildForAnalyzing="NO">
+            <BuildableReference
+               BuildableIdentifier="primary"
+               BlueprintIdentifier="B10000063013314400D3C89C"
+               BuildableName="AppTemplateUITests.xctest"
+               BlueprintName="AppTemplateUITests"
+               ReferencedContainer="container:AppTemplate.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -44,6 +58,15 @@
                BlueprintIdentifier="A10000063013314400D3C89C"
                BuildableName="AppTemplateTests.xctest"
                BlueprintName="AppTemplateTests"
+               ReferencedContainer="container:AppTemplate.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference skipped="NO" parallelizable="YES">
+            <BuildableReference
+               BuildableIdentifier="primary"
+               BlueprintIdentifier="B10000063013314400D3C89C"
+               BuildableName="AppTemplateUITests.xctest"
+               BlueprintName="AppTemplateUITests"
                ReferencedContainer="container:AppTemplate.xcodeproj">
             </BuildableReference>
          </TestableReference>

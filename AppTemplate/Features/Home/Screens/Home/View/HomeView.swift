@@ -25,6 +25,7 @@ struct HomeView: View {
             Button("Open navigation guide") {
                 viewModel.openNavigationGuide()
             }
+            .accessibilityIdentifier("action.openNavigationGuide")
             Button("Restart onboarding") {
                 viewModel.openOnboarding()
             }
@@ -66,5 +67,6 @@ struct HomeView: View {
                 QuickStartView()
             }
         }
+        .accessibilityIdentifier("screen.home")
     }
 }

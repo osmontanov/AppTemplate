@@ -21,7 +21,9 @@ struct BrowseOptionsView: View {
                     dismiss()
                 }
                 .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("action.dismissBrowseOptions")
             }
         }
+        .accessibilityIdentifier("screen.browseOptions")
     }
 }

@@ -18,6 +18,11 @@ struct AdaptiveTabAppShellView: View {
                         router: router,
                         settings: settings
                     )
+                    .background {
+                        TabAccessibilityIdentifierInstaller()
+                            .frame(width: 0, height: 0)
+                            .accessibilityHidden(true)
+                    }
                 }
                 .customizationID(section.presentationIdentifier)
                 .accessibilityIdentifier(

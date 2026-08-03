@@ -24,6 +24,7 @@ struct OnboardingView: View {
             }
         }
         .navigationTitle("Onboarding")
+        .accessibilityIdentifier("screen.onboarding")
     }
 }
 

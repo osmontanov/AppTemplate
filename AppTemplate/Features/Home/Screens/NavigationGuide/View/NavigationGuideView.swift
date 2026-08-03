@@ -42,6 +42,7 @@ struct NavigationGuideView: View {
                 }
             }
         }
+        .accessibilityIdentifier("screen.navigationGuide")
     }
 
     private let topicRows = [
