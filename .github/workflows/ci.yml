@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: Test (${{ matrix.name }})
+    runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macos
+            destination: platform=macOS
+          - name: iphone
+            destination: platform=iOS Simulator,OS=26.5,name=iPhone 17
+          - name: ipad
+            destination: platform=iOS Simulator,OS=26.5,name=iPad (A16)
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Select and print Xcode
+        run: |
+          sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
+          xcodebuild -version
+
+      - name: Print available destinations
+        run: |
+          xcodebuild -showdestinations \
+            -project AppTemplate.xcodeproj \
+            -scheme AppTemplate
+
+      - name: Test
+        env:
+          DESTINATION: ${{ matrix.destination }}
+          MATRIX_NAME: ${{ matrix.name }}
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project AppTemplate.xcodeproj \
+            -scheme AppTemplate \
+            -configuration Debug \
+            -destination "$DESTINATION" \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData-$MATRIX_NAME" \
+            -resultBundlePath "$RUNNER_TEMP/AppTemplate-$MATRIX_NAME.xcresult" \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
+            GCC_TREAT_WARNINGS_AS_ERRORS=YES
+
+      - name: Upload failure result
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: AppTemplate-${{ matrix.name }}-xcresult
+          path: ${{ runner.temp }}/AppTemplate-${{ matrix.name }}.xcresult
+          if-no-files-found: error
