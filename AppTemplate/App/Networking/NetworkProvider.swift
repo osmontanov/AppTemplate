@@ -6,6 +6,8 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
     private let adapters: [any RequestAdapter]
     private let monitors: [any NetworkEventMonitor]
     private let requestBuilder: NetworkRequestBuilder
+    private let stubBehavior: @Sendable (Target) -> StubBehavior
+    private let sleep: @Sendable (Duration) async throws -> Void
 
     init(
         transport: any NetworkTransport = URLSessionTransport(),
@@ -13,6 +15,13 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
         monitors: [any NetworkEventMonitor] = [],
         jsonEncoderFactory: @escaping @Sendable () -> JSONEncoder = {
             JSONEncoder()
+        },
+        stubBehavior: @escaping @Sendable (Target) -> StubBehavior = { _ in
+            .never
+        },
+        sleep: @escaping @Sendable (Duration) async throws -> Void = {
+            duration in
+            try await Task.sleep(for: duration)
         }
     ) {
         self.transport = transport
@@ -21,6 +30,8 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
         requestBuilder = NetworkRequestBuilder(
             jsonEncoderFactory: jsonEncoderFactory
         )
+        self.stubBehavior = stubBehavior
+        self.sleep = sleep
     }
 
     func request(_ target: Target) async throws -> NetworkResponse {
@@ -41,7 +52,7 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
             await monitor.willSend(request, target: target)
         }
 
-        let result = await liveResult(for: request, target: target)
+        let result = await result(for: request, target: target)
 
         for monitor in monitors {
             await monitor.didComplete(result, target: target)
@@ -50,23 +61,21 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
         return try result.get()
     }
 
-    private func liveResult(
+    private func result(
         for request: URLRequest,
         target: Target
     ) async -> Result<NetworkResponse, NetworkError> {
         do {
-            let (data, urlResponse) = try await transport.data(for: request)
-            guard let httpResponse = urlResponse as? HTTPURLResponse else {
-                throw NetworkError.nonHTTPResponse
+            let response: NetworkResponse
+            switch stubBehavior(target) {
+            case .never:
+                response = try await liveResponse(for: request)
+            case .immediate:
+                response = stubResponse(for: request, target: target)
+            case let .delayed(duration):
+                try await sleep(duration)
+                response = stubResponse(for: request, target: target)
             }
-
-            let response = NetworkResponse(
-                request: request,
-                url: httpResponse.url,
-                statusCode: httpResponse.statusCode,
-                headers: stringHeaders(from: httpResponse),
-                data: data
-            )
 
             guard target.validation.accepts(response.statusCode) else {
                 throw NetworkError.unacceptableStatus(response)
@@ -81,6 +90,36 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
                 )
             )
         }
+    }
+
+    private func liveResponse(
+        for request: URLRequest
+    ) async throws -> NetworkResponse {
+        let (data, urlResponse) = try await transport.data(for: request)
+        guard let httpResponse = urlResponse as? HTTPURLResponse else {
+            throw NetworkError.nonHTTPResponse
+        }
+
+        return NetworkResponse(
+            request: request,
+            url: httpResponse.url,
+            statusCode: httpResponse.statusCode,
+            headers: stringHeaders(from: httpResponse),
+            data: data
+        )
+    }
+
+    private func stubResponse(
+        for request: URLRequest,
+        target: Target
+    ) -> NetworkResponse {
+        NetworkResponse(
+            request: request,
+            url: request.url,
+            statusCode: target.sampleResponse.statusCode,
+            headers: target.sampleResponse.headers,
+            data: target.sampleResponse.data
+        )
     }
 
     private func normalize(
