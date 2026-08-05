@@ -111,6 +111,60 @@ struct NetworkProviderStubTests {
             Issue.record("Unexpected error: \(error)")
         }
     }
+
+    @Test
+    func wrapsMismatchedSleepNetworkErrorAtExecutionBoundary() async {
+        let recorder = NetworkEventRecorder()
+        let provider = NetworkProvider<StubTarget>(
+            transport: unexpectedTransport(),
+            monitors: [
+                RecordingNetworkEventMonitor(name: "observer", recorder: recorder)
+            ],
+            stubBehavior: { _ in .delayed(.seconds(1)) },
+            sleep: { _ in
+                throw NetworkError.requestAdaptation(
+                    underlying: StubFixtureError.mismatchedPhase
+                )
+            }
+        )
+
+        do {
+            _ = try await provider.request(StubTarget())
+            Issue.record("Expected transport failure")
+        } catch let NetworkError.transport(underlying) {
+            guard case let NetworkError.requestAdaptation(nested) = underlying else {
+                Issue.record("Expected mismatched adaptation error to be retained")
+                return
+            }
+            #expect((nested as? StubFixtureError) == .mismatchedPhase)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+
+        let events = await recorder.recordedEvents()
+        #expect(events == [
+            .willSend(monitor: "observer"),
+            .didComplete(monitor: "observer", outcome: .transportFailure)
+        ])
+    }
+
+    @Test
+    func immediateStubCapturesComputedSampleResponseOnce() async throws {
+        let sampleRecorder = SampleResponseRecorder()
+        let provider = NetworkProvider<SnapshotStubTarget>(
+            transport: unexpectedTransport(),
+            stubBehavior: { _ in .immediate }
+        )
+
+        let response = try await provider.request(
+            SnapshotStubTarget(sampleRecorder: sampleRecorder)
+        )
+
+        #expect(sampleRecorder.readCount == 1)
+        #expect(response.statusCode == 201)
+        #expect(response.headers == ["X-Sample": "1"])
+        #expect(response.data == Data("sample-1".utf8))
+    }
 }
 
 nonisolated
@@ -137,6 +191,39 @@ private struct StubHeaderAdapter: RequestAdapter {
     }
 }
 
+nonisolated
+private struct SnapshotStubTarget: NetworkTarget {
+    let baseURL = URL(string: "https://api.example.test")!
+    let path = "/snapshot"
+    let method = HTTPMethod.get
+    let sampleRecorder: SampleResponseRecorder
+
+    var sampleResponse: StubResponse {
+        sampleRecorder.nextResponse()
+    }
+}
+
+nonisolated
+private final class SampleResponseRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var reads = 0
+
+    var readCount: Int {
+        lock.withLock { reads }
+    }
+
+    func nextResponse() -> StubResponse {
+        lock.withLock {
+            reads += 1
+            return StubResponse(
+                statusCode: 200 + reads,
+                data: Data("sample-\(reads)".utf8),
+                headers: ["X-Sample": String(reads)]
+            )
+        }
+    }
+}
+
 private actor SleepRecorder {
     private var durations: [Duration] = []
 
@@ -150,8 +237,9 @@ private actor SleepRecorder {
 }
 
 nonisolated
-private enum StubFixtureError: Error {
+private enum StubFixtureError: Error, Equatable {
     case unexpectedTransport
+    case mismatchedPhase
 }
 
 private func unexpectedTransport() -> InMemoryNetworkTransport {

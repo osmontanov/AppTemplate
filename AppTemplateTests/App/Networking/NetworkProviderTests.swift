@@ -149,7 +149,13 @@ struct NetworkProviderTests {
                 )
             )
         }
-        let provider = NetworkProvider<ProviderTarget>(transport: transport)
+        let recorder = NetworkEventRecorder()
+        let provider = NetworkProvider<ProviderTarget>(
+            transport: transport,
+            monitors: [
+                RecordingNetworkEventMonitor(name: "observer", recorder: recorder)
+            ]
+        )
 
         do {
             _ = try await provider.request(ProviderTarget())
@@ -158,6 +164,12 @@ struct NetworkProviderTests {
         } catch {
             Issue.record("Unexpected error: \(error)")
         }
+
+        let events = await recorder.recordedEvents()
+        #expect(events == [
+            .willSend(monitor: "observer"),
+            .didComplete(monitor: "observer", outcome: .nonHTTPResponse)
+        ])
     }
 
     @Test
@@ -165,7 +177,13 @@ struct NetworkProviderTests {
         let transport = InMemoryNetworkTransport { _ in
             throw CancellationError()
         }
-        let provider = NetworkProvider<ProviderTarget>(transport: transport)
+        let recorder = NetworkEventRecorder()
+        let provider = NetworkProvider<ProviderTarget>(
+            transport: transport,
+            monitors: [
+                RecordingNetworkEventMonitor(name: "observer", recorder: recorder)
+            ]
+        )
 
         do {
             _ = try await provider.request(ProviderTarget())
@@ -174,6 +192,12 @@ struct NetworkProviderTests {
         } catch {
             Issue.record("Unexpected error: \(error)")
         }
+
+        let events = await recorder.recordedEvents()
+        #expect(events == [
+            .willSend(monitor: "observer"),
+            .didComplete(monitor: "observer", outcome: .cancelled)
+        ])
     }
 
     @Test
@@ -181,7 +205,13 @@ struct NetworkProviderTests {
         let transport = InMemoryNetworkTransport { _ in
             throw URLError(.cancelled)
         }
-        let provider = NetworkProvider<ProviderTarget>(transport: transport)
+        let recorder = NetworkEventRecorder()
+        let provider = NetworkProvider<ProviderTarget>(
+            transport: transport,
+            monitors: [
+                RecordingNetworkEventMonitor(name: "observer", recorder: recorder)
+            ]
+        )
 
         do {
             _ = try await provider.request(ProviderTarget())
@@ -190,6 +220,12 @@ struct NetworkProviderTests {
         } catch {
             Issue.record("Unexpected error: \(error)")
         }
+
+        let events = await recorder.recordedEvents()
+        #expect(events == [
+            .willSend(monitor: "observer"),
+            .didComplete(monitor: "observer", outcome: .cancelled)
+        ])
     }
 
     @Test
@@ -197,7 +233,13 @@ struct NetworkProviderTests {
         let transport = InMemoryNetworkTransport { _ in
             throw ProviderFixtureError.offline
         }
-        let provider = NetworkProvider<ProviderTarget>(transport: transport)
+        let recorder = NetworkEventRecorder()
+        let provider = NetworkProvider<ProviderTarget>(
+            transport: transport,
+            monitors: [
+                RecordingNetworkEventMonitor(name: "observer", recorder: recorder)
+            ]
+        )
 
         do {
             _ = try await provider.request(ProviderTarget())
@@ -207,6 +249,75 @@ struct NetworkProviderTests {
         } catch {
             Issue.record("Unexpected error: \(error)")
         }
+
+        let events = await recorder.recordedEvents()
+        #expect(events == [
+            .willSend(monitor: "observer"),
+            .didComplete(monitor: "observer", outcome: .transportFailure)
+        ])
+    }
+
+    @Test
+    func wrapsMismatchedAdapterNetworkErrorAtAdaptationBoundary() async {
+        let transport = makeHTTPTransport(statusCode: 200)
+        let recorder = NetworkEventRecorder()
+        let provider = NetworkProvider<ProviderTarget>(
+            transport: transport,
+            adapters: [MismatchedNetworkErrorAdapter()],
+            monitors: [
+                RecordingNetworkEventMonitor(name: "observer", recorder: recorder)
+            ]
+        )
+
+        do {
+            _ = try await provider.request(ProviderTarget())
+            Issue.record("Expected adaptation failure")
+        } catch let NetworkError.requestAdaptation(underlying) {
+            guard case let NetworkError.transport(nested) = underlying else {
+                Issue.record("Expected mismatched transport error to be retained")
+                return
+            }
+            #expect((nested as? ProviderFixtureError) == .offline)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+
+        let requests = await transport.recordedRequests()
+        let events = await recorder.recordedEvents()
+        #expect(requests.isEmpty)
+        #expect(events.isEmpty)
+    }
+
+    @Test
+    func wrapsMismatchedTransportNetworkErrorAtExecutionBoundary() async {
+        let transport = InMemoryNetworkTransport { _ in
+            throw NetworkError.requestConstruction
+        }
+        let recorder = NetworkEventRecorder()
+        let provider = NetworkProvider<ProviderTarget>(
+            transport: transport,
+            monitors: [
+                RecordingNetworkEventMonitor(name: "observer", recorder: recorder)
+            ]
+        )
+
+        do {
+            _ = try await provider.request(ProviderTarget())
+            Issue.record("Expected transport failure")
+        } catch let NetworkError.transport(underlying) {
+            guard case NetworkError.requestConstruction = underlying else {
+                Issue.record("Expected mismatched construction error to be retained")
+                return
+            }
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+
+        let events = await recorder.recordedEvents()
+        #expect(events == [
+            .willSend(monitor: "observer"),
+            .didComplete(monitor: "observer", outcome: .transportFailure)
+        ])
     }
 
     @Test
@@ -328,6 +439,16 @@ private struct ThrowingAdapter: RequestAdapter {
         target: any NetworkTarget
     ) async throws -> URLRequest {
         throw ProviderFixtureError.adaptation
+    }
+}
+
+nonisolated
+private struct MismatchedNetworkErrorAdapter: RequestAdapter {
+    func adapt(
+        _ request: URLRequest,
+        target: any NetworkTarget
+    ) async throws -> URLRequest {
+        throw NetworkError.transport(underlying: ProviderFixtureError.offline)
     }
 }
 

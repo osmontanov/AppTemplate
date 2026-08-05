@@ -6,6 +6,8 @@ enum RecordedNetworkOutcome: Equatable, Sendable {
     case success(statusCode: Int)
     case unacceptableStatus(statusCode: Int)
     case cancelled
+    case nonHTTPResponse
+    case transportFailure
     case otherFailure
 }
 
@@ -51,6 +53,10 @@ struct RecordingNetworkEventMonitor: NetworkEventMonitor {
             outcome = .unacceptableStatus(statusCode: response.statusCode)
         case .failure(.cancelled):
             outcome = .cancelled
+        case .failure(.nonHTTPResponse):
+            outcome = .nonHTTPResponse
+        case .failure(.transport):
+            outcome = .transportFailure
         case .failure:
             outcome = .otherFailure
         }

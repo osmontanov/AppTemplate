@@ -42,10 +42,7 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
                 request = try await adapter.adapt(request, target: target)
             }
         } catch {
-            throw normalize(
-                error,
-                fallback: { .requestAdaptation(underlying: $0) }
-            )
+            throw adaptationError(from: error)
         }
 
         for monitor in monitors {
@@ -65,47 +62,56 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
         for request: URLRequest,
         target: Target
     ) async -> Result<NetworkResponse, NetworkError> {
-        do {
-            let response: NetworkResponse
-            switch stubBehavior(target) {
-            case .never:
-                response = try await liveResponse(for: request)
-            case .immediate:
-                response = stubResponse(for: request, target: target)
-            case let .delayed(duration):
+        let response: NetworkResponse
+        switch stubBehavior(target) {
+        case .never:
+            switch await liveResult(for: request) {
+            case let .success(liveResponse):
+                response = liveResponse
+            case let .failure(error):
+                return .failure(error)
+            }
+        case .immediate:
+            response = stubResponse(for: request, target: target)
+        case let .delayed(duration):
+            do {
                 try await sleep(duration)
-                response = stubResponse(for: request, target: target)
+            } catch {
+                return .failure(executionError(from: error))
             }
-
-            guard target.validation.accepts(response.statusCode) else {
-                throw NetworkError.unacceptableStatus(response)
-            }
-
-            return .success(response)
-        } catch {
-            return .failure(
-                normalize(
-                    error,
-                    fallback: { .transport(underlying: $0) }
-                )
-            )
+            response = stubResponse(for: request, target: target)
         }
+
+        guard target.validation.accepts(response.statusCode) else {
+            return .failure(.unacceptableStatus(response))
+        }
+
+        return .success(response)
     }
 
-    private func liveResponse(
+    private func liveResult(
         for request: URLRequest
-    ) async throws -> NetworkResponse {
-        let (data, urlResponse) = try await transport.data(for: request)
-        guard let httpResponse = urlResponse as? HTTPURLResponse else {
-            throw NetworkError.nonHTTPResponse
+    ) async -> Result<NetworkResponse, NetworkError> {
+        let data: Data
+        let urlResponse: URLResponse
+        do {
+            (data, urlResponse) = try await transport.data(for: request)
+        } catch {
+            return .failure(executionError(from: error))
         }
 
-        return NetworkResponse(
-            request: request,
-            url: httpResponse.url,
-            statusCode: httpResponse.statusCode,
-            headers: stringHeaders(from: httpResponse),
-            data: data
+        guard let httpResponse = urlResponse as? HTTPURLResponse else {
+            return .failure(.nonHTTPResponse)
+        }
+
+        return .success(
+            NetworkResponse(
+                request: request,
+                url: httpResponse.url,
+                statusCode: httpResponse.statusCode,
+                headers: stringHeaders(from: httpResponse),
+                data: data
+            )
         )
     }
 
@@ -113,29 +119,58 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
         for request: URLRequest,
         target: Target
     ) -> NetworkResponse {
-        NetworkResponse(
+        let sample = target.sampleResponse
+        return NetworkResponse(
             request: request,
             url: request.url,
-            statusCode: target.sampleResponse.statusCode,
-            headers: target.sampleResponse.headers,
-            data: target.sampleResponse.data
+            statusCode: sample.statusCode,
+            headers: sample.headers,
+            data: sample.data
         )
     }
 
-    private func normalize(
-        _ error: any Error,
-        fallback: (any Error) -> NetworkError
-    ) -> NetworkError {
-        if let networkError = error as? NetworkError {
+    private func adaptationError(from error: any Error) -> NetworkError {
+        if let cancellation = cancellationError(from: error) {
+            return cancellation
+        }
+        if
+            let networkError = error as? NetworkError,
+            case .requestAdaptation = networkError
+        {
             return networkError
         }
+        return .requestAdaptation(underlying: error)
+    }
+
+    private func executionError(from error: any Error) -> NetworkError {
+        if let cancellation = cancellationError(from: error) {
+            return cancellation
+        }
+        if
+            let networkError = error as? NetworkError,
+            case .transport = networkError
+        {
+            return networkError
+        }
+        return .transport(underlying: error)
+    }
+
+    private func cancellationError(
+        from error: any Error
+    ) -> NetworkError? {
         if error is CancellationError {
             return .cancelled
         }
         if let urlError = error as? URLError, urlError.code == .cancelled {
             return .cancelled
         }
-        return fallback(error)
+        if
+            let networkError = error as? NetworkError,
+            case .cancelled = networkError
+        {
+            return .cancelled
+        }
+        return nil
     }
 
     private func stringHeaders(
