@@ -135,7 +135,13 @@ private func decodedState(from storage: InMemoryAppStateStorage) throws -> AppSt
 }
 
 private actor InjectedLocalDatabaseService: ILocalDatabaseService {}
-private actor InjectedRemoteService: IRemoteService {}
+private actor InjectedRemoteService: IRemoteService {
+    func fetchExample(
+        _ request: ExampleRequest
+    ) async throws -> ExampleResponse {
+        ExampleResponse(id: "injected", title: request.query)
+    }
+}
 
 nonisolated
 private final class InjectedAppStateStorage:
