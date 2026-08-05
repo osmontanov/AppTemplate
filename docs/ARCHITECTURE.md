@@ -90,9 +90,26 @@ does not receive the whole app graph. Other feature dependency structs are
 empty extension points until their features need a real dependency.
 
 `AppInfoService` reads display name and short version from the app bundle and
-is injected into Settings. `ILocalDatabaseService`/`LocalDatabaseService` and
-`IRemoteService`/`RemoteService` are intentionally empty protocol/actor
-examples. They demonstrate concurrency-safe composition but provide no local
-or remote behavior. Add real requirements and implementations before using
-them, keep factories explicit, and avoid service locators or hidden global
-fallbacks.
+is injected into Settings. `ILocalDatabaseService`/`LocalDatabaseService`
+remain an intentionally empty local-storage example.
+
+`IRemoteService` is the app-facing remote boundary. Its neutral
+`fetchExample(_:)` operation demonstrates a semantic service method without
+exposing targets, URL requests, or response decoding to features.
+`RemoteService` is an actor that owns `NetworkProvider<ExampleTarget>` and
+decodes the provider's raw response into `ExampleResponse`.
+
+The reusable implementation under `App/Networking` is Moya-inspired but uses
+Foundation directly. `NetworkTarget` values describe typed endpoints;
+`NetworkRequestBuilder` creates requests; asynchronous `RequestAdapter`s mutate
+them in order; `NetworkEventMonitor`s observe lifecycle events in order; and a
+replaceable `NetworkTransport` performs I/O. `URLSessionTransport` is live,
+while provider-level immediate and delayed sample responses support
+deterministic tests. Status codes default to `200..<300`, and status or decoding
+errors retain the raw `NetworkResponse`.
+
+The template's live graph deliberately uses `https://example.invalid` because
+it has no production backend. No existing feature calls the example operation.
+Replace the URL, target, and service contract before product use; inject
+feature-specific service slices rather than providers or `AppDependencies`
+into ViewModels.

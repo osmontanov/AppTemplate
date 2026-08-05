@@ -66,12 +66,24 @@ is sufficient. To replace it:
 
 ## 5. Services and features
 
-The local and remote service protocols and actors are empty examples. Add
-real, concurrency-safe requirements before injecting them into a feature.
-Create a feature-scoped dependency struct under
-`AppTemplate/Features/<Feature>/Dependencies`, populate it at the composition
-root, and pass that slice through the feature flow. Do not pass
-`AppDependencies` into screen ViewModels.
+The local database service remains an empty example. The remote service now
+demonstrates a URLSession-backed, Moya-inspired target/provider flow with a
+reserved `https://example.invalid` base URL; it is not a configured production
+API. Before enabling remote product behavior:
+
+1. Replace `ExampleTarget`, `ExampleRequest`, `ExampleResponse`, and
+   `fetchExample(_:)` with domain-specific operations and models.
+2. Supply the real environment base URL at the composition root; do not leave
+   the reserved placeholder or hide configuration in a global singleton.
+3. Add actor-safe `RequestAdapter`s for credentials and explicit,
+   privacy-reviewed `NetworkEventMonitor`s for diagnostics. Do not log secrets,
+   authorization headers, or bodies by default.
+4. Define each target's status validation and sample response, then test it
+   with an in-memory transport or provider stubbing rather than public network
+   access.
+5. Expose only semantic methods through feature-scoped service protocols and
+   dependency structs. Do not inject `NetworkProvider` or `AppDependencies`
+   into a ViewModel.
 
 For a new feature, create its flow and screens under
 `AppTemplate/Features/<Feature>`. A screen owns its outgoing routes and
