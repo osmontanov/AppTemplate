@@ -56,6 +56,26 @@ struct AppLaunchConfigurationTests {
         )
     }
 
+    #if os(macOS)
+    @Test(arguments: [
+        "onboarding",
+        "authentication",
+        "main",
+        "maintenance"
+    ])
+    func persistenceIsolatedUITestRootMapsToState(_ root: String) throws {
+        let uiTestRoot = try #require(UITestRoot(rawValue: root))
+
+        #expect(
+            AppLaunchConfiguration(arguments: [
+                "AppTemplate",
+                "-ApplePersistenceIgnoreState", "YES",
+                "--ui-testing", "--ui-test-root", root
+            ]) == .uiTesting(initialState: uiTestRoot.initialState)
+        )
+    }
+    #endif
+
     @Test(arguments: [
         ["AppTemplate", "--ui-test-root", "main"],
         ["AppTemplate", "--ui-testing"],
@@ -75,4 +95,46 @@ struct AppLaunchConfigurationTests {
     func malformedUITestArgumentsRemainLive(arguments: [String]) {
         #expect(AppLaunchConfiguration(arguments: arguments) == .live)
     }
+
+    #if os(macOS)
+    @Test(arguments: [
+        [
+            "AppTemplate",
+            "-ApplePersistenceIgnoreState", "NO",
+            "--ui-testing", "--ui-test-root", "main"
+        ],
+        [
+            "AppTemplate",
+            "-ApplePersistenceIgnoreState",
+            "--ui-testing", "--ui-test-root", "main"
+        ],
+        [
+            "AppTemplate",
+            "--ui-testing", "--ui-test-root", "main",
+            "-ApplePersistenceIgnoreState", "YES"
+        ],
+        [
+            "AppTemplate",
+            "-ApplePersistenceIgnoreState", "YES",
+            "-ApplePersistenceIgnoreState", "YES",
+            "--ui-testing", "--ui-test-root", "main"
+        ],
+        [
+            "AppTemplate",
+            "-ApplePersistenceIgnoreState", "YES",
+            "--unexpected",
+            "--ui-testing", "--ui-test-root", "main"
+        ],
+        [
+            "AppTemplate",
+            "-ApplePersistenceIgnoreState", "YES",
+            "--ui-testing", "--ui-test-root", "unknown"
+        ]
+    ])
+    func malformedPersistenceIsolationArgumentsRemainLive(
+        _ arguments: [String]
+    ) {
+        #expect(AppLaunchConfiguration(arguments: arguments) == .live)
+    }
+    #endif
 }

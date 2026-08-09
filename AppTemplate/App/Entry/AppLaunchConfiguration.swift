@@ -48,11 +48,23 @@ enum AppLaunchConfiguration: Equatable, Sendable {
     init(arguments: [String]) {
         let uiTestingMarker = "--ui-testing"
         let uiTestRootOption = "--ui-test-root"
+        var uiTestingArguments = Array(arguments.dropFirst())
 
-        guard arguments.count == 4,
-              arguments[1] == uiTestingMarker,
-              arguments[2] == uiTestRootOption,
-              let root = UITestRoot(rawValue: arguments[3])
+        #if os(macOS)
+        let persistenceIsolationArguments = [
+            "-ApplePersistenceIgnoreState",
+            "YES"
+        ]
+        if uiTestingArguments.count == 5,
+           Array(uiTestingArguments.prefix(2)) == persistenceIsolationArguments {
+            uiTestingArguments.removeFirst(2)
+        }
+        #endif
+
+        guard uiTestingArguments.count == 3,
+              uiTestingArguments[0] == uiTestingMarker,
+              uiTestingArguments[1] == uiTestRootOption,
+              let root = UITestRoot(rawValue: uiTestingArguments[2])
         else {
             self = .live
             return
