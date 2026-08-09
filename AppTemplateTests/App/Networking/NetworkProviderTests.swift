@@ -3,6 +3,32 @@ import Testing
 @testable import AppTemplate
 
 struct NetworkProviderTests {
+    @MainActor
+    @Test
+    func requestSetupDoesNotBlockTheMainActor() async throws {
+        let gate = MainActorLivenessGate()
+        let provider = NetworkProvider<ProviderTarget>(
+            transport: makeHTTPTransport(statusCode: 200),
+            jsonEncoderFactory: {
+                gate.pauseEncoder()
+                return JSONEncoder()
+            }
+        )
+        let target = ProviderTarget(task: .json(ExecutorPayload(value: "liveness")))
+
+        let requestTask = Task { try await provider.request(target) }
+        let entered = await gate.waitForEncoderEntry()
+        #expect(entered)
+
+        let releaseTask = Task { @MainActor in
+            gate.releaseFromMainActor()
+        }
+        await releaseTask.value
+        _ = try await requestTask.value
+
+        #expect(gate.wasReleasedBeforeDeadline)
+    }
+
     @Test
     func mapsLiveHTTPTransportResponse() async throws {
         let body = Data(#"{"value":"ok"}"#.utf8)
@@ -402,6 +428,36 @@ struct NetworkProviderTests {
 }
 
 nonisolated
+private final class MainActorLivenessGate: @unchecked Sendable {
+    private let entered = DispatchSemaphore(value: 0)
+    private let released = DispatchSemaphore(value: 0)
+    private let lock = NSLock()
+    private var releasedBeforeDeadline = false
+
+    var wasReleasedBeforeDeadline: Bool {
+        lock.withLock { releasedBeforeDeadline }
+    }
+
+    func pauseEncoder() {
+        entered.signal()
+        let releasedInTime = released.wait(timeout: .now() + .seconds(2)) == .success
+        lock.withLock { releasedBeforeDeadline = releasedInTime }
+    }
+
+    func waitForEncoderEntry() async -> Bool {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global().async {
+                continuation.resume(
+                    returning: self.entered.wait(timeout: .now() + .seconds(2)) == .success
+                )
+            }
+        }
+    }
+
+    func releaseFromMainActor() { released.signal() }
+}
+
+nonisolated
 private struct ProviderTarget: NetworkTarget {
     let baseURL: URL
     let path: String
@@ -428,6 +484,11 @@ private struct ProviderTarget: NetworkTarget {
         self.validation = validation
         self.sampleResponse = sampleResponse
     }
+}
+
+nonisolated
+private struct ExecutorPayload: Encodable, Sendable {
+    let value: String
 }
 
 nonisolated

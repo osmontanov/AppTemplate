@@ -34,6 +34,7 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
         self.sleep = sleep
     }
 
+    @concurrent
     func request(_ target: Target) async throws -> NetworkResponse {
         var request = try requestBuilder.build(target)
 
