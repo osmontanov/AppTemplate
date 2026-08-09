@@ -1,7 +1,7 @@
 import Foundation
 
-/// Callbacks are sequential and read-only; monitors are responsible for
-/// internally enqueuing expensive telemetry.
+/// Callbacks are sequential and read-only and must return quickly; monitors
+/// are responsible for internally enqueuing expensive telemetry.
 nonisolated
 protocol NetworkEventMonitor: Sendable {
     func willSend(

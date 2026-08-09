@@ -111,6 +111,7 @@ struct NetworkProviderTests {
 
         _ = try await provider.request(ProviderTarget())
         let events = await recorder.recordedEvents()
+        let contextEvents = await recorder.recordedContextEvents()
 
         #expect(events == [
             .willSend(monitor: "first"),
@@ -124,6 +125,17 @@ struct NetworkProviderTests {
                 outcome: .success(statusCode: 204)
             )
         ])
+        try #require(contextEvents.count == 4)
+        #expect(contextEvents.map(\.monitor) == [
+            "first", "second", "first", "second"
+        ])
+        #expect(contextEvents.map(\.phase) == [
+            .willSend, .willSend, .didComplete, .didComplete
+        ])
+        #expect(Set(contextEvents.map(\.requestID)).count == 1)
+        #expect(contextEvents.allSatisfy {
+            $0.request == contextEvents[0].request
+        })
     }
 
     @Test
@@ -281,7 +293,7 @@ struct NetworkProviderTests {
     }
 
     @Test
-    func mapsCancellationErrorToCancelled() async {
+    func mapsCancellationErrorToCancelled() async throws {
         let transport = InMemoryNetworkTransport { _ in
             throw CancellationError()
         }
@@ -302,10 +314,15 @@ struct NetworkProviderTests {
         }
 
         let events = await recorder.recordedEvents()
+        let contextEvents = await recorder.recordedContextEvents()
         #expect(events == [
             .willSend(monitor: "observer"),
             .didComplete(monitor: "observer", outcome: .cancelled)
         ])
+        try #require(contextEvents.count == 2)
+        #expect(contextEvents.map(\.phase) == [.willSend, .didComplete])
+        #expect(contextEvents[0].requestID == contextEvents[1].requestID)
+        #expect(contextEvents[0].request == contextEvents[1].request)
     }
 
     @Test
