@@ -30,7 +30,7 @@ struct NetworkProviderStubTests {
 
         #expect(response.statusCode == 201)
         #expect(response.data == data)
-        #expect(response.headers == ["X-Stub": "true"])
+        #expect(response.headers["x-stub"] == "true")
         #expect(response.request.value(forHTTPHeaderField: "X-Stub-Adapter") == "applied")
         #expect(requests.isEmpty)
         #expect(events == [
@@ -162,7 +162,7 @@ struct NetworkProviderStubTests {
 
         #expect(sampleRecorder.readCount == 1)
         #expect(response.statusCode == 201)
-        #expect(response.headers == ["X-Sample": "1"])
+        #expect(response.headers["x-sample"] == "1")
         #expect(response.data == Data("sample-1".utf8))
     }
 }

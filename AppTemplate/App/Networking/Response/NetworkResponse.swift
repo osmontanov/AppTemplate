@@ -5,7 +5,7 @@ struct NetworkResponse: Sendable {
     let request: URLRequest
     let url: URL?
     let statusCode: Int
-    let headers: [String: String]
+    let headers: HTTPHeaders
     let data: Data
 
     func decode<Value: Decodable>(

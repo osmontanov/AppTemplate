@@ -109,7 +109,7 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
                 request: request,
                 url: httpResponse.url,
                 statusCode: httpResponse.statusCode,
-                headers: stringHeaders(from: httpResponse),
+                headers: httpHeaders(from: httpResponse),
                 data: data
             )
         )
@@ -173,12 +173,32 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
         return nil
     }
 
-    private func stringHeaders(
+    private func httpHeaders(
         from response: HTTPURLResponse
-    ) -> [String: String] {
-        response.allHeaderFields.reduce(into: [:]) { headers, field in
-            guard let name = field.key as? String else { return }
-            headers[name] = String(describing: field.value)
+    ) -> HTTPHeaders {
+        let entries = response.allHeaderFields.compactMap {
+            key, value -> (String, String)? in
+            guard
+                let name = key as? String,
+                HTTPHeaders.isValidFieldName(name)
+            else {
+                return nil
+            }
+            return (name, String(describing: value))
+        }.sorted {
+            let leftCanonical = HTTPHeaders.canonicalName($0.0)
+            let rightCanonical = HTTPHeaders.canonicalName($1.0)
+            if leftCanonical != rightCanonical {
+                return leftCanonical < rightCanonical
+            }
+            if $0.0 != $1.0 {
+                return $0.0.utf8.lexicographicallyPrecedes($1.0.utf8)
+            }
+            return $0.1 < $1.1
+        }
+
+        return entries.reduce(into: HTTPHeaders()) { headers, entry in
+            headers.set(entry.1, for: entry.0)
         }
     }
 }

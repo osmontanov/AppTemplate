@@ -57,12 +57,8 @@ struct NetworkRequestBuilder: Sendable {
             try apply(body, to: &request)
         }
 
-        for (name, value) in headers {
-            let normalizedName =
-                name.caseInsensitiveCompare("Content-Type") == .orderedSame
-                ? "Content-Type"
-                : name
-            request.setValue(value, forHTTPHeaderField: normalizedName)
+        for field in headers.fields {
+            request.setValue(field.value, forHTTPHeaderField: field.name)
         }
 
         return request

@@ -202,14 +202,14 @@ private struct RequestBuilderTarget: NetworkTarget {
     let path: String
     let method: HTTPMethod
     let task: NetworkTask
-    let headers: [String: String]
+    let headers: HTTPHeaders
 
     init(
         baseURL: URL = URL(string: "https://api.example.test")!,
         path: String = "/resource",
         method: HTTPMethod = .get,
         task: NetworkTask = .plain,
-        headers: [String: String] = [:]
+        headers: HTTPHeaders = [:]
     ) {
         self.baseURL = baseURL
         self.path = path
@@ -265,7 +265,7 @@ private final class SnapshotRecorder: @unchecked Sendable {
         }
     }
 
-    func nextHeaders() -> [String: String] {
+    func nextHeaders() -> HTTPHeaders {
         lock.withLock {
             counts.headers += 1
             return ["X-Snapshot": String(counts.headers)]
@@ -281,7 +281,7 @@ private struct ComputedSnapshotTarget: NetworkTarget {
     var path: String { recorder.nextPath() }
     var method: HTTPMethod { recorder.nextMethod() }
     var task: NetworkTask { recorder.nextTask() }
-    var headers: [String: String] { recorder.nextHeaders() }
+    var headers: HTTPHeaders { recorder.nextHeaders() }
 }
 
 nonisolated

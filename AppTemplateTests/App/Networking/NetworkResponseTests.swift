@@ -17,6 +17,7 @@ struct NetworkResponseTests {
                 title: "Remote example"
             )
         )
+        #expect(response.headers["content-type"] == "application/json")
     }
 
     @Test

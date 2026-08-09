@@ -4,12 +4,12 @@ nonisolated
 struct StubResponse: Sendable {
     let statusCode: Int
     let data: Data
-    let headers: [String: String]
+    let headers: HTTPHeaders
 
     init(
         statusCode: Int = 200,
         data: Data = Data(),
-        headers: [String: String] = [:]
+        headers: HTTPHeaders = [:]
     ) {
         self.statusCode = statusCode
         self.data = data

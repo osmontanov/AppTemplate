@@ -6,7 +6,7 @@ protocol NetworkTarget: Sendable {
     var path: String { get }
     var method: HTTPMethod { get }
     var task: NetworkTask { get }
-    var headers: [String: String] { get }
+    var headers: HTTPHeaders { get }
     var validation: StatusCodeValidation { get }
     var sampleResponse: StubResponse { get }
 }
@@ -14,7 +14,7 @@ protocol NetworkTarget: Sendable {
 nonisolated
 extension NetworkTarget {
     var task: NetworkTask { .plain }
-    var headers: [String: String] { [:] }
+    var headers: HTTPHeaders { [:] }
     var validation: StatusCodeValidation { .successful }
     var sampleResponse: StubResponse { StubResponse() }
 }

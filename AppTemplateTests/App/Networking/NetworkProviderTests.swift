@@ -21,8 +21,33 @@ struct NetworkProviderTests {
         #expect(response.statusCode == 201)
         #expect(response.data == body)
         #expect(response.url?.absoluteString == "https://api.example.test/created")
-        #expect(response.headers.values.contains("request-123"))
+        #expect(response.headers["x-request-id"] == "request-123")
         #expect(response.request == requests.first)
+    }
+
+    @Test
+    func mapsLiveHeaderFieldsDeterministicallyAndIgnoresInvalidNames() async throws {
+        let syntheticResponse = SyntheticHTTPURLResponse(fields: [
+            "X-Rate-Limit": "old",
+            "x-rate-limit": "new",
+            "X-Retry-After": NSNumber(value: 3),
+            "bad name": "ignored",
+            AnyHashable(7): "ignored"
+        ])
+        let transport = InMemoryNetworkTransport { _ in
+            (Data(), syntheticResponse)
+        }
+        let provider = NetworkProvider<ProviderTarget>(transport: transport)
+
+        let response = try await provider.request(ProviderTarget())
+
+        #expect(response.headers.fields.filter {
+            $0.name.lowercased() == "x-rate-limit"
+        }.count == 1)
+        #expect(response.headers["x-rate-limit"] == "new")
+        #expect(response.headers["x-retry-after"] == "3")
+        #expect(response.headers["bad name"] == nil)
+        #expect(response.headers["7"] == nil)
     }
 
     @Test
@@ -382,7 +407,7 @@ private struct ProviderTarget: NetworkTarget {
     let path: String
     let method: HTTPMethod
     let task: NetworkTask
-    let headers: [String: String]
+    let headers: HTTPHeaders
     let validation: StatusCodeValidation
     let sampleResponse: StubResponse
 
@@ -391,7 +416,7 @@ private struct ProviderTarget: NetworkTarget {
         path: String = "/resource",
         method: HTTPMethod = .get,
         task: NetworkTask = .plain,
-        headers: [String: String] = [:],
+        headers: HTTPHeaders = [:],
         validation: StatusCodeValidation = .successful,
         sampleResponse: StubResponse = StubResponse()
     ) {
@@ -402,6 +427,30 @@ private struct ProviderTarget: NetworkTarget {
         self.headers = headers
         self.validation = validation
         self.sampleResponse = sampleResponse
+    }
+}
+
+nonisolated
+private final class SyntheticHTTPURLResponse:
+    HTTPURLResponse,
+    @unchecked Sendable
+{
+    private let syntheticFields: [AnyHashable: Any]
+
+    init(fields: [AnyHashable: Any]) {
+        syntheticFields = fields
+        super.init(
+            url: URL(string: "https://api.example.test/resource")!,
+            statusCode: 200,
+            httpVersion: "HTTP/1.1",
+            headerFields: [:]
+        )!
+    }
+
+    override var allHeaderFields: [AnyHashable: Any] { syntheticFields }
+
+    required init?(coder: NSCoder) {
+        fatalError("SyntheticHTTPURLResponse is test-only")
     }
 }
 
