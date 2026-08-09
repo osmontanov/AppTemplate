@@ -3,20 +3,23 @@ import XCTest
 nonisolated
 final class AppTemplateUITests: XCTestCase {
     @MainActor
-    func testOnboardingRootIsVisible() {
-        let app = launch(root: "onboarding")
-
-        XCTAssertTrue(
-            element(in: app, identifier: "screen.onboarding")
-                .waitForExistence(timeout: 5)
+    func testOnboardingRootIsVisible() throws {
+        let app = try launch(
+            root: "onboarding",
+            expectedRootIdentifier: "screen.onboarding"
         )
+
+        XCTAssertTrue(element(in: app, identifier: "screen.onboarding").exists)
     }
 
     @MainActor
-    func testBrowseTabShowsBrowseScreen() {
-        let app = launch(root: "main")
+    func testBrowseTabShowsBrowseScreen() throws {
+        let app = try launch(
+            root: "main",
+            expectedRootIdentifier: "screen.home"
+        )
 
-        activate(element(in: app, identifier: "tab.browse"))
+        try activate(element(in: app, identifier: "tab.browse"))
 
         XCTAssertTrue(
             element(in: app, identifier: "screen.browse")
@@ -26,25 +29,30 @@ final class AppTemplateUITests: XCTestCase {
 
     #if os(iOS)
     @MainActor
-    func testTabIdentifiersSurviveIndependentRelaunches() {
+    func testTabIdentifiersSurviveIndependentRelaunches() throws {
         let identifiers = [
             "tab.home",
             "tab.browse",
             "tab.projects",
             "tab.settings"
         ]
-        let first = launch(root: "main")
+        let first = try launch(
+            root: "main",
+            expectedRootIdentifier: "screen.home"
+        )
 
         for identifier in identifiers {
-            XCTAssertTrue(
+            _ = try requireExistence(
                 element(in: first, identifier: identifier)
-                    .waitForExistence(timeout: 5)
             )
         }
         first.terminate()
 
-        let second = launch(root: "main")
-        activate(element(in: second, identifier: "tab.browse"))
+        let second = try launch(
+            root: "main",
+            expectedRootIdentifier: "screen.home"
+        )
+        try activate(element(in: second, identifier: "tab.browse"))
 
         XCTAssertTrue(
             element(in: second, identifier: "screen.browse")
@@ -54,10 +62,13 @@ final class AppTemplateUITests: XCTestCase {
     #endif
 
     @MainActor
-    func testNavigationGuideCanBeOpened() {
-        let app = launch(root: "main")
+    func testNavigationGuideCanBeOpened() throws {
+        let app = try launch(
+            root: "main",
+            expectedRootIdentifier: "screen.home"
+        )
 
-        activate(
+        try activate(
             element(
                 in: app,
                 identifier: "action.openNavigationGuide"
@@ -71,21 +82,22 @@ final class AppTemplateUITests: XCTestCase {
     }
 
     @MainActor
-    func testBrowseOptionsCanBePresentedAndDismissed() {
-        let app = launch(root: "main")
+    func testBrowseOptionsCanBePresentedAndDismissed() throws {
+        let app = try launch(
+            root: "main",
+            expectedRootIdentifier: "screen.home"
+        )
 
-        activate(element(in: app, identifier: "tab.browse"))
-        activate(
+        try activate(element(in: app, identifier: "tab.browse"))
+        try activate(
             element(in: app, identifier: "action.openBrowseOptions")
         )
 
-        let browseOptions = element(
-            in: app,
-            identifier: "screen.browseOptions"
+        let browseOptions = try requireExistence(
+            element(in: app, identifier: "screen.browseOptions")
         )
-        XCTAssertTrue(browseOptions.waitForExistence(timeout: 5))
 
-        activate(
+        try activate(
             element(in: app, identifier: "action.dismissBrowseOptions")
         )
 
@@ -94,11 +106,14 @@ final class AppTemplateUITests: XCTestCase {
 
     #if os(macOS)
     @MainActor
-    func testSettingsWindowCanBeOpened() {
-        let app = launch(root: "main")
+    func testSettingsWindowCanBeOpened() throws {
+        let app = try launch(
+            root: "main",
+            expectedRootIdentifier: "screen.home"
+        )
 
-        activate(element(in: app, identifier: "tab.settings"))
-        activate(
+        try activate(element(in: app, identifier: "tab.settings"))
+        try activate(
             element(in: app, identifier: "action.openSettingsWindow")
         )
 
@@ -110,22 +125,63 @@ final class AppTemplateUITests: XCTestCase {
     #endif
 
     @MainActor
-    private func launch(root: String) -> XCUIApplication {
+    private func launch(
+        root: String,
+        expectedRootIdentifier: String
+    ) throws -> XCUIApplication {
         let app = XCUIApplication()
+        #if os(macOS)
+        app.launchArguments = [
+            "-ApplePersistenceIgnoreState", "YES",
+            "--ui-testing", "--ui-test-root", root
+        ]
+        #else
         app.launchArguments = ["--ui-testing", "--ui-test-root", root]
+        #endif
         app.launch()
         #if os(macOS)
         app.activate()
-        let expectedRootIdentifier = root == "main"
-            ? "screen.home"
-            : "screen.\(root)"
+        #endif
+
         let expectedRoot = element(
             in: app,
             identifier: expectedRootIdentifier
         )
-        if !expectedRoot.waitForExistence(timeout: 5) {
-            app.typeKey("n", modifierFlags: .command)
+        #if os(macOS)
+        if !app.windows.firstMatch.waitForExistence(timeout: 1) {
+            let menuBar = try requireExistence(app.menuBars.firstMatch)
+            let fileMenuBarItem = try requireExistence(
+                menuBar.menuBarItems.element(boundBy: 2)
+            )
+            if !app.windows.firstMatch.exists {
+                fileMenuBarItem.click()
+
+                let fileMenu = try requireExistence(
+                    fileMenuBarItem.menus.firstMatch
+                )
+                let newWindowActions = fileMenu.menuItems.matching(
+                    identifier: "menuAction:"
+                )
+                let newWindowAction = try requireSingleElement(
+                    newWindowActions,
+                    description: "File-menu window action"
+                )
+                let actionToInvoke = try XCTUnwrap(
+                    app.windows.firstMatch.exists ? nil : newWindowAction,
+                    "Initial window appeared while resolving the "
+                        + "File-menu bootstrap action"
+                )
+                actionToInvoke.click()
+            }
         }
+        #endif
+
+        _ = try requireExistence(expectedRoot)
+        #if os(macOS)
+        _ = try requireSingleElement(
+            app.windows,
+            description: "initial application window"
+        )
         #endif
         return app
     }
@@ -141,8 +197,39 @@ final class AppTemplateUITests: XCTestCase {
     }
 
     @MainActor
-    private func activate(_ element: XCUIElement) {
-        XCTAssertTrue(element.waitForExistence(timeout: 5))
+    private func requireExistence(
+        _ element: XCUIElement,
+        timeout: TimeInterval = 5,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws -> XCUIElement {
+        try XCTUnwrap(
+            element.waitForExistence(timeout: timeout) ? element : nil,
+            "Expected UI element to exist",
+            file: file,
+            line: line
+        )
+    }
+
+    @MainActor
+    private func requireSingleElement(
+        _ query: XCUIElementQuery,
+        description: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws -> XCUIElement {
+        let count = query.count
+        return try XCTUnwrap(
+            count == 1 ? query.firstMatch : nil,
+            "Expected exactly one \(description), found \(count)",
+            file: file,
+            line: line
+        )
+    }
+
+    @MainActor
+    private func activate(_ element: XCUIElement) throws {
+        let element = try requireExistence(element)
         #if os(macOS)
         element.click()
         #else
