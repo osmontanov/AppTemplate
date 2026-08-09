@@ -63,6 +63,10 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
         for request: URLRequest,
         target: Target
     ) async -> Result<NetworkResponse, NetworkError> {
+        guard !Task.isCancelled else {
+            return .failure(.cancelled)
+        }
+
         let response: NetworkResponse
         switch stubBehavior(target) {
         case .never:
@@ -79,6 +83,9 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
                 try await sleep(duration)
             } catch {
                 return .failure(executionError(from: error))
+            }
+            guard !Task.isCancelled else {
+                return .failure(.cancelled)
             }
             response = stubResponse(for: request, target: target)
         }
@@ -131,9 +138,6 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
     }
 
     private func adaptationError(from error: any Error) -> NetworkError {
-        if let cancellation = cancellationError(from: error) {
-            return cancellation
-        }
         if
             let networkError = error as? NetworkError,
             case .requestAdaptation = networkError

@@ -165,6 +165,99 @@ struct NetworkProviderStubTests {
         #expect(response.headers["x-sample"] == "1")
         #expect(response.data == Data("sample-1".utf8))
     }
+
+    @Test
+    func preCancelledImmediateStubReturnsCancelledWithoutSampleSuccess() async {
+        let recorder = NetworkEventRecorder()
+        let provider = NetworkProvider<StubTarget>(
+            transport: unexpectedTransport(),
+            monitors: [RecordingNetworkEventMonitor(name: "observer", recorder: recorder)],
+            stubBehavior: { _ in .immediate }
+        )
+        let target = StubTarget(sampleResponse: StubResponse(statusCode: 299, data: Data("sample".utf8)))
+        let start = ControlledRequestStart()
+        let child = controlledRequest(provider: provider, target: target, start: start)
+
+        await start.waitUntilStarted()
+        child.cancel()
+        await start.permitRequestToContinue()
+        let result = await child.value
+
+        guard case let .failure(error) = result, case NetworkError.cancelled = error else {
+            Issue.record("Expected cancelled immediate stub")
+            return
+        }
+        let events = await recorder.recordedEvents()
+        #expect(events == [
+            .willSend(monitor: "observer"),
+            .didComplete(monitor: "observer", outcome: .cancelled)
+        ])
+    }
+
+    @Test
+    func preCancelledDelayedStubSkipsSleepAndSampleSuccess() async {
+        let sleepCalls = SleepCallRecorder()
+        let recorder = NetworkEventRecorder()
+        let provider = NetworkProvider<StubTarget>(
+            transport: unexpectedTransport(),
+            monitors: [RecordingNetworkEventMonitor(name: "observer", recorder: recorder)],
+            stubBehavior: { _ in .delayed(.seconds(1)) },
+            sleep: { _ in await sleepCalls.record() }
+        )
+        let start = ControlledRequestStart()
+        let child = controlledRequest(provider: provider, target: StubTarget(), start: start)
+
+        await start.waitUntilStarted()
+        child.cancel()
+        await start.permitRequestToContinue()
+        let result = await child.value
+
+        guard case let .failure(error) = result, case NetworkError.cancelled = error else {
+            Issue.record("Expected cancelled delayed stub")
+            return
+        }
+        let sleepCount = await sleepCalls.count
+        let events = await recorder.recordedEvents()
+        #expect(sleepCount == 0)
+        #expect(events == [
+            .willSend(monitor: "observer"),
+            .didComplete(monitor: "observer", outcome: .cancelled)
+        ])
+    }
+
+    @Test
+    func cancellationAfterNoncooperativeDelayedSleepReturnsCancelled() async {
+        let recorder = NetworkEventRecorder()
+        let sleepStart = ControlledRequestStart()
+        let provider = NetworkProvider<StubTarget>(
+            transport: unexpectedTransport(),
+            monitors: [RecordingNetworkEventMonitor(name: "observer", recorder: recorder)],
+            stubBehavior: { _ in .delayed(.seconds(1)) },
+            sleep: { _ in await sleepStart.markStartedAndWaitForPermission() }
+        )
+
+        let child = Task { () -> Result<NetworkResponse, any Error> in
+            do {
+                return .success(try await provider.request(StubTarget()))
+            } catch {
+                return .failure(error)
+            }
+        }
+        await sleepStart.waitUntilStarted()
+        child.cancel()
+        await sleepStart.permitRequestToContinue()
+        let result = await child.value
+
+        guard case let .failure(error) = result, case NetworkError.cancelled = error else {
+            Issue.record("Expected cancellation after noncooperative sleep")
+            return
+        }
+        let events = await recorder.recordedEvents()
+        #expect(events == [
+            .willSend(monitor: "observer"),
+            .didComplete(monitor: "observer", outcome: .cancelled)
+        ])
+    }
 }
 
 nonisolated
@@ -234,6 +327,12 @@ private actor SleepRecorder {
     func recordedDurations() -> [Duration] {
         durations
     }
+}
+
+private actor SleepCallRecorder {
+    private var calls = 0
+    func record() { calls += 1 }
+    var count: Int { calls }
 }
 
 nonisolated

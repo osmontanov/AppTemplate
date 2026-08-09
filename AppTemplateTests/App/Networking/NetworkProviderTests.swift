@@ -425,6 +425,113 @@ struct NetworkProviderTests {
         #expect(requests.isEmpty)
         #expect(events.isEmpty)
     }
+
+    @Test
+    func preCancelledLiveRequestSkipsTransportAndCompletesMonitoring() async {
+        let transport = makeHTTPTransport(statusCode: 200)
+        let recorder = NetworkEventRecorder()
+        let provider = NetworkProvider<ProviderTarget>(
+            transport: transport,
+            monitors: [RecordingNetworkEventMonitor(name: "observer", recorder: recorder)]
+        )
+        let start = ControlledRequestStart()
+        let child = controlledRequest(provider: provider, target: ProviderTarget(), start: start)
+
+        await start.waitUntilStarted()
+        child.cancel()
+        await start.permitRequestToContinue()
+        let result = await child.value
+
+        guard case let .failure(error) = result, case NetworkError.cancelled = error else {
+            Issue.record("Expected cancelled live request")
+            return
+        }
+        let requests = await transport.recordedRequests()
+        let events = await recorder.recordedEvents()
+        #expect(requests.isEmpty)
+        #expect(events == [
+            .willSend(monitor: "observer"),
+            .didComplete(monitor: "observer", outcome: .cancelled)
+        ])
+    }
+
+    @Test
+    func preCancellationDoesNotReplaceConstructionFailure() async {
+        let recorder = NetworkEventRecorder()
+        let provider = NetworkProvider<ProviderTarget>(
+            transport: makeHTTPTransport(statusCode: 200),
+            monitors: [RecordingNetworkEventMonitor(name: "observer", recorder: recorder)]
+        )
+        let target = ProviderTarget(baseURL: URL(string: "relative-base")!)
+        let start = ControlledRequestStart()
+        let child = controlledRequest(provider: provider, target: target, start: start)
+
+        await start.waitUntilStarted()
+        child.cancel()
+        await start.permitRequestToContinue()
+        let result = await child.value
+
+        guard case let .failure(error) = result, case NetworkError.requestConstruction = error else {
+            Issue.record("Expected request construction failure")
+            return
+        }
+        let events = await recorder.recordedEvents()
+        #expect(events.isEmpty)
+    }
+
+    @Test
+    func preCancellationDoesNotReplaceAdaptationFailure() async {
+        let recorder = NetworkEventRecorder()
+        let provider = NetworkProvider<ProviderTarget>(
+            transport: makeHTTPTransport(statusCode: 200),
+            adapters: [ThrowingAdapter()],
+            monitors: [RecordingNetworkEventMonitor(name: "observer", recorder: recorder)]
+        )
+        let start = ControlledRequestStart()
+        let child = controlledRequest(provider: provider, target: ProviderTarget(), start: start)
+
+        await start.waitUntilStarted()
+        child.cancel()
+        await start.permitRequestToContinue()
+        let result = await child.value
+
+        guard case let .failure(error) = result,
+              case NetworkError.requestAdaptation = error else {
+            Issue.record("Expected request adaptation failure")
+            return
+        }
+        let events = await recorder.recordedEvents()
+        #expect(events.isEmpty)
+    }
+
+    @Test
+    func preCancellationObservedByAdapterRemainsAdaptationFailure() async {
+        let transport = makeHTTPTransport(statusCode: 200)
+        let recorder = NetworkEventRecorder()
+        let provider = NetworkProvider<ProviderTarget>(
+            transport: transport,
+            adapters: [CancellationCheckingAdapter()],
+            monitors: [RecordingNetworkEventMonitor(name: "observer", recorder: recorder)]
+        )
+        let start = ControlledRequestStart()
+        let child = controlledRequest(provider: provider, target: ProviderTarget(), start: start)
+
+        await start.waitUntilStarted()
+        child.cancel()
+        await start.permitRequestToContinue()
+        let result = await child.value
+
+        guard case let .failure(error) = result,
+              case let NetworkError.requestAdaptation(underlying) = error else {
+            Issue.record("Expected adapter cancellation to stay an adaptation failure")
+            return
+        }
+        #expect(underlying is CancellationError)
+        let requests = await transport.recordedRequests()
+        let events = await recorder.recordedEvents()
+        #expect(requests.isEmpty)
+        #expect(events.isEmpty)
+    }
 }
 
 nonisolated
@@ -549,6 +656,17 @@ private struct ThrowingAdapter: RequestAdapter {
         target: any NetworkTarget
     ) async throws -> URLRequest {
         throw ProviderFixtureError.adaptation
+    }
+}
+
+nonisolated
+private struct CancellationCheckingAdapter: RequestAdapter {
+    func adapt(
+        _ request: URLRequest,
+        target: any NetworkTarget
+    ) async throws -> URLRequest {
+        try Task.checkCancellation()
+        return request
     }
 }
 
