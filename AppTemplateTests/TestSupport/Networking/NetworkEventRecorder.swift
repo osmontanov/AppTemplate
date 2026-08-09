@@ -17,16 +17,41 @@ enum RecordedNetworkEvent: Equatable, Sendable {
     case didComplete(monitor: String, outcome: RecordedNetworkOutcome)
 }
 
+nonisolated
+enum RecordedNetworkPhase: Equatable, Sendable {
+    case willSend
+    case didComplete
+}
+
+nonisolated
+struct RecordedNetworkContextEvent: Sendable {
+    let monitor: String
+    let phase: RecordedNetworkPhase
+    let requestID: UUID
+    let request: URLRequest
+}
+
 actor NetworkEventRecorder {
     private var events: [RecordedNetworkEvent] = []
+    private var contextEvents: [RecordedNetworkContextEvent] = []
 
-    func append(_ event: RecordedNetworkEvent) {
+    func append(
+        _ event: RecordedNetworkEvent,
+        monitor: String,
+        phase: RecordedNetworkPhase,
+        context: NetworkRequestContext
+    ) {
         events.append(event)
+        contextEvents.append(.init(
+            monitor: monitor,
+            phase: phase,
+            requestID: context.id,
+            request: context.request
+        ))
     }
 
-    func recordedEvents() -> [RecordedNetworkEvent] {
-        events
-    }
+    func recordedEvents() -> [RecordedNetworkEvent] { events }
+    func recordedContextEvents() -> [RecordedNetworkContextEvent] { contextEvents }
 }
 
 nonisolated
@@ -35,14 +60,20 @@ struct RecordingNetworkEventMonitor: NetworkEventMonitor {
     let recorder: NetworkEventRecorder
 
     func willSend(
-        _ request: URLRequest,
+        context: NetworkRequestContext,
         target: any NetworkTarget
     ) async {
-        await recorder.append(.willSend(monitor: name))
+        await recorder.append(
+            .willSend(monitor: name),
+            monitor: name,
+            phase: .willSend,
+            context: context
+        )
     }
 
     func didComplete(
-        _ result: Result<NetworkResponse, NetworkError>,
+        context: NetworkRequestContext,
+        result: Result<NetworkResponse, NetworkError>,
         target: any NetworkTarget
     ) async {
         let outcome: RecordedNetworkOutcome
@@ -62,7 +93,10 @@ struct RecordingNetworkEventMonitor: NetworkEventMonitor {
         }
 
         await recorder.append(
-            .didComplete(monitor: name, outcome: outcome)
+            .didComplete(monitor: name, outcome: outcome),
+            monitor: name,
+            phase: .didComplete,
+            context: context
         )
     }
 }

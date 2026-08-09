@@ -1,14 +1,17 @@
 import Foundation
 
+/// Callbacks are sequential and read-only; monitors are responsible for
+/// internally enqueuing expensive telemetry.
 nonisolated
 protocol NetworkEventMonitor: Sendable {
     func willSend(
-        _ request: URLRequest,
+        context: NetworkRequestContext,
         target: any NetworkTarget
     ) async
 
     func didComplete(
-        _ result: Result<NetworkResponse, NetworkError>,
+        context: NetworkRequestContext,
+        result: Result<NetworkResponse, NetworkError>,
         target: any NetworkTarget
     ) async
 }
@@ -16,12 +19,13 @@ protocol NetworkEventMonitor: Sendable {
 nonisolated
 extension NetworkEventMonitor {
     func willSend(
-        _ request: URLRequest,
+        context: NetworkRequestContext,
         target: any NetworkTarget
     ) async {}
 
     func didComplete(
-        _ result: Result<NetworkResponse, NetworkError>,
+        context: NetworkRequestContext,
+        result: Result<NetworkResponse, NetworkError>,
         target: any NetworkTarget
     ) async {}
 }

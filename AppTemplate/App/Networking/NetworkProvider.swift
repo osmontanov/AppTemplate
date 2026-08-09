@@ -46,14 +46,20 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
             throw adaptationError(from: error)
         }
 
+        let context = NetworkRequestContext(id: UUID(), request: request)
+
         for monitor in monitors {
-            await monitor.willSend(request, target: target)
+            await monitor.willSend(context: context, target: target)
         }
 
         let result = await result(for: request, target: target)
 
         for monitor in monitors {
-            await monitor.didComplete(result, target: target)
+            await monitor.didComplete(
+                context: context,
+                result: result,
+                target: target
+            )
         }
 
         return try result.get()

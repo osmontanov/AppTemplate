@@ -127,6 +127,63 @@ struct NetworkProviderTests {
     }
 
     @Test
+    func liveLifecycleContextContainsFinalAdaptedRequestAndOneID() async throws {
+        let recorder = NetworkEventRecorder()
+        let provider = NetworkProvider<ProviderTarget>(
+            transport: makeHTTPTransport(statusCode: 200),
+            adapters: [AppendingHeaderAdapter(value: "final")],
+            monitors: [RecordingNetworkEventMonitor(name: "live", recorder: recorder)]
+        )
+        _ = try await provider.request(ProviderTarget())
+
+        let events = (await recorder.recordedContextEvents()).filter { $0.monitor == "live" }
+        try #require(events.count == 2)
+        #expect(events.map(\.phase) == [.willSend, .didComplete])
+        #expect(events[0].requestID == events[1].requestID)
+        #expect(events[0].request.value(forHTTPHeaderField: "X-Adapter-Order") == "final")
+        #expect(events[1].request == events[0].request)
+    }
+
+    @Test
+    func failureLifecycleContextUsesTheSameID() async throws {
+        let recorder = NetworkEventRecorder()
+        let provider = NetworkProvider<ProviderTarget>(
+            transport: InMemoryNetworkTransport { _ in throw ProviderFixtureError.offline },
+            monitors: [RecordingNetworkEventMonitor(name: "failure", recorder: recorder)]
+        )
+        _ = try? await provider.request(ProviderTarget())
+
+        let events = (await recorder.recordedContextEvents()).filter { $0.monitor == "failure" }
+        try #require(events.count == 2)
+        #expect(events.map(\.phase) == [.willSend, .didComplete])
+        #expect(events[0].requestID == events[1].requestID)
+    }
+
+    @Test
+    func concurrentIdenticalTargetsHaveFullyPairedDistinctContextIDs() async throws {
+        let recorder = NetworkEventRecorder()
+        let provider = NetworkProvider<ProviderTarget>(
+            transport: makeHTTPTransport(statusCode: 200),
+            monitors: [RecordingNetworkEventMonitor(name: "concurrent", recorder: recorder)]
+        )
+        async let first = provider.request(ProviderTarget())
+        async let second = provider.request(ProviderTarget())
+        _ = try await (first, second)
+
+        let events = (await recorder.recordedContextEvents()).filter { $0.monitor == "concurrent" }
+        let starts = events.filter { $0.phase == .willSend }.map(\.requestID)
+        let completions = events.filter { $0.phase == .didComplete }.map(\.requestID)
+        #expect(starts.count == 2)
+        #expect(completions.count == 2)
+        #expect(Set(starts).count == 2)
+        #expect(Set(starts) == Set(completions))
+        for id in Set(starts) {
+            #expect(starts.filter { $0 == id }.count == 1)
+            #expect(completions.filter { $0 == id }.count == 1)
+        }
+    }
+
+    @Test
     func defaultValidationRejectsNonSuccessfulStatusAndRetainsBody() async {
         let body = Data(#"{"error":"missing"}"#.utf8)
         let transport = makeHTTPTransport(statusCode: 404, data: body)

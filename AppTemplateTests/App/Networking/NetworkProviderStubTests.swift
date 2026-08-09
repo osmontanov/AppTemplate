@@ -43,6 +43,25 @@ struct NetworkProviderStubTests {
     }
 
     @Test
+    func stubLifecycleContextContainsFinalAdaptedRequestAndOneID() async throws {
+        let recorder = NetworkEventRecorder()
+        let provider = NetworkProvider<StubTarget>(
+            transport: unexpectedTransport(),
+            adapters: [StubHeaderAdapter()],
+            monitors: [RecordingNetworkEventMonitor(name: "stub", recorder: recorder)],
+            stubBehavior: { _ in .immediate }
+        )
+        _ = try await provider.request(StubTarget())
+
+        let events = (await recorder.recordedContextEvents()).filter { $0.monitor == "stub" }
+        try #require(events.count == 2)
+        #expect(events.map(\.phase) == [.willSend, .didComplete])
+        #expect(events[0].requestID == events[1].requestID)
+        #expect(events[0].request.value(forHTTPHeaderField: "X-Stub-Adapter") == "applied")
+        #expect(events[1].request == events[0].request)
+    }
+
+    @Test
     func delayedStubUsesInjectedSleepWithoutWallClockWaiting() async throws {
         let sleepRecorder = SleepRecorder()
         let transport = unexpectedTransport()
