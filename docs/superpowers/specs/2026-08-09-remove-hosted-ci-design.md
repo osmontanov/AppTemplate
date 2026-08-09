@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-09
 
-**Status:** Proposed
+**Status:** Approved
 
 ## Context
 
