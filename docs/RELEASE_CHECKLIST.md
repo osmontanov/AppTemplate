@@ -33,7 +33,8 @@ Complete this checklist for the adopted product, not for the untouched sample.
 
 - [ ] Replace all static examples and empty local/remote service scaffolds used
   by the released product with reviewed production behavior.
-- [ ] Run the complete unit and UI test suites with warnings treated as errors.
+- [ ] Run the complete local macOS scheme, including unit and UI tests, with
+  warnings treated as errors and no failure allowlist.
 - [ ] Run the unit-test gates locally on macOS, iPhone 17 / iOS 26.5, and
   iPad (A16) / iOS 26.5 with warnings treated as errors.
 - [ ] Review the schema-1 app-state model, storage key, recovery behavior, and

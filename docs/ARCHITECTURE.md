@@ -100,13 +100,33 @@ exposing targets, URL requests, or response decoding to features.
 decodes the provider's raw response into `ExampleResponse`.
 
 The reusable implementation under `App/Networking` is Moya-inspired but uses
-Foundation directly. `NetworkTarget` values describe typed endpoints;
-`NetworkRequestBuilder` creates requests; asynchronous `RequestAdapter`s mutate
-them in order; `NetworkEventMonitor`s observe lifecycle events in order; and a
-replaceable `NetworkTransport` performs I/O. `URLSessionTransport` is live,
-while provider-level immediate and delayed sample responses support
-deterministic tests. Status codes default to `200..<300`, and status or decoding
-errors retain the raw `NetworkResponse`.
+Foundation directly. `NetworkTarget` values describe typed endpoints, and
+`NetworkRequestBuilder` snapshots `baseURL`, `path`, `method`, `task`, and
+`headers` exactly once. An empty path preserves the base URL unchanged,
+including its trailing-slash state. When a target adds query items, the builder
+preserves the base URL's existing percent-encoded query and encodes only the
+new items.
+
+`HTTPHeaders` accepts non-empty ASCII HTTP-token field names and keeps one
+value for each case-insensitive name. Ordered writes replace the previous
+value, fields are applied to requests in canonical-name order, and equality
+ignores retained presentation spelling. Live response mapping treats headers
+as untrusted input: it skips non-string or invalid names, stringifies values,
+and resolves case-variant collisions deterministically.
+
+Asynchronous `RequestAdapter`s mutate requests in order, and a replaceable
+`NetworkTransport` performs I/O. `NetworkProvider.request(_:)` is
+`@concurrent`, so request construction and pipeline setup do not inherit a
+caller actor such as MainActor. After adaptation, the provider creates one
+immutable `NetworkRequestContext` containing a fresh correlation ID and the
+final request. It passes that context through sequential, registration-ordered
+`willSend` and `didComplete` monitor callbacks. Cancellation is checked after
+`willSend`, before live or stub execution, and again after delayed-stub sleep;
+an observed cancellation produces the paired terminal event.
+
+`URLSessionTransport` is live, while provider-level immediate and delayed
+sample responses support deterministic tests. Status codes default to
+`200..<300`, and status or decoding errors retain the raw `NetworkResponse`.
 
 The template's live graph deliberately uses `https://example.invalid` because
 it has no production backend. No existing feature calls the example operation.

@@ -75,13 +75,20 @@ API. Before enabling remote product behavior:
    `fetchExample(_:)` with domain-specific operations and models.
 2. Supply the real environment base URL at the composition root; do not leave
    the reserved placeholder or hide configuration in a global singleton.
-3. Add actor-safe `RequestAdapter`s for credentials and explicit,
-   privacy-reviewed `NetworkEventMonitor`s for diagnostics. Do not log secrets,
-   authorization headers, or bodies by default.
-4. Define each target's status validation and sample response, then test it
+3. At the production composition root, create one long-lived `URLSession` from
+   an explicit configuration and inject it into `URLSessionTransport`. Configure
+   timeout, cache, cookie, connectivity, redirect, and trust policies there as
+   required; do not create a session per request. Redirect handling follows the
+   injected session's policy, and target status validation applies to the
+   terminal HTTP response rather than intermediate redirect responses.
+4. Add actor-safe `RequestAdapter`s for credentials and explicit,
+   privacy-reviewed `NetworkEventMonitor`s for diagnostics. Monitor callbacks
+   must return quickly and queue expensive telemetry internally. Do not log
+   secrets, authorization headers, or bodies by default.
+5. Define each target's status validation and sample response, then test it
    with an in-memory transport or provider stubbing rather than public network
    access.
-5. Expose only semantic methods through feature-scoped service protocols and
+6. Expose only semantic methods through feature-scoped service protocols and
    dependency structs. Do not inject `NetworkProvider` or `AppDependencies`
    into a ViewModel.
 
