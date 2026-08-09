@@ -35,8 +35,8 @@ strings localization if the product needs different names by locale.
 Renaming the Xcode project, targets, shared scheme, product module, test
 modules, `AppTemplateApp`, directories, or the `AppTemplate` persistence-key
 prefix is optional and separate from the display name. If you rename any of
-them, use Xcode's rename operation, update matching paths/references and CI
-arguments, and run all destinations before deleting the old names.
+them, use Xcode's rename operation, update matching paths/references and local
+build/test commands, and run all destinations before deleting the old names.
 
 ## 3. Icons, accent color, and strings
 
@@ -110,7 +110,7 @@ In Xcode, select the `AppTemplate` project and then each app/test target:
    implemented product behavior. Validate the macOS sandbox permissions as
    well as iOS/iPadOS entitlements.
 4. Configure Release signing and archive the Release configuration on a clean
-   machine or CI runner.
+   verification machine.
 
 > **App Store distribution is blocked until the adopter adds and validates the
 > correct `PrivacyInfo.xcprivacy` for the finished app and every included SDK.**

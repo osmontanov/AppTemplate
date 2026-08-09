@@ -6,7 +6,7 @@
 
 **Architecture:** Keep the existing `NetworkTarget -> NetworkRequestBuilder -> RequestAdapter -> NetworkEventMonitor -> NetworkTransport` pipeline and the `RemoteService` actor boundary. Replace internal string-dictionary header contracts with a deterministic value type, create one post-adaptation request context per attempt, and preserve one normalized result path for live and stubbed requests.
 
-**Tech Stack:** Swift 6, Foundation, URLSession, Swift Testing, XCTest UI tests, Xcode 26.6, GitHub Actions; no third-party networking or reactive dependency.
+**Tech Stack:** Swift 6, Foundation, URLSession, Swift Testing, XCTest UI tests, Xcode 26.6; no third-party networking or reactive dependency.
 
 ## Global Constraints
 
@@ -35,7 +35,6 @@
 ### Modify
 
 - `AppTemplate.xcodeproj/project.pbxproj` — enable sandbox client networking in app Debug and Release only.
-- `.github/workflows/ci.yml` — retain the three-platform full-scheme matrix and add the Debug/Release macOS entitlement job.
 - `AppTemplate/App/Networking/Core/NetworkTarget.swift` — migrate target headers to `HTTPHeaders`.
 - `AppTemplate/App/Networking/RequestBuilding/NetworkRequestBuilder.swift` — snapshot targets, preserve URLs, and apply sorted header fields.
 - `AppTemplate/App/Networking/Response/NetworkResponse.swift` — expose `HTTPHeaders`.
@@ -55,12 +54,11 @@
 
 ---
 
-### Task 1: Enable macOS Client Networking and Assert It in CI
+### Task 1: Enable macOS Client Networking and Verify It Locally
 
 **Files:**
 
 - Modify: `AppTemplate.xcodeproj/project.pbxproj`
-- Modify: `.github/workflows/ci.yml`
 - Modify: `docs/RELEASE_CHECKLIST.md`
 
 **Interfaces:**
@@ -96,7 +94,7 @@ done
 
 Expected: app sandbox is enabled while outgoing client networking is not yet enabled; both test targets have neither outgoing nor incoming networking enabled in Debug and Release.
 
-- [ ] **Step 2: Add the application capability and CI entitlement job**
+- [ ] **Step 2: Add the application capability**
 
 In each `AppTemplate` target Debug and Release configuration, add only:
 
@@ -105,78 +103,6 @@ ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 ```
 
 Keep `ENABLE_APP_SANDBOX = YES`; do not add `ENABLE_INCOMING_NETWORK_CONNECTIONS` anywhere and do not edit unit/UI test target settings.
-
-Add this separate job to `.github/workflows/ci.yml` at the same level as the existing `test` job. It selects Xcode 26.6 and leaves the existing full-scheme matrix unchanged:
-
-```yaml
-  macos-entitlements:
-    name: macOS entitlements
-    runs-on: macos-26
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
-
-      - name: Select and print Xcode
-        run: |
-          sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
-          xcodebuild -version
-
-      - name: Build and assert Debug and Release entitlements
-        run: |
-          set -euo pipefail
-          assert_effective_settings() {
-            local configuration="$1"
-            local app_settings
-            local test_settings
-
-            app_settings="$(xcodebuild -project AppTemplate.xcodeproj -target AppTemplate \
-              -configuration "$configuration" -sdk macosx -showBuildSettings)"
-            printf '%s\n' "$app_settings" \
-              | grep -Eq '^[[:space:]]*ENABLE_APP_SANDBOX = YES$'
-            printf '%s\n' "$app_settings" \
-              | grep -Eq '^[[:space:]]*ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES$'
-            if printf '%s\n' "$app_settings" \
-              | grep -Eq '^[[:space:]]*ENABLE_INCOMING_NETWORK_CONNECTIONS = YES$'; then
-              return 1
-            fi
-
-            for target in AppTemplateTests AppTemplateUITests; do
-              test_settings="$(xcodebuild -project AppTemplate.xcodeproj -target "$target" \
-                -configuration "$configuration" -sdk macosx -showBuildSettings)"
-              if printf '%s\n' "$test_settings" \
-                | grep -Eq '^[[:space:]]*ENABLE_(OUTGOING|INCOMING)_NETWORK_CONNECTIONS = YES$'; then
-                return 1
-              fi
-            done
-          }
-
-          build_and_assert() {
-            local configuration="$1"
-            local derived_data="$RUNNER_TEMP/DerivedData-entitlements-$configuration"
-            assert_effective_settings "$configuration"
-
-            xcodebuild build \
-              -project AppTemplate.xcodeproj \
-              -scheme AppTemplate \
-              -configuration "$configuration" \
-              -destination 'generic/platform=macOS' \
-              -derivedDataPath "$derived_data" \
-              SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
-              GCC_TREAT_WARNINGS_AS_ERRORS=YES
-
-            local app="$derived_data/Build/Products/$configuration/AppTemplate.app"
-            codesign --verify --deep --strict --verbose=2 "$app"
-            codesign --display --entitlements - --xml "$app" 2>/dev/null \
-              | plutil -convert json -o - - \
-              | jq -e '."com.apple.security.app-sandbox" == true
-                  and ."com.apple.security.network.client" == true
-                  and (has("com.apple.security.network.server") | not)'
-          }
-
-          build_and_assert Debug
-          build_and_assert Release
-```
 
 - [ ] **Step 3: Run the safe local signed-product gate**
 
@@ -255,11 +181,10 @@ Add this checklist item under macOS signing/sandbox verification:
   `com.apple.security.network.server` to be absent.
 ```
 
-- [ ] **Step 5: Commit the entitlement and CI gate**
+- [ ] **Step 5: Commit the entitlement and local gate**
 
 ```bash
-git add AppTemplate.xcodeproj/project.pbxproj .github/workflows/ci.yml \
-  docs/RELEASE_CHECKLIST.md
+git add AppTemplate.xcodeproj/project.pbxproj docs/RELEASE_CHECKLIST.md
 git commit -m "fix: enable and verify macOS client networking"
 ```
 
@@ -1510,9 +1435,9 @@ Do not delete `verification_root` as part of this command; it is a uniquely crea
 
 Expected: the complete macOS scheme, including unit and UI tests, exits zero with warnings treated as errors. Any nonzero `xcodebuild` result fails Task 7; no former UI failure is allowlisted or reclassified as diagnostic.
 
-- [ ] **Step 6: Confirm CI matrix scope and commit documentation**
+- [ ] **Step 6: Confirm local verification scope and commit documentation**
 
-Verify `.github/workflows/ci.yml` still has its full-scheme macOS/iPhone 17/iPad (A16) `test` matrix and the separate Xcode 26.6 `macos-entitlements` job. Then commit the documentation-only changes:
+Commit the documentation-only changes:
 
 ```bash
 git add docs/ARCHITECTURE.md docs/CUSTOMIZATION.md docs/RELEASE_CHECKLIST.md
@@ -1523,9 +1448,9 @@ git commit -m "docs: describe hardened network contract"
 
 ## Self-Review
 
-- Entitlement coverage: Task 1 enables only app-target client networking in Debug and Release; locally and in CI it checks effective settings for the app and both test targets, asserts sandbox/client/server properties on two signed products, and adds the required CI job.
+- Entitlement coverage: Task 1 enables only app-target client networking in Debug and Release; local effective-setting and signed-product gates check the app and both test targets, and assert sandbox/client/server properties on two signed products.
 - URL coverage: Task 2 covers empty paths, raw encoded base query preservation, and all five target-property snapshots.
 - Header coverage: Task 3 executable tests cover the shared token validator, invalid lookup, trusted valid writes, ordered replacement, canonical ordering, custom equality, request/stub/response migration, non-string live-value stringification, and deterministic untrusted response collision handling. The trusted invalid-name precondition is an explicitly inspected invariant shared by dictionary-literal initialization and `set`, not a directly crash-tested branch.
 - Executor and cancellation coverage: Tasks 4 and 5 are independent commits. The executor gate measures MainActor liveness rather than thread identity; cancellation tests use cancellable children, all stub behaviors, post-sleep cancellation, and construction/adaptation precedence.
 - Monitor coverage: Task 6 uses exact context labels, post-adaptation final request snapshots, sequential callbacks, live/stub/failure correlation, and fully paired concurrent IDs.
-- Verification coverage: after Network Tasks 1–6 and the separately approved UI-isolation plan are implemented, Task 7 provides three unit-only zero-exit platform gates, Debug/Release effective-setting and signed-entitlement checks, a uniquely isolated full macOS scheme gate requiring exit zero, and preserves the existing CI full matrix.
+- Verification coverage: after Network Tasks 1–6 and the separately approved UI-isolation plan are implemented, Task 7 provides three local unit-only zero-exit platform gates, Debug/Release local effective-setting and signed-product gates, and a uniquely isolated complete macOS scheme gate requiring exit zero.

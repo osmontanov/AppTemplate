@@ -2,9 +2,9 @@
 
 AppTemplate is a SwiftUI starting point for iOS 26, iPadOS 26, and macOS 26.
 It provides typed, scene-local navigation; persisted demo app policy; explicit
-dependency injection; deep links; previews; unit tests; UI tests; and a
-three-destination CI matrix. Authentication, local storage, remote access, and
-feature data are intentionally non-production examples.
+dependency injection; deep links; previews; unit tests; UI tests; and documented
+local verification for macOS, iPhone, and iPad. Authentication, local storage,
+remote access, and feature data are intentionally non-production examples.
 
 ## Start here
 

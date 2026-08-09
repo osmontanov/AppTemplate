@@ -71,50 +71,74 @@ assert all three properties:
 - `com.apple.security.network.client` is `true`;
 - `com.apple.security.network.server` is absent.
 
-CI will add a `macos-entitlements` job using Xcode 26.6. Its executable contract
-is two separate builds and assertions equivalent to:
+Local verification uses Xcode 26.6 and this executable contract. It checks
+effective settings for the app and both test targets before creating separate,
+signed Debug and Release products:
 
 ```bash
 set -euo pipefail
 
-xcodebuild build \
-  -project AppTemplate.xcodeproj \
-  -scheme AppTemplate \
-  -configuration Debug \
-  -destination 'generic/platform=macOS' \
-  -derivedDataPath "$RUNNER_TEMP/DerivedData-entitlements-Debug" \
-  SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
-  GCC_TREAT_WARNINGS_AS_ERRORS=YES
+entitlement_root="$(mktemp -d /tmp/AppTemplate-entitlements.XXXXXX)"
+test -d "$entitlement_root"
+test ! -L "$entitlement_root"
+case "$entitlement_root" in
+  /tmp/AppTemplate-entitlements.*) ;;
+  *) exit 1 ;;
+esac
 
-DEBUG_APP="$RUNNER_TEMP/DerivedData-entitlements-Debug/Build/Products/Debug/AppTemplate.app"
-codesign --verify --deep --strict --verbose=2 "$DEBUG_APP"
-codesign --display --entitlements - --xml "$DEBUG_APP" 2>/dev/null \
-  | plutil -convert json -o - - \
-  | jq -e '."com.apple.security.app-sandbox" == true
-      and ."com.apple.security.network.client" == true
-      and (has("com.apple.security.network.server") | not)'
+assert_effective_settings() {
+  local configuration="$1"
+  local app_settings
+  local test_settings
 
-xcodebuild build \
-  -project AppTemplate.xcodeproj \
-  -scheme AppTemplate \
-  -configuration Release \
-  -destination 'generic/platform=macOS' \
-  -derivedDataPath "$RUNNER_TEMP/DerivedData-entitlements-Release" \
-  SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
-  GCC_TREAT_WARNINGS_AS_ERRORS=YES
+  app_settings="$(xcodebuild -project AppTemplate.xcodeproj -target AppTemplate \
+    -configuration "$configuration" -sdk macosx -showBuildSettings)"
+  printf '%s\n' "$app_settings" \
+    | rg -q '^[[:space:]]*ENABLE_APP_SANDBOX = YES$'
+  printf '%s\n' "$app_settings" \
+    | rg -q '^[[:space:]]*ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES$'
+  if printf '%s\n' "$app_settings" \
+    | rg -q '^[[:space:]]*ENABLE_INCOMING_NETWORK_CONNECTIONS = YES$'; then
+    return 1
+  fi
 
-RELEASE_APP="$RUNNER_TEMP/DerivedData-entitlements-Release/Build/Products/Release/AppTemplate.app"
-codesign --verify --deep --strict --verbose=2 "$RELEASE_APP"
-codesign --display --entitlements - --xml "$RELEASE_APP" 2>/dev/null \
-  | plutil -convert json -o - - \
-  | jq -e '."com.apple.security.app-sandbox" == true
-      and ."com.apple.security.network.client" == true
-      and (has("com.apple.security.network.server") | not)'
+  for target in AppTemplateTests AppTemplateUITests; do
+    test_settings="$(xcodebuild -project AppTemplate.xcodeproj -target "$target" \
+      -configuration "$configuration" -sdk macosx -showBuildSettings)"
+    if printf '%s\n' "$test_settings" \
+      | rg -q '^[[:space:]]*ENABLE_(OUTGOING|INCOMING)_NETWORK_CONNECTIONS = YES$'; then
+      return 1
+    fi
+  done
+}
+
+for configuration in Debug Release; do
+  assert_effective_settings "$configuration"
+
+  derived_data="$entitlement_root/DerivedData-$configuration"
+  xcodebuild build \
+    -project AppTemplate.xcodeproj \
+    -scheme AppTemplate \
+    -configuration "$configuration" \
+    -destination 'generic/platform=macOS' \
+    -derivedDataPath "$derived_data" \
+    SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
+    GCC_TREAT_WARNINGS_AS_ERRORS=YES
+
+  app="$derived_data/Build/Products/$configuration/AppTemplate.app"
+  codesign --verify --deep --strict --verbose=2 "$app"
+  codesign --display --entitlements - --xml "$app" 2>/dev/null \
+    | plutil -convert json -o - - \
+    | jq -e '."com.apple.security.app-sandbox" == true
+        and ."com.apple.security.network.client" == true
+        and (has("com.apple.security.network.server") | not)'
+done
 ```
 
-A locally ad-hoc-signed Release product proves the embedded entitlements for
-this change; it is not evidence of distribution signing, notarization, or
-Gatekeeper acceptance.
+The command leaves its uniquely created root available for inspection. A
+locally ad-hoc-signed Release product proves the embedded entitlements for this
+change; it is not evidence of distribution signing, notarization, or Gatekeeper
+acceptance.
 
 ### 2. deterministic request snapshots and URL composition
 
@@ -299,7 +323,7 @@ be distinct.
 Changes will be implemented test-first in these independently reviewable
 steps:
 
-1. macOS entitlement and signed-product/CI assertions;
+1. macOS entitlement and local signed-product assertions;
 2. request snapshot and URL composition;
 3. `HTTPHeaders` and all migrated call sites;
 4. `@concurrent` executor behavior;
@@ -315,30 +339,20 @@ their effects remain independently reviewable.
 
 Targeted Networking tests will run after every step. Required local acceptance
 gates use separate Derived Data locations, select only `AppTemplateTests`, and
-treat Swift and Clang warnings as errors for the same platform set as CI:
+treat Swift and Clang warnings as errors for this platform set:
 
 - macOS;
 - iPhone 17 simulator with iOS 26.5;
 - iPad (A16) simulator with iOS 26.5.
 
 All three `xcodebuild test` commands must exit zero. Debug and Release macOS
-builds plus the embedded-entitlement assertions are additional zero-exit gates.
-CI retains its existing full-scheme three-platform matrix and must pass before
-integration; this change does not weaken that job. CI also gains the Release
-macOS entitlement gate described above.
+builds plus the local effective-setting and embedded-entitlement assertions are
+additional zero-exit gates.
 
-The local full macOS scheme is a separate, non-gating diagnostic because its
-baseline currently fails these five UI tests:
-
-- `testBrowseOptionsCanBePresentedAndDismissed`;
-- `testBrowseTabShowsBrowseScreen`;
-- `testNavigationGuideCanBeOpened`;
-- `testOnboardingRootIsVisible`;
-- `testSettingsWindowCanBeOpened`.
-
-Its nonzero result is reported explicitly and never described as passing. No
-additional failing UI-test identifier is allowed after the Networking changes.
-Fixing or suppressing these UI failures is outside this addendum.
+After the separately approved macOS UI-test window-isolation plan is
+implemented, the complete local macOS scheme is an additional zero-exit gate.
+It runs unit and UI tests with warnings treated as errors; no former UI failure
+is allowlisted or reclassified as diagnostic.
 
 ## Success criteria
 
@@ -354,6 +368,6 @@ Fixing or suppressing these UI failures is outside this addendum.
   preserving exactly one terminal monitor event after `willSend`.
 - Every monitored lifecycle exposes the final adapted request and one stable,
   unique correlation ID.
-- The three unit-test gates, Debug/Release entitlement gates, and full CI matrix
-  pass under warnings-as-errors; the separate local UI diagnostic introduces no
-  identifier beyond its fixed baseline allowlist.
+- The three local unit-test gates, Debug/Release local entitlement gates, and
+  complete local macOS scheme pass under warnings-as-errors, with no UI-test
+  failure allow-list.
