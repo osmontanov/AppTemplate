@@ -286,7 +286,7 @@ for document in "$network_spec" "$network_plan"; do
   rg -q 'com\.apple\.security\.app-sandbox' "$document"
   rg -q 'com\.apple\.security\.network\.client' "$document"
   rg -q 'com\.apple\.security\.network\.server' "$document"
-  rg -q 'complete macOS scheme|full macOS scheme' "$document"
+  rg -q 'complete (local )?macOS scheme|full macOS scheme' "$document"
 done
 rg -q "destination 'platform=macOS'|destination 'generic/platform=macOS'" "$network_plan"
 rg -q 'name=iPhone 17' "$network_plan"
