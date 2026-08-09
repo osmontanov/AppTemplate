@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-09
 
-**Status:** Proposed
+**Status:** Approved
 
 ## Context
 
@@ -70,6 +70,11 @@ The complete macOS UI-test argument sequence is:
 This is the smallest change at the boundary that owns the failure. It prevents
 AppKit from consuming the persisted zero-window fixture while leaving ordinary
 application launches untouched.
+
+`-ApplePersistenceIgnoreState YES` is treated as a UI-test bootstrap contract,
+not as a production recovery mechanism. A future macOS or SDK behavior change
+is detected by the two consecutive focused UI-test rounds and the full-scheme
+gate. There is no production fallback that imperatively creates a window.
 
 Two alternatives are rejected:
 
@@ -160,6 +165,16 @@ UI-test platforms. This changes only failure reporting and short-circuiting;
 iOS and iPadOS launch arguments, successful interactions, and product behavior
 remain unchanged.
 
+Every element whose presence is a prerequisite for a later interaction or test
+step is obtained with `try requireExistence(...)`. `activate(_:)` provides this
+guarantee for every clicked or tapped element. Tests also call the helper
+directly when the element itself gates a later step: in particular,
+`screen.browseOptions` must exist before the dismiss action is resolved and
+activated, and every tab identifier in the iOS independent-relaunch loop must
+exist before termination and relaunch continue. Assertions that are terminal
+observations, with no later step depending on their result, may remain ordinary
+`XCTAssertTrue` existence or nonexistence assertions.
+
 No change is made to `AppTemplateApp`, `WindowGroup`, app dependencies,
 navigation persistence, accessibility identifiers, or production scenes.
 
@@ -179,10 +194,12 @@ introduced.
 
 ### Parser tests
 
-Inside `#if os(macOS)`, the first RED test passes the exact six-element process-
-argument array and expects
-`.uiTesting(initialState: UITestRoot.main.initialState)`. It fails under the
-current `arguments.count == 4` parser and is not compiled for iOS or iPadOS.
+Inside `#if os(macOS)`, the first RED test is parameterized over all four
+`UITestRoot` values: `onboarding`, `authentication`, `main`, and `maintenance`.
+For each value it passes the exact six-element process-argument array and
+expects `.uiTesting(initialState: root.initialState)`. Every case fails under
+the current `arguments.count == 4` parser, and the test is not compiled for iOS
+or iPadOS.
 
 The existing table proving all four roots map correctly remains unchanged. A
 macOS-only negative table covers:
@@ -220,6 +237,9 @@ keeps the suite safe for parallel execution.
   `launch(root:expectedRootIdentifier:)` and stops that test.
 - A missing interactive element throws from `activate(_:)`; no click or tap is
   attempted afterward.
+- A missing prerequisite used by a later step, including the presented Browse
+  Options root and each identifier in the iOS tab loop, throws before that later
+  step runs.
 - There is no retry, keyboard shortcut, preference cleanup, or production
   window-opening fallback.
 
@@ -236,7 +256,7 @@ keeps the suite safe for parallel execution.
 ## Success criteria
 
 - The canonical macOS persistence-isolated arguments select the requested
-  deterministic UI-test state.
+  deterministic UI-test state for all four `UITestRoot` values.
 - Malformed or additional arguments remain `.live`.
 - macOS UI-test launches expose the requested root without Command-N recovery.
 - Missing elements stop their tests before interaction.
