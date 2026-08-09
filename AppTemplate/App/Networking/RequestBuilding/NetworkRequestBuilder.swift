@@ -13,7 +13,13 @@ struct NetworkRequestBuilder: Sendable {
     }
 
     func build<Target: NetworkTarget>(_ target: Target) throws -> URLRequest {
-        let urlWithPath = target.baseURL.appending(path: target.path)
+        let baseURL = target.baseURL
+        let path = target.path
+        let method = target.method
+        let task = target.task
+        let headers = target.headers
+
+        let urlWithPath = path.isEmpty ? baseURL : baseURL.appending(path: path)
         guard
             var components = URLComponents(
                 url: urlWithPath,
@@ -26,9 +32,18 @@ struct NetworkRequestBuilder: Sendable {
             throw NetworkError.requestConstruction
         }
 
-        if !target.task.queryItems.isEmpty {
-            components.queryItems =
-                (components.queryItems ?? []) + target.task.queryItems
+        if !task.queryItems.isEmpty {
+            var appended = URLComponents()
+            appended.queryItems = task.queryItems
+            guard let appendedQuery = appended.percentEncodedQuery else {
+                throw NetworkError.requestConstruction
+            }
+
+            if let existingQuery = components.percentEncodedQuery, !existingQuery.isEmpty {
+                components.percentEncodedQuery = existingQuery + "&" + appendedQuery
+            } else {
+                components.percentEncodedQuery = appendedQuery
+            }
         }
 
         guard let url = components.url else {
@@ -36,13 +51,13 @@ struct NetworkRequestBuilder: Sendable {
         }
 
         var request = URLRequest(url: url)
-        request.httpMethod = target.method.rawValue
+        request.httpMethod = method.rawValue
 
-        if let body = target.task.body {
+        if let body = task.body {
             try apply(body, to: &request)
         }
 
-        for (name, value) in target.headers {
+        for (name, value) in headers {
             let normalizedName =
                 name.caseInsensitiveCompare("Content-Type") == .orderedSame
                 ? "Content-Type"

@@ -64,6 +64,46 @@ struct NetworkRequestBuilderTests {
     }
 
     @Test
+    func emptyPathPreservesBaseURLExactly() throws {
+        let target = RequestBuilderTarget(
+            baseURL: URL(string: "https://api.example.test/v1")!,
+            path: ""
+        )
+
+        let request = try NetworkRequestBuilder().build(target)
+
+        #expect(request.url?.absoluteString == "https://api.example.test/v1")
+    }
+
+    @Test
+    func preservesPercentEncodedBaseQueryWhenAppendingTargetQuery() throws {
+        let target = RequestBuilderTarget(
+            baseURL: URL(string: "https://api.example.test/v1?signature=a%2Fb%2Bc%3Dd%26e%3Df")!,
+            path: "/items",
+            task: .query([URLQueryItem(name: "page", value: "2")])
+        )
+
+        let request = try NetworkRequestBuilder().build(target)
+        let url = try #require(request.url)
+        let components = try #require(URLComponents(
+            url: url, resolvingAgainstBaseURL: false
+        ))
+
+        #expect(components.percentEncodedQuery == "signature=a%2Fb%2Bc%3Dd%26e%3Df&page=2")
+    }
+
+    @Test
+    func snapshotsEveryConsumedTargetPropertyOnce() throws {
+        let recorder = SnapshotRecorder()
+        let request = try NetworkRequestBuilder().build(
+            ComputedSnapshotTarget(recorder: recorder)
+        )
+
+        #expect(recorder.reads == .init(baseURL: 1, path: 1, method: 1, task: 1, headers: 1))
+        #expect(request.url?.query == "snapshot=1")
+    }
+
+    @Test
     func usesConfiguredJSONEncoderFactory() throws {
         let builder = NetworkRequestBuilder {
             let encoder = JSONEncoder()
@@ -177,6 +217,71 @@ private struct RequestBuilderTarget: NetworkTarget {
         self.task = task
         self.headers = headers
     }
+}
+
+nonisolated
+private struct SnapshotReadCounts: Equatable, Sendable {
+    var baseURL = 0
+    var path = 0
+    var method = 0
+    var task = 0
+    var headers = 0
+}
+
+nonisolated
+private final class SnapshotRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var counts = SnapshotReadCounts()
+
+    var reads: SnapshotReadCounts { lock.withLock { counts } }
+
+    func nextBaseURL() -> URL {
+        lock.withLock {
+            counts.baseURL += 1
+            return URL(string: "https://api.example.test")!
+        }
+    }
+
+    func nextPath() -> String {
+        lock.withLock {
+            counts.path += 1
+            return "/snapshot"
+        }
+    }
+
+    func nextMethod() -> HTTPMethod {
+        lock.withLock {
+            counts.method += 1
+            return .get
+        }
+    }
+
+    func nextTask() -> NetworkTask {
+        lock.withLock {
+            counts.task += 1
+            return .query([
+                URLQueryItem(name: "snapshot", value: String(counts.task))
+            ])
+        }
+    }
+
+    func nextHeaders() -> [String: String] {
+        lock.withLock {
+            counts.headers += 1
+            return ["X-Snapshot": String(counts.headers)]
+        }
+    }
+}
+
+nonisolated
+private struct ComputedSnapshotTarget: NetworkTarget {
+    let recorder: SnapshotRecorder
+
+    var baseURL: URL { recorder.nextBaseURL() }
+    var path: String { recorder.nextPath() }
+    var method: HTTPMethod { recorder.nextMethod() }
+    var task: NetworkTask { recorder.nextTask() }
+    var headers: [String: String] { recorder.nextHeaders() }
 }
 
 nonisolated
