@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-09
 
-**Status:** Proposed for user review
+**Status:** Approved
 
 **Supersedes:** The conflicting request-header, response-header, monitor, and
 provider-execution details in
