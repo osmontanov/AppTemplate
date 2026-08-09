@@ -19,6 +19,7 @@
 - `HTTPHeaders` accepts only non-empty ASCII HTTP token names. Trusted request and stub construction preconditions invalid names; untrusted live response mapping skips them.
 - Monitor callbacks are awaited sequentially in registration order. They are read-only observers, must return quickly, and must enqueue expensive telemetry internally.
 - Every implementation task follows RED/GREEN and ends in an independent commit. Executor and cancellation changes are separate tasks and commits.
+- Combined execution order is fixed: complete Network Tasks 1–6, implement the separately approved macOS UI-test window-isolation plan, and only then run Network Task 7. Task 7 verifies the combined branch, so it must not preserve or allow the former five-test UI baseline.
 
 ---
 
@@ -124,9 +125,37 @@ Add this separate job to `.github/workflows/ci.yml` at the same level as the exi
       - name: Build and assert Debug and Release entitlements
         run: |
           set -euo pipefail
+          assert_effective_settings() {
+            local configuration="$1"
+            local app_settings
+            local test_settings
+
+            app_settings="$(xcodebuild -project AppTemplate.xcodeproj -target AppTemplate \
+              -configuration "$configuration" -sdk macosx -showBuildSettings)"
+            printf '%s\n' "$app_settings" \
+              | grep -Eq '^[[:space:]]*ENABLE_APP_SANDBOX = YES$'
+            printf '%s\n' "$app_settings" \
+              | grep -Eq '^[[:space:]]*ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES$'
+            if printf '%s\n' "$app_settings" \
+              | grep -Eq '^[[:space:]]*ENABLE_INCOMING_NETWORK_CONNECTIONS = YES$'; then
+              return 1
+            fi
+
+            for target in AppTemplateTests AppTemplateUITests; do
+              test_settings="$(xcodebuild -project AppTemplate.xcodeproj -target "$target" \
+                -configuration "$configuration" -sdk macosx -showBuildSettings)"
+              if printf '%s\n' "$test_settings" \
+                | grep -Eq '^[[:space:]]*ENABLE_(OUTGOING|INCOMING)_NETWORK_CONNECTIONS = YES$'; then
+                return 1
+              fi
+            done
+          }
+
           build_and_assert() {
             local configuration="$1"
             local derived_data="$RUNNER_TEMP/DerivedData-entitlements-$configuration"
+            assert_effective_settings "$configuration"
+
             xcodebuild build \
               -project AppTemplate.xcodeproj \
               -scheme AppTemplate \
@@ -162,7 +191,35 @@ case "$entitlement_root" in
   *) exit 1 ;;
 esac
 
+assert_effective_settings() {
+  local configuration="$1"
+  local app_settings
+  local test_settings
+
+  app_settings="$(xcodebuild -project AppTemplate.xcodeproj -target AppTemplate \
+    -configuration "$configuration" -sdk macosx -showBuildSettings)"
+  printf '%s\n' "$app_settings" \
+    | rg -q '^[[:space:]]*ENABLE_APP_SANDBOX = YES$'
+  printf '%s\n' "$app_settings" \
+    | rg -q '^[[:space:]]*ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES$'
+  if printf '%s\n' "$app_settings" \
+    | rg -q '^[[:space:]]*ENABLE_INCOMING_NETWORK_CONNECTIONS = YES$'; then
+    return 1
+  fi
+
+  for target in AppTemplateTests AppTemplateUITests; do
+    test_settings="$(xcodebuild -project AppTemplate.xcodeproj -target "$target" \
+      -configuration "$configuration" -sdk macosx -showBuildSettings)"
+    if printf '%s\n' "$test_settings" \
+      | rg -q '^[[:space:]]*ENABLE_(OUTGOING|INCOMING)_NETWORK_CONNECTIONS = YES$'; then
+      return 1
+    fi
+  done
+}
+
 for configuration in Debug Release; do
+  assert_effective_settings "$configuration"
+
   derived_data="$entitlement_root/DerivedData-$configuration"
   xcodebuild build \
     -project AppTemplate.xcodeproj \
@@ -185,7 +242,7 @@ done
 
 Do not delete `entitlement_root` as part of this command; it is a uniquely created, inspectable local artifact.
 
-Expected: both builds, both signature checks, and both JSON entitlement checks exit zero. This verifies embedded development/ad-hoc entitlements only; it does not establish distribution signing, notarization, or Gatekeeper acceptance.
+Expected: Debug and Release effective settings require app sandbox/client networking, forbid app server networking, and forbid client/server networking on both test targets. Both builds, both signature checks, and both JSON entitlement checks then exit zero. This verifies embedded development/ad-hoc entitlements only; it does not establish distribution signing, notarization, or Gatekeeper acceptance.
 
 - [ ] **Step 4: Update the release checklist**
 
@@ -503,7 +560,7 @@ private final class SyntheticHTTPURLResponse: HTTPURLResponse, @unchecked Sendab
 
 Keep this fixture in `NetworkProviderTests.swift` next to its existing private `ProviderTarget` and `makeHTTPTransport` helpers. Return the synthetic response from an `InMemoryNetworkTransport` closure, then call `NetworkProvider<ProviderTarget>.request(_:)`; this exercises the private production mapping through its real transport boundary.
 
-Use fields containing `"X-Rate-Limit": "old"`, `"x-rate-limit": "new"`, `"bad name": "ignored"`, and `AnyHashable(7): "ignored"`. Assert the response has exactly one usable rate-limit field whose value is `"new"`; invalid/non-string field names are absent. This proves sorting makes the lexicographically greatest original spelling/value tuple win, independent of dictionary iteration.
+Use fields containing `"X-Rate-Limit": "old"`, `"x-rate-limit": "new"`, `"X-Retry-After": NSNumber(value: 3)`, `"bad name": "ignored"`, and `AnyHashable(7): "ignored"`. Assert the response has exactly one usable rate-limit field whose value is `"new"`, `response.headers["x-retry-after"] == "3"`, and invalid/non-string field names are absent. The retry assertion exercises `String(describing:)` for a valid live field whose value is not already a string; the collision assertion proves sorting makes the lexicographically greatest original spelling/value tuple win, independent of dictionary iteration.
 
 - [ ] **Step 2: Run the header RED gate**
 
@@ -548,6 +605,8 @@ static func == (lhs: Self, rhs: Self) -> Bool {
 ```
 
 `canonicalName(_:)` must transform only ASCII bytes `65...90` to `97...122`; all valid punctuation and digits stay unchanged. `fields` sorts `storage` by canonical key and returns the retained `Field` values. Dictionary-literal initialization calls `set` in source order.
+
+Do not add a brittle subprocess crash harness for `precondition`. The executable tests cover the shared `isValidFieldName(_:)` predicate for valid and invalid names, invalid untrusted lookup behavior, and dictionary-literal/`set` behavior for trusted valid names. During review, inspect that both dictionary-literal initialization and `set` route trusted names through the shown precondition before canonical storage; describe this as an inspected invariant rather than a directly crash-tested branch.
 
 - [ ] **Step 4: Migrate contracts and make live mapping deterministic**
 
@@ -1368,8 +1427,8 @@ git commit -m "feat: correlate network monitor lifecycles"
 
 **Interfaces:**
 
-- Consumes: the signed entitlement, URL, header, executor, cancellation, and monitor contracts from Tasks 1–6.
-- Produces: user-facing project guidance and exact local verification evidence matching the final implementation.
+- Consumes: the signed entitlement, URL, header, executor, cancellation, and monitor contracts from Tasks 1–6, plus the implemented and locally verified macOS UI-test window-isolation plan.
+- Produces: user-facing project guidance and exact local verification evidence matching the final combined implementation.
 
 - [ ] **Step 1: Update architecture and customization guidance**
 
@@ -1414,54 +1473,42 @@ xcodebuild test -project AppTemplate.xcodeproj -scheme AppTemplate \
 
 Expected: all three commands exit zero. Each selects only `AppTemplateTests`, uses a separate DerivedData directory, and treats Swift and Clang warnings as errors.
 
-- [ ] **Step 4: Re-run the Debug/Release entitlement gate**
+- [ ] **Step 4: Re-run the Debug/Release effective-settings and entitlement gate**
 
-Run the safe two-build, two-signature, three-predicate local script from Task 1 Step 3 unchanged, producing a fresh inspected directory.
+Run the safe local script from Task 1 Step 3 unchanged, producing a fresh inspected directory. It must re-check effective app and test-target settings before each signed build as well as the three signed-entitlement predicates.
 
-Expected: both signed products prove sandbox/client entitlement presence and server entitlement absence.
+Expected: Debug and Release settings prove app sandbox/client networking is enabled, app server networking is not enabled, and neither networking capability is enabled on `AppTemplateTests` or `AppTemplateUITests`. Both signed products prove sandbox/client entitlement presence and server entitlement absence.
 
-- [ ] **Step 5: Run the non-gating full macOS diagnostic and check the fixed UI baseline**
+- [ ] **Step 5: Run the zero-exit full macOS scheme gate**
 
 ```bash
-set +e
-diagnostic_root="$(mktemp -d /tmp/AppTemplate-NetworkHardening-diagnostic.XXXXXX)"
-test -d "$diagnostic_root"
-test ! -L "$diagnostic_root"
-case "$diagnostic_root" in
-  /tmp/AppTemplate-NetworkHardening-diagnostic.*) ;;
+set -euo pipefail
+
+verification_root="$(mktemp -d /tmp/AppTemplate-NetworkHardening-final-macOS.XXXXXX)"
+test -d "$verification_root"
+test ! -L "$verification_root"
+case "$verification_root" in
+  /tmp/AppTemplate-NetworkHardening-final-macOS.*) ;;
   *) exit 1 ;;
 esac
 
+derived_data="$verification_root/DerivedData"
+result_bundle="$verification_root/full-macOS.xcresult"
+test ! -e "$derived_data"
+test ! -e "$result_bundle"
+
 xcodebuild test -project AppTemplate.xcodeproj -scheme AppTemplate \
   -configuration Debug -destination 'platform=macOS' \
-  -derivedDataPath "$diagnostic_root/DerivedData" \
-  -resultBundlePath "$diagnostic_root/full-macOS.xcresult" \
+  -derivedDataPath "$derived_data" \
+  -resultBundlePath "$result_bundle" \
   SWIFT_TREAT_WARNINGS_AS_ERRORS=YES GCC_TREAT_WARNINGS_AS_ERRORS=YES
-full_status=$?
-set -e
 
-xcrun xcresulttool get test-results summary \
-  --path "$diagnostic_root/full-macOS.xcresult" \
-  | jq -r '.testFailures[]? | "\(.targetName)/\(.testName)"' \
-  | sort -u > "$diagnostic_root/failing-tests.txt"
-
-expected="$diagnostic_root/expected-ui-tests.txt"
-printf '%s\n' \
-  'AppTemplateUITests/testBrowseOptionsCanBePresentedAndDismissed()' \
-  'AppTemplateUITests/testBrowseTabShowsBrowseScreen()' \
-  'AppTemplateUITests/testNavigationGuideCanBeOpened()' \
-  'AppTemplateUITests/testOnboardingRootIsVisible()' \
-  'AppTemplateUITests/testSettingsWindowCanBeOpened()' \
-  | sort -u > "$expected"
-
-if ! diff -u "$expected" "$diagnostic_root/failing-tests.txt"; then
-  exit 1
-fi
-
-test "$full_status" -ne 0
+test -d "$result_bundle"
 ```
 
-Expected: the scheme diagnostic exits nonzero solely because of the five listed baseline UI tests. Report that nonzero result as a diagnostic, never as a passing test run. Any extra failing identifier fails this baseline check; do not change or suppress UI tests in this work.
+Do not delete `verification_root` as part of this command; it is a uniquely created, inspectable local artifact.
+
+Expected: the complete macOS scheme, including unit and UI tests, exits zero with warnings treated as errors. Any nonzero `xcodebuild` result fails Task 7; no former UI failure is allowlisted or reclassified as diagnostic.
 
 - [ ] **Step 6: Confirm CI matrix scope and commit documentation**
 
@@ -1476,9 +1523,9 @@ git commit -m "docs: describe hardened network contract"
 
 ## Self-Review
 
-- Entitlement coverage: Task 1 enables only app-target client networking in Debug and Release, asserts sandbox/client/server properties on two signed products, and adds the required CI job.
+- Entitlement coverage: Task 1 enables only app-target client networking in Debug and Release; locally and in CI it checks effective settings for the app and both test targets, asserts sandbox/client/server properties on two signed products, and adds the required CI job.
 - URL coverage: Task 2 covers empty paths, raw encoded base query preservation, and all five target-property snapshots.
-- Header coverage: Task 3 covers token validation, trusted preconditions, invalid lookup, ordered replacement, canonical ordering, custom equality, request/stub/response migration, and deterministic untrusted response collision handling.
+- Header coverage: Task 3 executable tests cover the shared token validator, invalid lookup, trusted valid writes, ordered replacement, canonical ordering, custom equality, request/stub/response migration, non-string live-value stringification, and deterministic untrusted response collision handling. The trusted invalid-name precondition is an explicitly inspected invariant shared by dictionary-literal initialization and `set`, not a directly crash-tested branch.
 - Executor and cancellation coverage: Tasks 4 and 5 are independent commits. The executor gate measures MainActor liveness rather than thread identity; cancellation tests use cancellable children, all stub behaviors, post-sleep cancellation, and construction/adaptation precedence.
 - Monitor coverage: Task 6 uses exact context labels, post-adaptation final request snapshots, sequential callbacks, live/stub/failure correlation, and fully paired concurrent IDs.
-- Verification coverage: Task 7 provides three unit-only zero-exit platform gates, Debug/Release entitlement checks, fixed-five full macOS UI diagnostics, and preserves the existing CI full matrix.
+- Verification coverage: after Network Tasks 1–6 and the separately approved UI-isolation plan are implemented, Task 7 provides three unit-only zero-exit platform gates, Debug/Release effective-setting and signed-entitlement checks, a uniquely isolated full macOS scheme gate requiring exit zero, and preserves the existing CI full matrix.
