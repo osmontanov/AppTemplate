@@ -51,6 +51,10 @@ Complete this checklist for the adopted product, not for the untouched sample.
   entitlements; exercise both grant and denial paths.
 - [ ] Verify macOS sandbox and hardened-runtime settings and iOS/iPadOS
   entitlements in the signed archive.
+- [ ] Inspect signed Debug and Release macOS app entitlements: require
+  `com.apple.security.app-sandbox = true` and
+  `com.apple.security.network.client = true`, and require
+  `com.apple.security.network.server` to be absent.
 - [ ] Inspect the archive's signing identities, embedded profiles, entitlements,
   bundled SDKs, debug symbols, and privacy manifests.
 

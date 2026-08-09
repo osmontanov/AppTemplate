@@ -60,3 +60,71 @@ jobs:
           name: AppTemplate-${{ matrix.name }}-xcresult
           path: ${{ runner.temp }}/AppTemplate-${{ matrix.name }}.xcresult
           if-no-files-found: error
+
+  macos-entitlements:
+    name: macOS entitlements
+    runs-on: macos-26
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Select and print Xcode
+        run: |
+          sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
+          xcodebuild -version
+
+      - name: Build and assert Debug and Release entitlements
+        run: |
+          set -euo pipefail
+          assert_effective_settings() {
+            local configuration="$1"
+            local app_settings
+            local test_settings
+
+            app_settings="$(xcodebuild -project AppTemplate.xcodeproj -target AppTemplate \
+              -configuration "$configuration" -sdk macosx -showBuildSettings)"
+            printf '%s\n' "$app_settings" \
+              | grep -Eq '^[[:space:]]*ENABLE_APP_SANDBOX = YES$'
+            printf '%s\n' "$app_settings" \
+              | grep -Eq '^[[:space:]]*ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES$'
+            if printf '%s\n' "$app_settings" \
+              | grep -Eq '^[[:space:]]*ENABLE_INCOMING_NETWORK_CONNECTIONS = YES$'; then
+              return 1
+            fi
+
+            for target in AppTemplateTests AppTemplateUITests; do
+              test_settings="$(xcodebuild -project AppTemplate.xcodeproj -target "$target" \
+                -configuration "$configuration" -sdk macosx -showBuildSettings)"
+              if printf '%s\n' "$test_settings" \
+                | grep -Eq '^[[:space:]]*ENABLE_(OUTGOING|INCOMING)_NETWORK_CONNECTIONS = YES$'; then
+                return 1
+              fi
+            done
+          }
+
+          build_and_assert() {
+            local configuration="$1"
+            local derived_data="$RUNNER_TEMP/DerivedData-entitlements-$configuration"
+            assert_effective_settings "$configuration"
+
+            xcodebuild build \
+              -project AppTemplate.xcodeproj \
+              -scheme AppTemplate \
+              -configuration "$configuration" \
+              -destination 'generic/platform=macOS' \
+              -derivedDataPath "$derived_data" \
+              SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
+              GCC_TREAT_WARNINGS_AS_ERRORS=YES
+
+            local app="$derived_data/Build/Products/$configuration/AppTemplate.app"
+            codesign --verify --deep --strict --verbose=2 "$app"
+            codesign --display --entitlements - --xml "$app" 2>/dev/null \
+              | plutil -convert json -o - - \
+              | jq -e '."com.apple.security.app-sandbox" == true
+                  and ."com.apple.security.network.client" == true
+                  and (has("com.apple.security.network.server") | not)'
+          }
+
+          build_and_assert Debug
+          build_and_assert Release
