@@ -48,8 +48,10 @@ manual `project.pbxproj` entries.
 3. Public APIs accept and return only immutable `Sendable` values.
 4. One live app dependency graph owns one long-lived persistent container.
 5. Preview, UI-test, and persistence-test graphs never open the live store.
-6. Every successful state-changing operation performs exactly one explicit
-   `save()`; successful no-ops perform none.
+6. Every successful state-changing upsert or delete-one operation performs
+   exactly one explicit `save()`. A successful nonempty delete-all performs
+   exactly one type-level batch-delete call and zero explicit saves; successful
+   no-ops perform neither persistence call.
 7. Store bootstrap failures, including migration failures, remain distinct
    from validation, read, and write failures.
 8. The service never silently erases data or falls back to an ephemeral store.
@@ -88,7 +90,8 @@ SwiftDataLocalStore ModelActor
     - creates one private ModelContext per public operation
     - performs SwiftData reads and writes
     - maps persistent entities to value records
-    - explicitly saves and discards failed operation contexts
+    - uses the operation-specific persistence boundary and discards failed
+      operation contexts
     |
     v
 ModelContainer -> local SwiftData store
@@ -158,14 +161,25 @@ synthesized one-argument initializer also leaves a valid actor. The facade
 always calls the custom two-argument initializer and passes hooks explicitly;
 the `hooks` parameter has no default value, avoiding overload ambiguity.
 
-The engine does not rely on autosave. Each state-changing operation stages all
-changes in its private operation context, executes one pre-save cancellation
-checkpoint, calls `save()` once, and returns only after that call succeeds. If
-a write-phase operation throws before or during `save()`, the engine calls
-`rollback()`, emits the rollback hook, and discards that operation context
-before rethrowing the mapped error. A later operation necessarily starts from
-a fresh context and therefore cannot observe stale registered models from the
-failed context.
+The engine does not rely on autosave. Each state-changing upsert and delete-one
+operation stages all changes in its private operation context, executes one
+pre-save cancellation checkpoint, calls `save()` once, and returns only after
+that call succeeds. A successful nonempty delete-all instead executes a
+dedicated non-data-bearing pre-batch-delete checkpoint and cancellation check,
+then calls the type-level delete exactly once. In the supported Xcode 26.6
+toolchain that call is itself the synchronous persistence boundary, so the
+engine does not call `save()` afterward and performs no post-call cancellation
+check or other fallible work.
+
+If an upsert or delete-one write phase throws before or during `save()`, the
+engine calls `rollback()`, emits the rollback hook, and discards that operation
+context before rethrowing the mapped error. A later operation necessarily
+starts from a fresh context and therefore cannot observe stale registered
+models from the failed context. A delete-all checkpoint failure, cancellation,
+or thrown type-level delete is handled through the same typed write-mapping
+path. Any `rollback()` invoked on that path is context cleanup only: it is a
+no-op when the delete was never called, and the design does not claim that it
+can compensate a completed or partially completed type-level batch delete.
 
 This context-discard rule is required by observed SwiftData behavior in Xcode
 26.6: after a deterministic read-only-store save failure, `rollback()` clears
@@ -174,6 +188,16 @@ value retained in its identity map. A fresh context returns the durable value.
 The design does not claim that bare `rollback()` refreshes registered objects,
 nor does it claim crash-level durability or compensating rollback of data that
 a store may already have committed.
+
+An independently reproduced, disk-backed Xcode 26.6 probe with autosave off,
+fresh contexts, containers, and processes produced the same type-level
+delete-all result in five repetitions: immediately after
+`ModelContext.delete(model:where:includeSubclasses:)`, `hasChanges` was false
+and every fresh observer saw zero records before any explicit save;
+`rollback()` and a throwing transaction did not restore the records, and a
+later `save()` found no changes. This is a supported-toolchain divergence from
+Apple's current "next save" documentation, not a generic guarantee about every
+SwiftData version or `DataStore` implementation.
 
 The actor/executor contract promises serialized access, not a particular
 thread. No test or public API asserts background-thread identity.
@@ -189,6 +213,7 @@ enum LocalDatabaseStoreCheckpoint: Equatable, Sendable {
     case readProgress(LocalDatabaseReadOperation)
     case writePreparation(LocalDatabaseWriteOperation)
     case beforeSave(LocalDatabaseWriteOperation)
+    case beforeBatchDelete(LocalDatabaseWriteOperation)
 }
 
 nonisolated
@@ -204,14 +229,18 @@ struct LocalDatabaseStoreHooks: Sendable {
 
 The engine invokes the matching checkpoint immediately before a public read,
 after every 128 entities examined by filtered fetch-many, before preparatory
-storage work for a write API, and after staging but directly before
-`Task.checkCancellation()` and `save()`. Tests can make a checkpoint throw to
-exercise deterministic read or write mapping. A test can synchronously cancel
-its current task in `readProgress` or `beforeSave`; the immediately following
-cancellation check then proves propagation or rollback without an
-actor-reentrancy race. `didSave` runs only after a successful `save()`, and
-`didRollback` runs only after the engine invokes `rollback()`; the failed
-operation context is never reused afterward.
+storage work for a write API, after staging but directly before
+`Task.checkCancellation()` and `save()`, and for nonempty delete-all directly
+before its final `Task.checkCancellation()` and type-level delete call. Tests
+can make a checkpoint throw to exercise deterministic read or write mapping. A
+test can synchronously cancel its current task in `readProgress`, `beforeSave`,
+or `beforeBatchDelete`; the immediately following cancellation check then
+proves propagation or cleanup without an actor-reentrancy race. `didSave` runs
+only after a successful explicit `save()` and therefore never records
+delete-all. `didRollback` runs only after the engine invokes `rollback()`; for
+a pre-call delete-all failure or cancellation this reports no-op context
+cleanup, not restored records. The failed operation context is never reused
+afterward.
 
 The hooks never receive a context, model, record, ID, payload, query, progress
 count, or store URL. They are not public API. Their callbacks verify control-
@@ -349,13 +378,22 @@ when no entity exists. When present, it stages deletion, saves once, and returns
 `deleteAllRecords()` first uses `fetchCount` and returns zero without a save when
 the store is empty. Otherwise it calls SwiftData's type-level
 `ModelContext.delete(model:where:includeSubclasses:)` with no predicate and
-`includeSubclasses: false` for `StoredExampleRecord`, then saves once and
-returns the pre-delete count. The service does not fetch or materialize the
-entities before invoking SwiftData's type-level delete. The method affects only
+`includeSubclasses: false` for `StoredExampleRecord` exactly once and returns
+the pre-delete count without calling `save()`. Immediately before that call it
+runs `.beforeBatchDelete(.deleteAll)` and `Task.checkCancellation()`. It does no
+cancellation check or other fallible work after a successful return from the
+type-level call; cancellation arriving during or afterward does not replace
+success. The service does not fetch or materialize the entities before
+invoking SwiftData's type-level delete. The method affects only
 `StoredExampleRecord`; it is not `ModelContainer.deleteAllData()`.
 
-Apple documents that type-level deletion removes matching entities on the next
-save. See
+Apple currently documents that type-level deletion removes matching entities
+on the next save. The independently repeated Xcode 26.6 disk probe described
+above instead found that the call persisted immediately, exposed no pending
+changes, and could not be undone by `rollback()` or a throwing transaction.
+The zero-save contract is therefore deliberately scoped to the supported
+toolchain and guarded by a disk-backed regression; it is not generalized into
+a framework-wide guarantee. See
 [delete(model:where:includeSubclasses:)](https://developer.apple.com/documentation/swiftdata/modelcontext/delete(model:where:includesubclasses:)).
 
 ### Cancellation
@@ -364,17 +402,21 @@ Cancellation is cooperative and has precise checkpoints:
 
 - a pre-cancelled task does not validate or initialize the store;
 - each active operation checks again before entering SwiftData work;
-- each state-changing mutation checks immediately before `save()`;
-- cancellation observed at that pre-save checkpoint invokes `rollback()`,
-  discards the operation context, and propagates `CancellationError`
-  unchanged;
+- each state-changing upsert and delete-one checks immediately before `save()`;
+- a nonempty delete-all runs `.beforeBatchDelete(.deleteAll)` and checks
+  cancellation immediately before the type-level delete call;
+- cancellation observed at either pre-persistence checkpoint invokes common
+  cleanup, discards the operation context, and propagates `CancellationError`
+  unchanged. For delete-all, the delete was never invoked and any `rollback()`
+  is no-op context cleanup;
 - synchronous SwiftData work, including an in-progress `save()`, cannot be
   preempted;
-- there is no post-save cancellation checkpoint, so an operation whose save
-  succeeds returns success even if cancellation arrives afterward.
+- there is no post-save or post-batch-delete cancellation checkpoint, so an
+  operation whose persistence call succeeds returns success even if
+  cancellation arrives during or afterward.
 
-The check and synchronous `save()` are not claimed to be atomic. Cancellation
-arriving after the last check may be observed only by later work.
+The check and synchronous persistence call are not claimed to be atomic.
+Cancellation arriving after the last check may be observed only by later work.
 
 ## SwiftData Schema
 
@@ -532,6 +574,10 @@ Mapping follows the public operation, not the low-level SwiftData primitive:
   write API map to `.write` with that public write operation;
 - `CancellationError` always propagates unchanged.
 
+For delete-all, typed `.write(.deleteAll)` mapping covers a thrown checkpoint,
+count, or type-level delete call. No error path claims that rollback can
+compensate a batch delete that the data store completed or partially completed.
+
 The service logs only operation name, entity type, record count, error domain,
 and error code. It never logs IDs, payloads, search text, store contents, or
 filesystem paths containing user-specific components. An internal typed
@@ -576,18 +622,25 @@ Implementation follows test-driven development and adds focused coverage for:
 6. Bounded result count, configured SwiftData ordering, multi-batch search, no
    match, and limit validation.
 7. Empty, valid, duplicate, oversized, unchanged, and mixed batch upserts.
-8. Missing/present single deletion and counted type-level delete-all behavior.
-9. Control-flow placement for one successful save per state-changing public
-   mutation and no save for each documented no-op, observed through hooks, plus
-   real persistence verified independently through disk reopen tests.
+8. Missing/present single deletion and counted, bounded type-level delete-all
+   behavior without materializing entities or calling `deleteAllData()`.
+9. Control-flow placement for one successful save per state-changing upsert or
+   delete-one, exactly one type-level call and zero explicit saves per
+   successful nonempty delete-all, and no persistence call for each documented
+   no-op, observed through hooks plus real persistence verified independently
+   through disk reopen tests.
 10. Deterministic read/write checkpoint failures, exact error categories,
     rollback plus failed-context discard, and a successful operation on the
     same service. A disk-backed `allowsSave: false` fixture also proves that a
     real thrown `save()` cannot leak its unsaved value into the next operation.
 11. Deterministic filtered-read cancellation through `readProgress`, unchanged
     `CancellationError`, and a usable service afterward.
-12. Deterministic pre-save cancellation via `beforeSave`, unchanged persisted
-    state, unchanged `CancellationError`, and observed rollback.
+12. Deterministic pre-save cancellation via `beforeSave`, plus deterministic
+    pre-call delete-all cancellation and failure via `beforeBatchDelete`;
+    unchanged persisted state, unchanged `CancellationError`, and observed
+    cleanup. A disk-backed characterization separately proves that successful
+    type-level deletion is durable before any save and is not restored by
+    rollback.
 13. Exactly-once synchronous lazy initialization, retry after factory
     cancellation, cached non-cancellation initialization failure, and one
     long-lived engine per successful service initialization.
@@ -710,12 +763,17 @@ The implementation is complete when:
    and preview/UI-test composition uses isolated in-memory containers.
 4. Schema V1 and its migration plan are explicit and contain no fake legacy
    transition.
-5. Every successful state-changing operation completes one explicit save;
-   documented successful no-ops complete none.
-6. Write-phase failure or cancellation observed at the pre-save checkpoint
-   invokes context rollback and discards that operation context; the next
-   operation observes durable state from a fresh context. No stronger
-   store-level atomicity is claimed.
+5. Every successful state-changing upsert or delete-one completes one explicit
+   save. Every successful nonempty delete-all completes exactly one type-level
+   batch-delete call and zero explicit saves; documented successful no-ops
+   complete neither persistence call.
+6. Write-phase failure or cancellation observed before an upsert/delete-one
+   save or before the delete-all type-level call invokes common context cleanup
+   and discards that operation context; the next operation observes durable
+   state from a fresh context. Cleanup before delete-all is a no-op because the
+   delete was never invoked, and no rollback is claimed to compensate a
+   completed or partially completed batch delete. No stronger store-level
+   atomicity is claimed.
 7. Non-cancellation bootstrap errors are cached without fatal termination,
    automatic erase, or ephemeral fallback.
 8. Persistence reopen, concurrency, validation, CRUD, bounded query,

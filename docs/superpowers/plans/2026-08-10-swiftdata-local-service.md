@@ -4,7 +4,7 @@
 
 **Goal:** Replace the inert local-database scaffold with a production-quality, local-only SwiftData reference store for `ExampleRecord`, while preserving strict value, actor, dependency-injection, and test-isolation boundaries.
 
-**Architecture:** Keep `ILocalDatabaseService` as a `Sendable` value-facing API. A `LocalDatabaseService` actor validates requests and owns a synchronous lazy-initialization state machine; an internal `SwiftDataLocalStore` `ModelActor` confines the executor and operation-scoped `ModelContext` instances, performs bounded reads and single-save mutations, and never returns persistent models.
+**Architecture:** Keep `ILocalDatabaseService` as a `Sendable` value-facing API. A `LocalDatabaseService` actor validates requests and owns a synchronous lazy-initialization state machine; an internal `SwiftDataLocalStore` `ModelActor` confines the executor and operation-scoped `ModelContext` instances, performs bounded reads, uses an explicit save for state-changing upsert/delete-one and the type-level call itself for nonempty delete-all, and never returns persistent models.
 
 **Tech Stack:** Swift 6, SwiftData, Foundation, OSLog, Swift Testing, XCTest UI tests, Xcode 26.6; no third-party persistence, repository, reactive, sync, or logging dependency.
 
@@ -16,8 +16,8 @@
 - Keep `ExampleRecord` an immutable `Codable`, `Equatable`, `Sendable` value. Keep `ExampleQuery` an immutable `Equatable`, `Sendable` value.
 - Keep `AppStateStore` and its `UserDefaults` schema unchanged. Do not connect the new service to a feature, ViewModel, screen, route, or navigation state.
 - Live composition uses one lazy disk service. Preview and UI-test factory calls each use a fresh in-memory container. `AppDependencies.test(...)` continues to require explicit caller injection.
-- Every engine call that reaches storage creates a private operation-scoped `ModelContext` with autosave disabled; the empty-batch fast path creates none. Every state-changing public operation performs one explicit `save()`; unchanged upsert, empty batch, missing delete, and empty delete-all perform none. A failed mutation calls `rollback()` and discards that context, without claiming compensating disk rollback or crash-level atomicity.
-- Cancellation stays cooperative: preserve `CancellationError`, never add a post-save cancellation check, and use synchronous child-task checkpoints for deterministic cancellation tests.
+- Every engine call that reaches storage creates a private operation-scoped `ModelContext` with autosave disabled; the empty-batch fast path creates none. Every state-changing upsert/delete-one performs exactly one explicit `save()`. Every successful nonempty delete-all performs exactly one type-level batch-delete call and zero explicit saves. Unchanged upsert, empty batch, missing delete, and empty delete-all perform neither persistence call. Common failure mapping may call `rollback()` and always discards the context, but rollback is no-op cleanup before delete-all and is never claimed to compensate a completed or partially completed batch delete.
+- Cancellation stays cooperative: preserve `CancellationError`, never add a post-save or post-batch-delete cancellation check, and use synchronous child-task checkpoints for deterministic cancellation tests. Run `.beforeBatchDelete(.deleteAll)` and `Task.checkCancellation()` immediately before the type-level call; do no fallible work after successful return, so cancellation during or after the call returns success.
 - Schema V1 is the first schema. Do not invent V0, add migration stages, enable CloudKit, add App Group sharing, erase an unknown store, or fall back to in-memory storage after bootstrap failure.
 - Diagnostic metadata contains only operation, entity type, record count, error domain, and error code. Never send an ID, payload, search text, error description/userInfo, store contents, or user-specific path to the logging boundary.
 - Do not modify `AppTemplate.xcodeproj/project.pbxproj`: filesystem-synchronized app and test groups automatically include new Swift files. Do not add packages, entitlements, hosted automation, or a privacy manifest.
@@ -34,13 +34,13 @@
 - `AppTemplate/App/Services/LocalDatabase/LocalDatabaseValidator.swift` — pure pre-store validation for IDs, limits, and batches.
 - `AppTemplate/App/Services/LocalDatabase/LocalDatabaseSchema.swift` — V1 `@Model` entity and empty-stage migration plan.
 - `AppTemplate/App/Services/LocalDatabase/LocalDatabaseStoreConfiguration.swift` — synchronous container factory alias, stable live URL resolver, and live/disk/in-memory container factories.
-- `AppTemplate/App/Services/LocalDatabase/LocalDatabaseStoreHooks.swift` — internal non-data-bearing read/write/save/rollback checkpoints.
+- `AppTemplate/App/Services/LocalDatabase/LocalDatabaseStoreHooks.swift` — internal non-data-bearing read/write/save/batch-delete/rollback checkpoints.
 - `AppTemplate/App/Services/LocalDatabase/LocalDatabaseDiagnostics.swift` — typed privacy-safe failure metadata and production OSLog rendering.
-- `AppTemplate/App/Services/LocalDatabase/SwiftDataLocalStore.swift` — `@ModelActor` engine with operation-scoped contexts, explicit save, failed-context discard, CRUD, bounded search, and value mapping.
+- `AppTemplate/App/Services/LocalDatabase/SwiftDataLocalStore.swift` — `@ModelActor` engine with operation-scoped contexts, operation-specific persistence boundaries, failed-context discard, CRUD, bounded search, and value mapping.
 - `AppTemplateTests/App/Services/LocalDatabase/LocalDatabaseContractTests.swift` — query defaults, validation, schema, and error-contract tests.
 - `AppTemplateTests/App/Services/LocalDatabase/LocalDatabaseStoreConfigurationTests.swift` — lazy resolver, stable URL, in-memory, disk, and failure tests.
 - `AppTemplateTests/App/Services/LocalDatabase/SwiftDataLocalStoreMutationTests.swift` — single-record mutations, hooks, mapping, and diagnostic-redaction tests.
-- `AppTemplateTests/App/Services/LocalDatabase/SwiftDataLocalStoreBatchTests.swift` — batch/delete-all single-save, rollback, and cancellation tests.
+- `AppTemplateTests/App/Services/LocalDatabase/SwiftDataLocalStoreBatchTests.swift` — batch-upsert save tests plus delete-all checkpoint, zero-save, disk durability, rollback-characterization, failure, and cancellation tests.
 - `AppTemplateTests/App/Services/LocalDatabase/SwiftDataLocalStoreQueryTests.swift` — bounded ordering, normalization, batch traversal, read failure, and cancellation tests.
 - `AppTemplateTests/App/Services/LocalDatabase/LocalDatabasePersistenceTests.swift` — disk reopen, detached-value, and persisted deletion integration tests.
 - `AppTemplateTests/TestSupport/LocalDatabase/LocalDatabaseTestSupport.swift` — fresh containers/services, unique disk URLs, synchronous hook recorder, and factory recorder.
@@ -1139,6 +1139,7 @@ enum LocalDatabaseStoreCheckpoint: Equatable, Sendable {
     case readProgress(LocalDatabaseReadOperation)
     case writePreparation(LocalDatabaseWriteOperation)
     case beforeSave(LocalDatabaseWriteOperation)
+    case beforeBatchDelete(LocalDatabaseWriteOperation)
 }
 
 nonisolated
@@ -1436,7 +1437,7 @@ git commit -m "feat: add SwiftData record mutations"
 
 ---
 
-### Task 4: Add Batch Mutations, Delete-All, and Pre-Save Cancellation
+### Task 4: Add Batch Mutations and the Delete-All Persistence Boundary
 
 **Files:**
 
@@ -1445,15 +1446,16 @@ git commit -m "feat: add SwiftData record mutations"
 
 **Interfaces:**
 
-- Consumes: Task 3's operation-scoped-context invariant, `save(context:operation:)`, failed-context discard mapping, and hooks.
+- Consumes: Task 3's operation-scoped-context invariant, `save(context:operation:)`, failed-context discard mapping, and hooks including `.beforeBatchDelete(.deleteAll)`.
 - Produces: synchronous actor-isolated `upsert(_ records: [ExampleRecord]) throws` and `deleteAllRecords() throws -> Int`.
 
-- [ ] **Step 1: Write batch, delete-all, rollback, and cancellation RED tests**
+- [ ] **Step 1: Write batch-save and delete-all boundary RED tests**
 
 Create `SwiftDataLocalStoreBatchTests.swift` with separate tests proving:
 
 ```swift
 import Foundation
+import SwiftData
 import Testing
 @testable import AppTemplate
 
@@ -1520,19 +1522,29 @@ struct SwiftDataLocalStoreBatchTests {
     }
 
     @Test
-    func deleteAllReturnsCountAndSavesOnlyWhenNonempty() async throws {
+    func deleteAllReturnsCountUsesOneBatchCheckpointAndNeverSaves() async throws {
         let recorder = LocalDatabaseHookRecorder()
         let store = try makeInMemoryLocalStore(hooks: recorder.hooks())
 
         #expect(try await store.deleteAllRecords() == 0)
         #expect(recorder.saves.isEmpty)
+        #expect(
+            !recorder.checkpoints.contains(
+                .beforeBatchDelete(.deleteAll)
+            )
+        )
         try await store.upsert([
             ExampleRecord(id: "a", payload: "one"),
             ExampleRecord(id: "b", payload: "two")
         ])
 
         #expect(try await store.deleteAllRecords() == 2)
-        #expect(recorder.saves == [.upsertBatch, .deleteAll])
+        #expect(recorder.saves == [.upsertBatch])
+        #expect(
+            recorder.checkpoints.filter {
+                $0 == .beforeBatchDelete(.deleteAll)
+            }.count == 1
+        )
         #expect(try await store.fetchRecord(id: "a") == nil)
     }
 
@@ -1587,9 +1599,9 @@ struct SwiftDataLocalStoreBatchTests {
     }
 
     @Test
-    func cancelledDeleteAllKeepsEveryDurableRecord() async throws {
+    func preCallCancelledDeleteAllKeepsEveryDurableRecord() async throws {
         let recorder = LocalDatabaseHookRecorder(
-            cancellingCheckpoint: .beforeSave(.deleteAll)
+            cancellingCheckpoint: .beforeBatchDelete(.deleteAll)
         )
         let store = try makeInMemoryLocalStore(hooks: recorder.hooks())
         let records = [
@@ -1613,9 +1625,9 @@ struct SwiftDataLocalStoreBatchTests {
     }
 
     @Test
-    func failedDeleteAllMapsOperationAndKeepsDurableRecords() async throws {
+    func preCallFailedDeleteAllMapsOperationAndKeepsDurableRecords() async throws {
         let recorder = LocalDatabaseHookRecorder(
-            failingCheckpoint: .beforeSave(.deleteAll)
+            failingCheckpoint: .beforeBatchDelete(.deleteAll)
         )
         let store = try makeInMemoryLocalStore(hooks: recorder.hooks())
         let records = [
@@ -1638,8 +1650,64 @@ struct SwiftDataLocalStoreBatchTests {
         #expect(try await store.fetchRecord(id: "a") == records[0])
         #expect(try await store.fetchRecord(id: "b") == records[1])
     }
+
+    @Test
+    func diskBatchDeleteIsDurableBeforeSaveAndRollbackCannotRestore() throws {
+        typealias StoredRecord =
+            LocalDatabaseSchemaV1.StoredExampleRecord
+        let url = try uniqueLocalDatabaseStoreURL(
+            label: "batch-delete-boundary"
+        )
+        let container = try LocalDatabaseContainerFactories.disk(url: url)()
+        let seedContext = ModelContext(container)
+        seedContext.autosaveEnabled = false
+        seedContext.insert(StoredRecord(id: "a", payload: "one"))
+        seedContext.insert(StoredRecord(id: "b", payload: "two"))
+        try seedContext.save()
+
+        let deleteContext = ModelContext(container)
+        deleteContext.autosaveEnabled = false
+        try deleteContext.delete(
+            model: StoredRecord.self,
+            where: nil,
+            includeSubclasses: false
+        )
+
+        #expect(!deleteContext.hasChanges)
+        let beforeSaveContainer =
+            try LocalDatabaseContainerFactories.disk(url: url)()
+        let beforeSaveObserver = ModelContext(beforeSaveContainer)
+        #expect(
+            try beforeSaveObserver.fetchCount(
+                FetchDescriptor<StoredRecord>()
+            ) == 0
+        )
+
+        deleteContext.rollback()
+        #expect(!deleteContext.hasChanges)
+        let afterRollbackContainer =
+            try LocalDatabaseContainerFactories.disk(url: url)()
+        let afterRollbackObserver = ModelContext(afterRollbackContainer)
+        #expect(
+            try afterRollbackObserver.fetchCount(
+                FetchDescriptor<StoredRecord>()
+            ) == 0
+        )
+
+        try deleteContext.save()
+        #expect(!deleteContext.hasChanges)
+    }
 }
 ```
+
+The delete-all cancellation and injected-failure tests fail at the dedicated
+pre-call checkpoint, so the type-level delete is never invoked and durable
+records remain. Their observed `.deleteAll` rollback is common-path context
+cleanup only, not compensation. The disk-backed characterization uses fresh
+observer containers to pin the supported Xcode 26.6 behavior: the type-level
+call exposes no pending changes, is already durable before any explicit save,
+and is not undone by rollback. It intentionally does not generalize that
+behavior to other SwiftData toolchains.
 
 - [ ] **Step 2: Run the focused test and verify RED**
 
@@ -1719,12 +1787,13 @@ func deleteAllRecords() throws -> Int {
         let descriptor = FetchDescriptor<StoredRecord>()
         recordCount = try context.fetchCount(descriptor)
         guard recordCount > 0 else { return 0 }
+        try hooks.checkpoint(.beforeBatchDelete(operation))
+        try Task.checkCancellation()
         try context.delete(
             model: StoredRecord.self,
             where: nil,
             includeSubclasses: false
         )
-        try save(context: context, operation: operation)
         return recordCount
     } catch {
         throw rollbackAndMapWriteFailure(
@@ -1738,6 +1807,21 @@ func deleteAllRecords() throws -> Int {
 ```
 
 The captured-ID `#Predicate` shape has been compile- and runtime-probed against the local SwiftData SDK. Do not replace type-level delete with a fetch of every entity or `ModelContainer.deleteAllData()`.
+
+For nonempty delete-all, the type-level call is the synchronous persistence
+boundary verified on Xcode 26.6. Invoke it exactly once and do not call
+`save(context:operation:)` afterward. The dedicated non-data-bearing
+`.beforeBatchDelete(.deleteAll)` hook and its immediately following
+`Task.checkCancellation()` are the final pre-call work. After the call returns,
+return the count directly: do not check cancellation or perform any other
+fallible work, so cancellation during or after the call returns success.
+
+Keep the common `catch` so a thrown type-level call maps to
+`LocalDatabaseError.write(operation: .deleteAll, underlying: error)`. If the
+checkpoint throws or the cancellation check fails, the same mapper may invoke
+`rollback()`, but that is no-op context cleanup because deletion was never
+invoked. Never describe rollback as compensating a completed or partially
+completed batch delete.
 
 - [ ] **Step 4: Run batch GREEN plus all mutation tests**
 
@@ -1765,7 +1849,12 @@ xcrun xcresulttool get test-results summary \
     and .passedTests == .totalTestCount'
 ```
 
-Expected: every selected test passes; child cancellation is returned as `CancellationError`, the test runner is not marked cancelled, and no test is skipped.
+Expected: every selected test passes; batch upserts save exactly once,
+nonempty delete-all records exactly one dedicated pre-call checkpoint and zero
+explicit saves, and the disk characterization observes immediate durability
+with no rollback restoration. Pre-call child cancellation is returned as
+`CancellationError`, its records remain because deletion was never invoked,
+the test runner is not marked cancelled, and no test is skipped.
 
 - [ ] **Step 5: Self-review and commit Task 4**
 
@@ -1789,7 +1878,7 @@ git commit -m "feat: add SwiftData batch mutations"
 
 **Interfaces:**
 
-- Consumes: `ExampleQuery`, clean-context save/rollback invariant, `.read(.fetchMany)`, and `.readProgress(.fetchMany)`.
+- Consumes: `ExampleQuery`, the fresh operation-context invariant after each operation-specific persistence boundary or failed-context discard, `.read(.fetchMany)`, and `.readProgress(.fetchMany)`.
 - Produces: synchronous actor-isolated `fetchRecords(matching:) throws -> [ExampleRecord]` with bounded output and fixed-size lazy traversal.
 
 - [ ] **Step 1: Write ordering, normalization, traversal, failure, and cancellation RED tests**
@@ -2060,7 +2149,11 @@ private func normalizedSearch(_ searchText: String?) -> String? {
 }
 ```
 
-Do not persist normalized text and do not add cursor fields. `fetch(_:batchSize:)` plus `includePendingChanges = false` is valid because every earlier write on the engine saved or rolled back.
+Do not persist normalized text and do not add cursor fields. `fetch(_:batchSize:)`
+plus `includePendingChanges = false` is valid because this read uses a fresh
+context: earlier upserts/delete-one either saved or rolled back, and successful
+nonempty delete-all completed its type-level persistence call without leaving
+pending changes on the operation context.
 
 - [ ] **Step 4: Run all engine suites GREEN**
 
@@ -2963,7 +3056,10 @@ xcrun xcresulttool get test-results summary \
     and .passedTests == .totalTestCount'
 ```
 
-Expected: all selected suites pass, including the real read-only save-failure recovery test, exactly-once lazy initialization, 100 concurrent writes, disk reopen, and graph isolation.
+Expected: all selected suites pass, including the real read-only save-failure
+recovery test, the disk-backed immediate delete-all durability/no-rollback
+regression, exactly-once lazy initialization, 100 concurrent writes, disk
+reopen, and graph isolation.
 
 - [ ] **Step 9: Self-review and commit Task 6**
 
@@ -3016,13 +3112,13 @@ Replace the persistence portion of `## Scope` with:
 The template includes an intentionally small SwiftData reference store for the
 sample `ExampleRecord` value. It demonstrates a Sendable service facade, an
 internal ModelActor, explicit schema versioning, lazy disk bootstrap, isolated
-in-memory preview/UI-test composition, bounded reads, explicit saves, and
-failure-safe operation contexts. It does not choose product entities, a
-feature-specific repository contract, retention policy, backup policy,
-application-level encryption, CloudKit synchronization, App Group sharing, or
-cross-process access. Replace the sample boundary deliberately when adding a
-real feature; do not encode unrelated domain data into `payload` merely to
-reuse it.
+in-memory preview/UI-test composition, bounded reads, operation-specific
+persistence boundaries, and failure-safe operation contexts. It does not
+choose product entities, a feature-specific repository contract, retention
+policy, backup policy, application-level encryption, CloudKit synchronization,
+App Group sharing, or cross-process access. Replace the sample boundary
+deliberately when adding a real feature; do not encode unrelated domain data
+into `payload` merely to reuse it.
 
 `AppStateStore` remains a separate UserDefaults-backed launch-policy store. It
 is not migrated to SwiftData by this reference implementation.
@@ -3051,11 +3147,24 @@ falling back to memory.
 
 `SwiftDataLocalStore` is the internal ModelActor. SwiftData entities and
 `ModelContext` instances never leave it. Each synchronous engine operation uses
-a fresh private context with autosave disabled; a state-changing operation
-saves once, a documented no-op saves zero times, and a failed operation rolls
-back and discards its context so stale registered models cannot leak into the
-next call. Returned `ExampleRecord` values remain usable independently of the
-service and container.
+a fresh private context with autosave disabled. A state-changing upsert or
+delete-one saves exactly once; a successful nonempty delete-all performs one
+type-level batch-delete call and zero explicit saves; documented no-ops perform
+neither persistence call. Failed operation contexts are cleaned up and
+discarded so stale registered models cannot leak into the next call. For
+delete-all, rollback before the type-level call is no-op cleanup and is not
+claimed to compensate a completed or partially completed batch delete.
+Returned `ExampleRecord` values remain usable independently of the service and
+container.
+
+The delete-all rule reflects a disk-backed Xcode 26.6 regression: the
+type-level call is immediately durable, leaves `hasChanges == false`, and is not
+restored by rollback before any explicit save. This differs from Apple's
+current "next save" documentation, so it is a supported-toolchain behavior
+guarded by tests, not a generic SwiftData guarantee. Cancellation and injected
+failure are checked at a dedicated non-data-bearing checkpoint immediately
+before the call; there is no fallible work or cancellation check after a
+successful return.
 
 The live store is resolved lazily at
 `Application Support/<bundle identifier>/LocalDatabase.store`. Preview and UI
@@ -3099,8 +3208,11 @@ Before shipping product data:
 6. Decide separately whether CloudKit, App Groups, cross-process access, or
    application-level encryption is required. The template configures
    `cloudKitDatabase: .none` and provides none of those guarantees.
-7. Preserve explicit-save tests, documented no-op tests, deterministic failure
-   and cancellation tests, and reopen tests for the final feature contract.
+7. Preserve operation-specific persistence-boundary tests: exactly one save for
+   state-changing upsert/delete-one, exactly one type-level call and zero saves
+   for successful nonempty delete-all, documented no-op tests, deterministic
+   pre-call failure and cancellation tests, the disk-backed immediate-durability
+   regression, and reopen tests for the final feature contract.
 8. Keep `AppStateStore` in UserDefaults unless an independently designed
    asynchronous startup and migration flow replaces it.
 ```
@@ -3116,6 +3228,10 @@ In `docs/RELEASE_CHECKLIST.md` under `## Behavior, tests, and migration`, replac
   contract; confirm no product domain is hidden in its payload string.
 - [ ] Reopen a temporary disk store in a second container and verify inserts,
   updates, single deletion, and bulk deletion.
+- [ ] On the supported Xcode toolchain, keep the disk-backed bulk-delete
+  regression proving visibility before any explicit save,
+  `hasChanges == false`, and no rollback restoration; investigate and amend the
+  storage contract before accepting any SDK behavior change.
 - [ ] For every schema after V1, retain the prior schema and pass disk-backed
   transition fixtures. V1 has no fake predecessor or migration stage.
 - [ ] Exercise initialization and migration failure recovery without automatic
@@ -3387,8 +3503,8 @@ Expected: the task-count and placeholder scans pass, the documentation commit su
 
 ## Plan Self-Review Checklist
 
-- [x] Spec coverage: map every design principle, public method, validation rule, query rule, save/no-op rule, failure category, cancellation checkpoint, composition rule, diagnostic restriction, documentation obligation, and acceptance gate to Tasks 1–7.
-- [x] Rollback evidence: keep the real `allowsSave: false` regression test. Confirm the failed context is discarded and the next same-engine operation uses a new context; never weaken this to a hook-only failure test.
+- [x] Spec coverage: map every design principle, public method, validation rule, query rule, operation-specific persistence boundary/no-op rule, failure category, cancellation checkpoint, composition rule, diagnostic restriction, documentation obligation, and acceptance gate to Tasks 1–7.
+- [x] Rollback evidence: keep both disk-backed regressions. The `allowsSave: false` test confirms a failed save context is discarded and the next same-engine operation uses a new context. The type-level delete characterization confirms immediate durability before an explicit save and no rollback restoration. Never weaken either to hook-only evidence or claim rollback compensates a completed or partially completed batch delete.
 - [x] Type consistency: verify `LocalDatabaseContainerFactories.live`, `.disk`, `.inMemory`, `LocalDatabaseStoreLocationResolver.live`, all operation enum cases, six protocol methods, and suite selectors use identical spelling throughout the plan.
 - [x] Placeholder scan: reject every prohibited placeholder phrase from the writing-plans skill and any step that refers to an unstated command or undefined type.
 - [x] TDD shape: every task has an observable RED, minimal GREEN implementation, warnings-as-errors focused gate with positive xcresult count, self-review, and one commit.
