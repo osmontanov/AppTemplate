@@ -100,7 +100,6 @@ ModelContainer -> local SwiftData store
 The factory is deliberately synchronous:
 
 ```swift
-nonisolated
 typealias LocalDatabaseContainerFactory =
     @Sendable () throws -> ModelContainer
 ```
