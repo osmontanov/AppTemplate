@@ -4,6 +4,7 @@ enum LocalDatabaseStoreCheckpoint: Equatable, Sendable {
     case readProgress(LocalDatabaseReadOperation)
     case writePreparation(LocalDatabaseWriteOperation)
     case beforeSave(LocalDatabaseWriteOperation)
+    case beforeBatchDelete(LocalDatabaseWriteOperation)
 }
 
 nonisolated

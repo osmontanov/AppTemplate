@@ -66,6 +66,51 @@ actor SwiftDataLocalStore {
         }
     }
 
+    func upsert(_ records: [ExampleRecord]) throws {
+        guard !records.isEmpty else { return }
+        let operation = LocalDatabaseWriteOperation.upsertBatch
+        try Task.checkCancellation()
+        let context = makeOperationContext()
+        do {
+            try hooks.checkpoint(.writePreparation(operation))
+            try Task.checkCancellation()
+
+            let ids = records.map(\.id)
+            let descriptor = FetchDescriptor<StoredRecord>(
+                predicate: #Predicate { ids.contains($0.id) }
+            )
+            let existing = try context.fetch(descriptor)
+            let existingByID = Dictionary(
+                uniqueKeysWithValues: existing.map { ($0.id, $0) }
+            )
+            var changed = false
+
+            for record in records {
+                if let stored = existingByID[record.id] {
+                    if stored.payload != record.payload {
+                        stored.payload = record.payload
+                        changed = true
+                    }
+                } else {
+                    context.insert(
+                        StoredRecord(id: record.id, payload: record.payload)
+                    )
+                    changed = true
+                }
+            }
+
+            guard changed else { return }
+            try save(context: context, operation: operation)
+        } catch {
+            throw rollbackAndMapWriteFailure(
+                error,
+                context: context,
+                operation: operation,
+                recordCount: records.count
+            )
+        }
+    }
+
     func deleteRecord(id: String) throws -> Bool {
         let operation = LocalDatabaseWriteOperation.deleteOne
         try Task.checkCancellation()
@@ -85,6 +130,35 @@ actor SwiftDataLocalStore {
                 context: context,
                 operation: operation,
                 recordCount: 1
+            )
+        }
+    }
+
+    func deleteAllRecords() throws -> Int {
+        let operation = LocalDatabaseWriteOperation.deleteAll
+        try Task.checkCancellation()
+        let context = makeOperationContext()
+        var recordCount = 0
+        do {
+            try hooks.checkpoint(.writePreparation(operation))
+            try Task.checkCancellation()
+            let descriptor = FetchDescriptor<StoredRecord>()
+            recordCount = try context.fetchCount(descriptor)
+            guard recordCount > 0 else { return 0 }
+            try hooks.checkpoint(.beforeBatchDelete(operation))
+            try Task.checkCancellation()
+            try context.delete(
+                model: StoredRecord.self,
+                where: nil,
+                includeSubclasses: false
+            )
+            return recordCount
+        } catch {
+            throw rollbackAndMapWriteFailure(
+                error,
+                context: context,
+                operation: operation,
+                recordCount: recordCount
             )
         }
     }
