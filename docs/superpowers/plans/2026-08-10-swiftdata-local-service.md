@@ -1139,7 +1139,6 @@ enum LocalDatabaseStoreCheckpoint: Equatable, Sendable {
     case readProgress(LocalDatabaseReadOperation)
     case writePreparation(LocalDatabaseWriteOperation)
     case beforeSave(LocalDatabaseWriteOperation)
-    case beforeBatchDelete(LocalDatabaseWriteOperation)
 }
 
 nonisolated
@@ -1441,13 +1440,14 @@ git commit -m "feat: add SwiftData record mutations"
 
 **Files:**
 
+- Modify: `AppTemplate/App/Services/LocalDatabase/LocalDatabaseStoreHooks.swift`
 - Modify: `AppTemplate/App/Services/LocalDatabase/SwiftDataLocalStore.swift`
 - Create: `AppTemplateTests/App/Services/LocalDatabase/SwiftDataLocalStoreBatchTests.swift`
 
 **Interfaces:**
 
-- Consumes: Task 3's operation-scoped-context invariant, `save(context:operation:)`, failed-context discard mapping, and hooks including `.beforeBatchDelete(.deleteAll)`.
-- Produces: synchronous actor-isolated `upsert(_ records: [ExampleRecord]) throws` and `deleteAllRecords() throws -> Int`.
+- Consumes: Task 3's operation-scoped-context invariant, `save(context:operation:)`, failed-context discard mapping, and hook infrastructure through `.beforeSave`.
+- Produces: the dedicated `LocalDatabaseStoreCheckpoint.beforeBatchDelete(_:)` case plus synchronous actor-isolated `upsert(_ records: [ExampleRecord]) throws` and `deleteAllRecords() throws -> Int`.
 
 - [ ] **Step 1: Write batch-save and delete-all boundary RED tests**
 
@@ -1724,9 +1724,26 @@ xcodebuild test -project AppTemplate.xcodeproj -scheme AppTemplate \
   SWIFT_TREAT_WARNINGS_AS_ERRORS=YES GCC_TREAT_WARNINGS_AS_ERRORS=YES
 ```
 
-Expected: exit 65 because the batch and delete-all engine methods do not exist.
+Expected: exit 65 because
+`LocalDatabaseStoreCheckpoint.beforeBatchDelete(_:)` and the batch/delete-all
+engine methods do not exist. Fix spelling or target-selection errors until the
+failure is for those missing Task 4 APIs.
 
-- [ ] **Step 3: Implement batch upsert and type-level delete**
+- [ ] **Step 3: Add the checkpoint and implement both batch mutations**
+
+Add the dedicated case to `LocalDatabaseStoreCheckpoint` in
+`LocalDatabaseStoreHooks.swift`:
+
+```swift
+nonisolated
+enum LocalDatabaseStoreCheckpoint: Equatable, Sendable {
+    case read(LocalDatabaseReadOperation)
+    case readProgress(LocalDatabaseReadOperation)
+    case writePreparation(LocalDatabaseWriteOperation)
+    case beforeSave(LocalDatabaseWriteOperation)
+    case beforeBatchDelete(LocalDatabaseWriteOperation)
+}
+```
 
 Add these methods inside `SwiftDataLocalStore`:
 
@@ -1861,6 +1878,7 @@ the test runner is not marked cancelled, and no test is skipped.
 ```bash
 git diff --check
 git add \
+  AppTemplate/App/Services/LocalDatabase/LocalDatabaseStoreHooks.swift \
   AppTemplate/App/Services/LocalDatabase/SwiftDataLocalStore.swift \
   AppTemplateTests/App/Services/LocalDatabase/SwiftDataLocalStoreBatchTests.swift
 git diff --cached --check
