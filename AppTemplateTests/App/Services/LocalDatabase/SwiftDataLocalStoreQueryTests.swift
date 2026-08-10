@@ -68,6 +68,66 @@ struct SwiftDataLocalStoreQueryTests {
     }
 
     @Test
+    func filteredSearchDoesNotCheckpointBeforeExamining128Entities() async throws {
+        let recorder = LocalDatabaseHookRecorder()
+        let store = try makeInMemoryLocalStore(hooks: recorder.hooks())
+        try await store.upsert(
+            (0..<127).map {
+                ExampleRecord(
+                    id: String(format: "item-%03d", $0),
+                    payload: "haystack"
+                )
+            }
+        )
+
+        let result = try await store.fetchRecords(
+            matching: ExampleQuery(searchText: "missing")
+        )
+
+        #expect(result.isEmpty)
+        #expect(
+            !recorder.checkpoints.contains(.readProgress(.fetchMany))
+        )
+    }
+
+    @Test
+    func cancellationAt128thMatchingEntityPrecedesLimitReturn() async throws {
+        let recorder = LocalDatabaseHookRecorder(
+            cancellingCheckpoint: .readProgress(.fetchMany)
+        )
+        let store = try makeInMemoryLocalStore(hooks: recorder.hooks())
+        try await store.upsert(
+            (0..<128).map { index in
+                ExampleRecord(
+                    id: String(format: "item-%03d", index),
+                    payload: index == 127 ? "needle" : "haystack"
+                )
+            }
+        )
+        let request = Task { () -> Result<[ExampleRecord], any Error> in
+            do {
+                return .success(
+                    try await store.fetchRecords(
+                        matching: ExampleQuery(
+                            searchText: "needle",
+                            limit: 1
+                        )
+                    )
+                )
+            } catch {
+                return .failure(error)
+            }
+        }
+
+        switch await request.value {
+        case .success:
+            Issue.record("Expected cancellation before limit return")
+        case let .failure(error):
+            #expect(error is CancellationError)
+        }
+    }
+
+    @Test
     func filteredSearchStopsBeforeUnneededProgressCheckpoint() async throws {
         let recorder = LocalDatabaseHookRecorder()
         let store = try makeInMemoryLocalStore(hooks: recorder.hooks())
