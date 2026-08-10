@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 import Testing
 @testable import AppTemplate
 
@@ -11,6 +12,61 @@ struct AppDependenciesTests {
         #expect(dependencies.remote is RemoteService)
         #expect(dependencies.appStateStorage is UserDefaultsAppStateStorage)
         #expect(dependencies.settings.appInfo is AppInfoService)
+    }
+
+    @Test
+    func liveGraphDefersResolverUntilFirstValidDatabaseOperation() async {
+        let calls = Mutex(0)
+        let dependencies = AppDependencies.live(
+            localDatabaseStoreLocationResolver: .init(resolve: {
+                calls.withLock { $0 += 1 }
+                throw LocalDatabaseTestError.injectedFailure
+            })
+        )
+
+        #expect(calls.withLock { $0 } == 0)
+        do {
+            _ = try await dependencies.localDatabase.fetchRecord(id: "record-1")
+            Issue.record("Expected initialization failure")
+        } catch let error as LocalDatabaseError {
+            guard case .initialization = error else {
+                Issue.record("Expected LocalDatabaseError.initialization")
+                return
+            }
+        } catch {
+            Issue.record("Unexpected error type: \(type(of: error))")
+        }
+        #expect(calls.withLock { $0 } == 1)
+    }
+
+    @Test
+    func previewAndUITestingGraphsUseFreshDatabases() async throws {
+        let settings = SettingsDependencies(
+            appInfo: AppInfoService(displayName: "Preview", version: "1")
+        )
+        let firstPreview = AppDependencies.preview(settings: settings)
+        let secondPreview = AppDependencies.preview(settings: settings)
+        try await firstPreview.localDatabase.upsert(
+            ExampleRecord(id: "preview", payload: "first")
+        )
+        #expect(
+            try await secondPreview.localDatabase.fetchRecord(id: "preview")
+                == nil
+        )
+
+        let state = AppState(
+            isAuthenticated: true,
+            hasCompletedOnboarding: true,
+            isMaintenanceEnabled: false
+        )
+        let firstUI = AppDependencies.uiTesting(initialState: state)
+        let secondUI = AppDependencies.uiTesting(initialState: state)
+        try await firstUI.localDatabase.upsert(
+            ExampleRecord(id: "ui", payload: "first")
+        )
+        #expect(
+            try await secondUI.localDatabase.fetchRecord(id: "ui") == nil
+        )
     }
 
     @Test
@@ -134,7 +190,18 @@ private func decodedState(from storage: InMemoryAppStateStorage) throws -> AppSt
     return try JSONDecoder().decode(AppState.self, from: data)
 }
 
-private actor InjectedLocalDatabaseService: ILocalDatabaseService {}
+private actor InjectedLocalDatabaseService: ILocalDatabaseService {
+    func fetchRecord(id: String) async throws -> ExampleRecord? { nil }
+
+    func fetchRecords(
+        matching query: ExampleQuery
+    ) async throws -> [ExampleRecord] { [] }
+
+    func upsert(_ record: ExampleRecord) async throws {}
+    func upsert(_ records: [ExampleRecord]) async throws {}
+    func deleteRecord(id: String) async throws -> Bool { false }
+    func deleteAllRecords() async throws -> Int { 0 }
+}
 private actor InjectedRemoteService: IRemoteService {
     func fetchExample(
         _ request: ExampleRequest

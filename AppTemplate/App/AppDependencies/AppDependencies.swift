@@ -5,9 +5,16 @@ struct AppDependencies: Sendable {
     let appStateStorage: any IAppStateStorage
     let settings: SettingsDependencies
 
-    static func live() -> AppDependencies {
+    static func live(
+        localDatabaseStoreLocationResolver:
+            LocalDatabaseStoreLocationResolver = .live()
+    ) -> AppDependencies {
         AppDependencies(
-            localDatabase: LocalDatabaseService(),
+            localDatabase: LocalDatabaseService(
+                containerFactory: LocalDatabaseContainerFactories.live(
+                    locationResolver: localDatabaseStoreLocationResolver
+                )
+            ),
             remote: RemoteService(),
             appStateStorage: UserDefaultsAppStateStorage(),
             settings: SettingsDependencies(appInfo: AppInfoService())
@@ -16,7 +23,9 @@ struct AppDependencies: Sendable {
 
     static func uiTesting(initialState: AppState) -> AppDependencies {
         AppDependencies(
-            localDatabase: LocalDatabaseService(),
+            localDatabase: LocalDatabaseService(
+                containerFactory: LocalDatabaseContainerFactories.inMemory()
+            ),
             remote: RemoteService(),
             appStateStorage: InMemoryAppStateStorage(initialState: initialState),
             settings: SettingsDependencies(
@@ -31,7 +40,9 @@ struct AppDependencies: Sendable {
     static func preview(
         settings: SettingsDependencies,
         appStateStorage: any IAppStateStorage = InMemoryAppStateStorage(),
-        localDatabaseService: any ILocalDatabaseService = LocalDatabaseService(),
+        localDatabaseService: any ILocalDatabaseService = LocalDatabaseService(
+            containerFactory: LocalDatabaseContainerFactories.inMemory()
+        ),
         remoteService: any IRemoteService = RemoteService()
     ) -> AppDependencies {
         AppDependencies(
