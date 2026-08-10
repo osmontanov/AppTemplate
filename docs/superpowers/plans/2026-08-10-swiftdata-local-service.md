@@ -3246,10 +3246,11 @@ In `docs/RELEASE_CHECKLIST.md` under `## Behavior, tests, and migration`, replac
   contract; confirm no product domain is hidden in its payload string.
 - [ ] Reopen a temporary disk store in a second container and verify inserts,
   updates, single deletion, and bulk deletion.
-- [ ] On the supported Xcode toolchain, keep the disk-backed bulk-delete
-  regression proving visibility before any explicit save,
-  `hasChanges == false`, and no rollback restoration; investigate and amend the
-  storage contract before accepting any SDK behavior change.
+- [ ] Before adopting any new Xcode or SwiftData toolchain, rerun the
+  disk-backed bulk-delete characterization and revalidate the
+  zero-explicit-save persistence contract, even if no behavior change has been
+  observed; investigate and amend the storage contract before accepting any
+  changed result.
 - [ ] For every schema after V1, retain the prior schema and pass disk-backed
   transition fixtures. V1 has no fake predecessor or migration stage.
 - [ ] Exercise initialization and migration failure recovery without automatic

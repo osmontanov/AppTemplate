@@ -199,6 +199,10 @@ later `save()` found no changes. This is a supported-toolchain divergence from
 Apple's current "next save" documentation, not a generic guarantee about every
 SwiftData version or `DataStore` implementation.
 
+Before adopting any new Xcode or SwiftData toolchain, revalidate the
+disk-backed delete-all characterization and zero-explicit-save persistence
+contract, even if no behavior change has been observed.
+
 The actor/executor contract promises serialized access, not a particular
 thread. No test or public API asserts background-thread identity.
 
