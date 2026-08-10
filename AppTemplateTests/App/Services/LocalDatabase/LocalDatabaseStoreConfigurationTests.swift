@@ -171,18 +171,3 @@ private final class SynchronousCounter: Sendable {
         storage.withLock { $0 += 1 }
     }
 }
-
-private func uniqueLocalDatabaseStoreURL(label: String) throws -> URL {
-    let directory = FileManager.default.temporaryDirectory.appending(
-        path: "AppTemplate-SwiftData-\(label)-\(UUID().uuidString)",
-        directoryHint: .isDirectory
-    )
-    try FileManager.default.createDirectory(
-        at: directory,
-        withIntermediateDirectories: true
-    )
-    return directory.appending(
-        path: "LocalDatabase.store",
-        directoryHint: .notDirectory
-    )
-}
