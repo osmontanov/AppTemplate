@@ -38,6 +38,10 @@ unsupported data is reset to `AppState.initial`; a future schema makes the
 store read-only so newer data is not overwritten. `AppFlowPolicy` derives the
 Onboarding, Authentication, Maintenance, or Main root from the saved facts.
 
+This launch-policy state remains owned by `AppStateStore` and
+`IAppStateStorage` in UserDefaults. The local SwiftData reference store does not
+participate in root selection or startup restoration.
+
 Screen actions do not choose roots directly. `IAuthenticationActions`,
 `IOnboardingActions`, and `IMaintenanceActions` expose narrow semantic
 commands. `AppFlowCoordinator` saves the proposed state, asks the policy for
@@ -90,8 +94,53 @@ does not receive the whole app graph. Other feature dependency structs are
 empty extension points until their features need a real dependency.
 
 `AppInfoService` reads display name and short version from the app bundle and
-is injected into Settings. `ILocalDatabaseService`/`LocalDatabaseService`
-remain an intentionally empty local-storage example.
+is injected into Settings.
+
+### Local SwiftData reference store
+
+`ILocalDatabaseService` is a Sendable, `ExampleRecord`-specific value API.
+`LocalDatabaseService` is an actor facade that performs cancellation and pure
+validation before lazily creating a `ModelContainer`. It caches successful
+bootstrap and non-cancellation bootstrap failures without erasing the store or
+falling back to memory.
+
+`SwiftDataLocalStore` is the internal ModelActor. SwiftData entities and
+`ModelContext` instances never leave it. Each synchronous engine operation uses
+a fresh private context with autosave disabled. A state-changing upsert or
+delete-one saves exactly once; a successful nonempty delete-all performs one
+type-level batch-delete call and zero explicit saves; documented no-ops perform
+neither persistence call. Failed operation contexts are cleaned up and
+discarded so stale registered models cannot leak into the next call. For
+delete-all, rollback before the type-level call is no-op cleanup and is not
+claimed to compensate a completed or partially completed batch delete.
+Returned `ExampleRecord` values remain usable independently of the service and
+container.
+
+The delete-all rule reflects a disk-backed Xcode 26.6 regression: the
+type-level call is immediately durable, leaves `hasChanges == false`, and is not
+restored by rollback before any explicit save. This differs from Apple's
+current "next save" documentation, so it is a supported-toolchain behavior
+guarded by tests, not a generic SwiftData guarantee. Cancellation and injected
+failure are checked at a dedicated non-data-bearing checkpoint immediately
+before the call; there is no fallible work or cancellation check after a
+successful return.
+
+The live store is resolved lazily at
+`Application Support/<bundle identifier>/LocalDatabase.store`. Preview and UI
+test graphs each create a fresh in-memory container. Schema V1 contains only
+the internal stored-example entity, and the migration plan intentionally has no
+stages because no earlier schema shipped. CloudKit is explicitly disabled.
+
+The failure contract distinguishes validation, initialization (including
+migration/container load), read, and public write-operation failures.
+Diagnostics expose only operation, fixed entity type, record count, NSError
+domain, and NSError code. They never include IDs, payloads, search text, error
+descriptions, userInfo, store contents, or user-specific paths.
+
+This is a reference store, not a generic repository and not product feature
+storage. A real feature should define a semantic protocol over its domain
+values, adapt or replace this sample internally, and inject that feature
+protocol into its ViewModel.
 
 `IRemoteService` is the app-facing remote boundary. Its neutral
 `fetchExample(_:)` operation demonstrates a semantic service method without

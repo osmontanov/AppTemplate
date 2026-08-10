@@ -66,10 +66,40 @@ is sufficient. To replace it:
 
 ## 5. Services and features
 
-The local database service remains an empty example. The remote service now
-demonstrates a URLSession-backed, Moya-inspired target/provider flow with a
-reserved `https://example.invalid` base URL; it is not a configured production
-API. Before enabling remote product behavior:
+### Local SwiftData reference store
+
+Before shipping product data:
+
+1. Replace `ExampleRecord` and `ILocalDatabaseService` with feature-semantic
+   values and operations; do not use `payload` as an untyped domain envelope.
+2. Keep SwiftData entities, contexts, containers, predicates, and identifiers
+   behind the persistence implementation. ViewModels receive a feature
+   protocol, never SwiftData or `AppDependencies`.
+3. Keep the live URL stable at
+   `Application Support/<bundle identifier>/LocalDatabase.store`, or design and
+   test an explicit move before changing it.
+4. Retain every shipped `VersionedSchema`. Add a real migration stage only when
+   a transition exists, and verify that transition with a disk fixture created
+   from the earlier schema.
+5. Decide retention, user-visible deletion, backup/restore, import/export, and
+   recovery from initialization or migration failure. Never silently erase or
+   replace an unreadable store with memory.
+6. Decide separately whether CloudKit, App Groups, cross-process access, or
+   application-level encryption is required. The template configures
+   `cloudKitDatabase: .none` and provides none of those guarantees.
+7. Preserve operation-specific persistence-boundary tests: exactly one save for
+   state-changing upsert/delete-one, exactly one type-level call and zero saves
+   for successful nonempty delete-all, documented no-op tests, deterministic
+   pre-call failure and cancellation tests, the disk-backed immediate-durability
+   regression, and reopen tests for the final feature contract.
+8. Keep `AppStateStore` in UserDefaults unless an independently designed
+   asynchronous startup and migration flow replaces it.
+
+### Remote service
+
+The remote service now demonstrates a URLSession-backed, Moya-inspired
+target/provider flow with a reserved `https://example.invalid` base URL; it is
+not a configured production API. Before enabling remote product behavior:
 
 1. Replace `ExampleTarget`, `ExampleRequest`, `ExampleResponse`, and
    `fetchExample(_:)` with domain-specific operations and models.

@@ -31,12 +31,29 @@ Complete this checklist for the adopted product, not for the untouched sample.
 
 ## Behavior, tests, and migration
 
-- [ ] Replace all static examples and empty local/remote service scaffolds used
-  by the released product with reviewed production behavior.
-- [ ] Run the complete local macOS scheme, including unit and UI tests, with
-  warnings treated as errors and no failure allowlist.
-- [ ] Run the unit-test gates locally on macOS, iPhone 17 / iOS 26.5, and
-  iPad (A16) / iOS 26.5 with warnings treated as errors.
+- [ ] Replace or explicitly accept the sample-only `ExampleRecord` SwiftData
+  contract; confirm no product domain is hidden in its payload string.
+- [ ] Reopen a temporary disk store in a second container and verify inserts,
+  updates, single deletion, and bulk deletion.
+- [ ] Before adopting any new Xcode or SwiftData toolchain, rerun the
+  disk-backed bulk-delete characterization and revalidate the
+  zero-explicit-save persistence contract, even if no behavior change has been
+  observed; investigate and amend the storage contract before accepting any
+  changed result.
+- [ ] For every schema after V1, retain the prior schema and pass disk-backed
+  transition fixtures. V1 has no fake predecessor or migration stage.
+- [ ] Exercise initialization and migration failure recovery without automatic
+  erase, retry loops, or in-memory fallback.
+- [ ] Confirm retention, deletion, backup/restore, and corrupted-store support
+  policy for product data.
+- [ ] Confirm explicit decisions for CloudKit/sync, App Groups/cross-process
+  access, and application-level encryption; the template enables none.
+- [ ] Run unit-test bundles locally on macOS, iPhone 17 / iOS 26.5, and iPad
+  (A16) / iOS 26.5 with Swift and Clang warnings treated as errors.
+- [ ] Run the complete macOS scheme and the full UI-test bundle on both listed
+  iOS simulator destinations with zero failures, skips, or expected failures.
+- [ ] Build Release for generic macOS and unsigned generic iOS with warnings
+  treated as errors; perform distribution signing/archive checks separately.
 - [ ] Review the schema-1 app-state model, storage key, recovery behavior, and
   migration policy against every previously shipped version.
 - [ ] Review scene navigation restoration and migrations for every previously

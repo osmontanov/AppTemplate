@@ -1,10 +1,10 @@
 # AppTemplate
 
-AppTemplate is a SwiftUI starting point for iOS 26, iPadOS 26, and macOS 26.
-It provides typed, scene-local navigation; persisted demo app policy; explicit
-dependency injection; deep links; previews; unit tests; UI tests; and documented
-local verification for macOS, iPhone, and iPad. Authentication, local storage,
-remote access, and feature data are intentionally non-production examples.
+AppTemplate is a SwiftUI application template for iOS, iPadOS, and macOS. It
+provides typed scene-local navigation, persisted demo app policy, explicit
+dependency injection, deep links, previews, unit and UI tests, a hardened
+network layer, and a local-only SwiftData reference store for `ExampleRecord`.
+Platform verification is performed locally.
 
 ## Start here
 
@@ -33,9 +33,19 @@ The implemented examples focus on reusable application structure:
 - explicit live, preview, test, and UI-test dependency construction;
 - static Home, Browse, Projects, and Settings content that is safe to replace.
 
-The template does not choose a real identity provider, database, network
-client, repository layer, or feature persistence strategy. Replace the example
-services and screens deliberately; do not treat them as production behavior.
+The template includes an intentionally small SwiftData reference store for the
+sample `ExampleRecord` value. It demonstrates a Sendable service facade, an
+internal ModelActor, explicit schema versioning, lazy disk bootstrap, isolated
+in-memory preview/UI-test composition, bounded reads, operation-specific
+persistence boundaries, and failure-safe operation contexts. It does not
+choose product entities, a feature-specific repository contract, retention
+policy, backup policy, application-level encryption, CloudKit synchronization,
+App Group sharing, or cross-process access. Replace the sample boundary
+deliberately when adding a real feature; do not encode unrelated domain data
+into `payload` merely to reuse it.
+
+`AppStateStore` remains a separate UserDefaults-backed launch-policy store. It
+is not migrated to SwiftData by this reference implementation.
 
 ## Documentation
 
