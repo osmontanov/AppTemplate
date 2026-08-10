@@ -3,9 +3,8 @@
 ## Status
 
 The design was approved in conversation on 2026-08-10. This written
-specification has incorporated self-review and independent architecture, SDK,
-and testability reviews. It is awaiting the user's final review before
-implementation planning.
+specification incorporates self-review and independent architecture, SDK, and
+testability reviews and is the normative input to the implementation plan.
 
 ## Goal
 
@@ -86,10 +85,10 @@ LocalDatabaseService actor
     |
     v
 SwiftDataLocalStore ModelActor
-    - owns one ModelContext
+    - creates one private ModelContext per public operation
     - performs SwiftData reads and writes
     - maps persistent entities to value records
-    - explicitly saves and rolls back pending mutations
+    - explicitly saves and discards failed operation contexts
     |
     v
 ModelContainer -> local SwiftData store
@@ -135,19 +134,24 @@ or hidden in-memory fallback.
 
 ### SwiftData engine
 
-`SwiftDataLocalStore` uses the `@ModelActor` macro. The generated actor owns the
-one `ModelContext` created for its container and never exposes that context or
-a persistent model. Its methods construct descriptors inside actor isolation,
-perform synchronous SwiftData work without suspension, and convert entities
-into `ExampleRecord` values before returning.
+`SwiftDataLocalStore` uses the `@ModelActor` macro. It never exposes a
+`ModelContext` or persistent model. Each engine call that reaches storage
+creates one fresh private `ModelContext` for the shared container, disables
+autosave on that context, performs all synchronous SwiftData work without
+suspension, converts entities into `ExampleRecord` values, and then releases
+the context. The direct empty-batch fast path creates no context. Every
+operation-scoped context is created and used entirely within ModelActor
+isolation.
 
-The actor declares a custom synchronous
-`init(modelContainer:hooks:)`. It creates one `ModelContext`, assigns a
-`DefaultSerialModelExecutor`, stores the container and hooks, and remains a
-normal `ModelActor`. The initializer explicitly sets
-`modelContext.autosaveEnabled = false`; exact-save behavior does not depend on
-the SDK default. This initializer shape is type-checked against the local Swift
-6 / SwiftData SDK before implementation planning.
+The actor declares a custom synchronous `init(modelContainer:hooks:)`. It
+creates the executor context required by `ModelActor`, disables autosave on it,
+assigns a `DefaultSerialModelExecutor`, stores the container and hooks, and
+remains a normal `ModelActor`. A private `makeOperationContext()` creates the
+context actually used by each public method and explicitly disables autosave
+there as well; exact-save behavior therefore does not depend on the SDK
+default. Both the initializer and operation-scoped context shape are
+type-checked against the local Swift 6 / SwiftData SDK before implementation
+planning.
 
 The hooks stored property has a `.production` no-op default so the macro's
 synthesized one-argument initializer also leaves a valid actor. The facade
@@ -155,12 +159,21 @@ always calls the custom two-argument initializer and passes hooks explicitly;
 the `hooks` parameter has no default value, avoiding overload ambiguity.
 
 The engine does not rely on autosave. Each state-changing operation stages all
-changes, executes one pre-save cancellation checkpoint, calls `save()` once,
-and returns only after that call succeeds. If a write-phase operation throws
-before or during `save()`, the engine calls `rollback()` to clear pending
-context changes and rethrows the mapped error. This is a single-save/context-
-rollback contract; it does not claim crash-level durability or compensating
-rollback of data that a store may already have committed.
+changes in its private operation context, executes one pre-save cancellation
+checkpoint, calls `save()` once, and returns only after that call succeeds. If
+a write-phase operation throws before or during `save()`, the engine calls
+`rollback()`, emits the rollback hook, and discards that operation context
+before rethrowing the mapped error. A later operation necessarily starts from
+a fresh context and therefore cannot observe stale registered models from the
+failed context.
+
+This context-discard rule is required by observed SwiftData behavior in Xcode
+26.6: after a deterministic read-only-store save failure, `rollback()` clears
+`hasChanges` but a fetch through the same context can still return an unsaved
+value retained in its identity map. A fresh context returns the durable value.
+The design does not claim that bare `rollback()` refreshes registered objects,
+nor does it claim crash-level durability or compensating rollback of data that
+a store may already have committed.
 
 The actor/executor contract promises serialized access, not a particular
 thread. No test or public API asserts background-thread identity.
@@ -197,7 +210,8 @@ exercise deterministic read or write mapping. A test can synchronously cancel
 its current task in `readProgress` or `beforeSave`; the immediately following
 cancellation check then proves propagation or rollback without an
 actor-reentrancy race. `didSave` runs only after a successful `save()`, and
-`didRollback` runs only after the engine invokes `rollback()`.
+`didRollback` runs only after the engine invokes `rollback()`; the failed
+operation context is never reused afterward.
 
 The hooks never receive a context, model, record, ID, payload, query, progress
 count, or store URL. They are not public API. Their callbacks verify control-
@@ -253,10 +267,10 @@ engine sets `includePendingChanges = false`, obtains an ID-sorted
 `FetchResultsCollection` through `fetch(_:batchSize: 128)`, normalizes each
 payload in actor isolation, checks cancellation at least once per 128 examined
 entities, and stops consuming the collection as soon as `limit` matches are
-collected or the store is exhausted. The context is clean at this point because
-every earlier write either saved or rolled back. A filtered query is O(n) in
-the worst case; product-scale indexed or full-text search is outside this
-reference store's scope.
+collected or the store is exhausted. The context is clean because it was
+created for this read operation and has no pending mutations. A filtered query
+is O(n) in the worst case; product-scale indexed or full-text search is outside
+this reference store's scope.
 
 There is no cursor API. SwiftData does not document a Unicode collation contract
 that would make an arbitrary-string `id > cursor` predicate provably identical
@@ -317,11 +331,12 @@ the change and calls `save()` once.
 After facade validation, the engine resolves existing entities and applies all
 inserts and updates. If every record is unchanged, the operation is a successful
 no-op. Otherwise the entire public batch is staged and one `save()` is
-attempted. A failure invokes context rollback; the service never deliberately
-splits one public batch across multiple saves.
+attempted. A failure invokes context rollback and discards that operation
+context; the service never deliberately splits one public batch across
+multiple saves.
 
-This is single-save/context-rollback behavior, not a stronger claim that every
-possible SwiftData `DataStore` provides crash-level atomicity.
+This is single-save/failed-context-discard behavior, not a stronger claim that
+every possible SwiftData `DataStore` provides crash-level atomicity.
 
 ### Delete one
 
@@ -350,8 +365,9 @@ Cancellation is cooperative and has precise checkpoints:
 - a pre-cancelled task does not validate or initialize the store;
 - each active operation checks again before entering SwiftData work;
 - each state-changing mutation checks immediately before `save()`;
-- cancellation observed at that pre-save checkpoint invokes `rollback()` and
-  propagates `CancellationError` unchanged;
+- cancellation observed at that pre-save checkpoint invokes `rollback()`,
+  discards the operation context, and propagates `CancellationError`
+  unchanged;
 - synchronous SwiftData work, including an in-progress `save()`, cannot be
   preempted;
 - there is no post-save cancellation checkpoint, so an operation whose save
@@ -518,7 +534,11 @@ Mapping follows the public operation, not the low-level SwiftData primitive:
 
 The service logs only operation name, entity type, record count, error domain,
 and error code. It never logs IDs, payloads, search text, store contents, or
-filesystem paths containing user-specific components.
+filesystem paths containing user-specific components. An internal typed
+`LocalDatabaseFailureMetadata` value contains exactly those five allowed
+fields; its constructor accepts an operation, record count, and error, not a
+record, ID, payload, query, or URL. Production logging renders only that
+metadata, and tests never inspect the environment's unified log store.
 
 ## Dependency Composition and Intended Reuse
 
@@ -560,8 +580,10 @@ Implementation follows test-driven development and adds focused coverage for:
 9. Control-flow placement for one successful save per state-changing public
    mutation and no save for each documented no-op, observed through hooks, plus
    real persistence verified independently through disk reopen tests.
-10. Deterministic read/write checkpoint failures, exact error categories, and
-    rollback followed by a successful operation on the same service.
+10. Deterministic read/write checkpoint failures, exact error categories,
+    rollback plus failed-context discard, and a successful operation on the
+    same service. A disk-backed `allowsSave: false` fixture also proves that a
+    real thrown `save()` cannot leak its unsaved value into the next operation.
 11. Deterministic filtered-read cancellation through `readProgress`, unchanged
     `CancellationError`, and a usable service afterward.
 12. Deterministic pre-save cancellation via `beforeSave`, unchanged persisted
@@ -575,6 +597,10 @@ Implementation follows test-driven development and adds focused coverage for:
     temporary roots.
 17. Reopening a uniquely located disk store in a second container.
 18. Schema-v1 and migration-plan metadata with no fake transition.
+19. Exact diagnostic metadata generated from a sentinel error whose description
+    contains an ID, payload, search text, and user-specific path, proving that
+    only operation, entity type, count, error domain, and error code can reach
+    the logging boundary.
 
 Cancellation checks execute inside a child `Task`, so synchronously cancelling
 the request does not cancel Swift Testing's runner task or produce a masked
@@ -687,7 +713,9 @@ The implementation is complete when:
 5. Every successful state-changing operation completes one explicit save;
    documented successful no-ops complete none.
 6. Write-phase failure or cancellation observed at the pre-save checkpoint
-   invokes context rollback; no stronger store-level atomicity is claimed.
+   invokes context rollback and discards that operation context; the next
+   operation observes durable state from a fresh context. No stronger
+   store-level atomicity is claimed.
 7. Non-cancellation bootstrap errors are cached without fatal termination,
    automatic erase, or ephemeral fallback.
 8. Persistence reopen, concurrency, validation, CRUD, bounded query,
