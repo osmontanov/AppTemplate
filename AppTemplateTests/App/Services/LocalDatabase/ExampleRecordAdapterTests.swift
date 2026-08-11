@@ -39,6 +39,15 @@ struct ExampleRecordAdapterTests {
     }
 
     @Test
+    func attemptedExampleQueryCountUsesValidatedLimit() {
+        #expect(
+            ExampleRecordAdapter.attemptedRecordCount(
+                for: ExampleQuery(limit: 37)
+            ) == 37
+        )
+    }
+
+    @Test
     func sharedBatchValidationRejectsFiveHundredOneValues() {
         let values = (0...500).map {
             ExampleRecord(id: "record-\($0)", payload: "value")

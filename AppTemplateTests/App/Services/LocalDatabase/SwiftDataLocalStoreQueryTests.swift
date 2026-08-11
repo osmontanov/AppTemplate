@@ -12,7 +12,8 @@ struct SwiftDataLocalStoreQueryTests {
             ExampleRecord(id: "b", payload: "two")
         ])
 
-        let records = try await store.fetchRecords(
+        let records = try await store.fetch(
+            ExampleRecord.self,
             matching: ExampleQuery(limit: 2)
         )
 
@@ -29,20 +30,77 @@ struct SwiftDataLocalStoreQueryTests {
         ])
 
         #expect(
-            try await store.fetchRecords(
+            try await store.fetch(
+                ExampleRecord.self,
                 matching: ExampleQuery(searchText: "  cafe  ")
-            ).map(\.id) == ["a"]
+            ) == [ExampleRecord(id: "a", payload: "Résumé Café")]
         )
         #expect(
-            try await store.fetchRecords(
+            try await store.fetch(
+                ExampleRecord.self,
                 matching: ExampleQuery(searchText: "payload")
-            ).map(\.id) == ["b"]
+            ) == [
+                ExampleRecord(
+                    id: "b",
+                    payload: "ＰＡＹＬＯＡＤ value"
+                )
+            ]
+        )
+    }
+
+    @Test
+    func nilEmptyAndWhitespaceSearchDisableFiltering() async throws {
+        let store = try makeInMemoryLocalStore()
+        try await store.upsert([
+            ExampleRecord(id: "c", payload: "three"),
+            ExampleRecord(id: "a", payload: "one"),
+            ExampleRecord(id: "b", payload: "two")
+        ])
+        let expected = [
+            ExampleRecord(id: "a", payload: "one"),
+            ExampleRecord(id: "b", payload: "two"),
+            ExampleRecord(id: "c", payload: "three")
+        ]
+
+        #expect(
+            try await store.fetch(
+                ExampleRecord.self,
+                matching: ExampleQuery(searchText: nil)
+            ) == expected
         )
         #expect(
-            try await store.fetchRecords(
-                matching: ExampleQuery(searchText: "   ")
-            ).count == 3
+            try await store.fetch(
+                ExampleRecord.self,
+                matching: ExampleQuery(searchText: "")
+            ) == expected
         )
+        #expect(
+            try await store.fetch(
+                ExampleRecord.self,
+                matching: ExampleQuery(searchText: "   ")
+            ) == expected
+        )
+    }
+
+    @Test
+    func filteredResultsUseStoreIDOrderAndLimitAfterFiltering() async throws {
+        let store = try makeInMemoryLocalStore()
+        try await store.upsert([
+            ExampleRecord(id: "c", payload: "match three"),
+            ExampleRecord(id: "a", payload: "match one"),
+            ExampleRecord(id: "d", payload: "other"),
+            ExampleRecord(id: "b", payload: "match two")
+        ])
+
+        let result = try await store.fetch(
+            ExampleRecord.self,
+            matching: ExampleQuery(searchText: "match", limit: 2)
+        )
+
+        #expect(result == [
+            ExampleRecord(id: "a", payload: "match one"),
+            ExampleRecord(id: "b", payload: "match two")
+        ])
     }
 
     @Test
@@ -57,7 +115,8 @@ struct SwiftDataLocalStoreQueryTests {
         }
         try await store.upsert(records)
 
-        let result = try await store.fetchRecords(
+        let result = try await store.fetch(
+            ExampleRecord.self,
             matching: ExampleQuery(searchText: "needle", limit: 1)
         )
 
@@ -80,7 +139,8 @@ struct SwiftDataLocalStoreQueryTests {
             }
         )
 
-        let result = try await store.fetchRecords(
+        let result = try await store.fetch(
+            ExampleRecord.self,
             matching: ExampleQuery(searchText: "missing")
         )
 
@@ -107,7 +167,8 @@ struct SwiftDataLocalStoreQueryTests {
         let request = Task { () -> Result<[ExampleRecord], any Error> in
             do {
                 return .success(
-                    try await store.fetchRecords(
+                    try await store.fetch(
+                        ExampleRecord.self,
                         matching: ExampleQuery(
                             searchText: "needle",
                             limit: 1
@@ -140,7 +201,8 @@ struct SwiftDataLocalStoreQueryTests {
             }
         )
 
-        let result = try await store.fetchRecords(
+        let result = try await store.fetch(
+            ExampleRecord.self,
             matching: ExampleQuery(searchText: "needle", limit: 1)
         )
 
@@ -159,7 +221,8 @@ struct SwiftDataLocalStoreQueryTests {
         ])
 
         #expect(
-            try await store.fetchRecords(
+            try await store.fetch(
+                ExampleRecord.self,
                 matching: ExampleQuery(searchText: "missing", limit: 1)
             ).isEmpty
         )
@@ -182,7 +245,8 @@ struct SwiftDataLocalStoreQueryTests {
         let request = Task { () -> Result<[ExampleRecord], any Error> in
             do {
                 return .success(
-                    try await store.fetchRecords(
+                    try await store.fetch(
+                        ExampleRecord.self,
                         matching: ExampleQuery(searchText: "missing")
                     )
                 )
@@ -198,7 +262,8 @@ struct SwiftDataLocalStoreQueryTests {
             #expect(error is CancellationError)
         }
         #expect(
-            try await store.fetchRecords(
+            try await store.fetch(
+                ExampleRecord.self,
                 matching: ExampleQuery(limit: 1)
             ).count == 1
         )
@@ -212,7 +277,10 @@ struct SwiftDataLocalStoreQueryTests {
         let store = try makeInMemoryLocalStore(hooks: recorder.hooks())
 
         do {
-            _ = try await store.fetchRecords(matching: ExampleQuery())
+            _ = try await store.fetch(
+                ExampleRecord.self,
+                matching: ExampleQuery()
+            )
             Issue.record("Expected read failure")
         } catch let error as LocalDatabaseError {
             guard case let .read(model, operation, _) = error else {

@@ -3,9 +3,6 @@ import SwiftData
 
 @ModelActor
 actor SwiftDataLocalStore {
-    private typealias StoredRecord =
-        LocalDatabaseSchemaV1.StoredExampleRecord
-
     private var hooks: LocalDatabaseStoreHooks = .production
 
     init(
@@ -50,57 +47,36 @@ actor SwiftDataLocalStore {
     func fetchRecords(
         matching query: ExampleQuery
     ) throws -> [ExampleRecord] {
+        try fetch(ExampleRecord.self, matching: query)
+    }
+
+    func fetch<Model: LocalDatabaseModel>(
+        _ type: Model.Type,
+        matching query: Model.Query
+    ) throws -> [Model] {
         let operation = LocalDatabaseReadOperation.fetchMany
         try Task.checkCancellation()
         let context = makeOperationContext()
         do {
             try hooks.checkpoint(.read(operation))
             try Task.checkCancellation()
-
-            var descriptor = FetchDescriptor<StoredRecord>(
-                sortBy: [SortDescriptor(\StoredRecord.id)]
-            )
-            guard let normalizedSearch = normalizedSearch(query.searchText) else {
-                descriptor.fetchLimit = query.limit
-                return try context.fetch(descriptor).map(value(from:))
-            }
-
-            descriptor.includePendingChanges = false
-            let storedRecords = try context.fetch(
-                descriptor,
-                batchSize: 128
-            )
-            var matches: [ExampleRecord] = []
-            var examined = 0
-
-            for stored in storedRecords {
-                examined += 1
-                let normalizedPayload = stored.payload.folding(
-                    options: [
-                        .caseInsensitive,
-                        .diacriticInsensitive,
-                        .widthInsensitive
-                    ],
-                    locale: nil
-                )
-                if normalizedPayload.contains(normalizedSearch) {
-                    matches.append(value(from: stored))
-                }
-                if examined.isMultiple(of: 128) {
+            let entities = try Model.Persistence.fetch(
+                matching: query,
+                in: context,
+                progress: { _ in
                     try hooks.checkpoint(.readProgress(operation))
                     try Task.checkCancellation()
                 }
-                if matches.count == query.limit { return matches }
-            }
-
+            )
             try Task.checkCancellation()
-            return matches
+            return entities.map(Model.Persistence.value(from:))
         } catch {
             throw mapReadFailure(
                 error,
-                model: ExampleRecordAdapter.diagnosticName,
+                model: Model.Persistence.diagnosticName,
                 operation: operation,
-                recordCount: query.limit
+                recordCount:
+                    Model.Persistence.attemptedRecordCount(for: query)
             )
         }
     }
@@ -252,26 +228,6 @@ actor SwiftDataLocalStore {
         let context = ModelContext(modelContainer)
         context.autosaveEnabled = false
         return context
-    }
-
-    private func value(from stored: StoredRecord) -> ExampleRecord {
-        ExampleRecord(id: stored.id, payload: stored.payload)
-    }
-
-    private func normalizedSearch(_ searchText: String?) -> String? {
-        guard let searchText else { return nil }
-        let trimmed = searchText.trimmingCharacters(
-            in: .whitespacesAndNewlines
-        )
-        guard !trimmed.isEmpty else { return nil }
-        return trimmed.folding(
-            options: [
-                .caseInsensitive,
-                .diacriticInsensitive,
-                .widthInsensitive
-            ],
-            locale: nil
-        )
     }
 
     private func save(
