@@ -18,7 +18,9 @@ actor LocalDatabaseService: ILocalDatabaseService {
 
     func fetchRecord(id: String) async throws -> ExampleRecord? {
         try Task.checkCancellation()
-        try mapValidation { try LocalDatabaseValidator.validate(id: id) }
+        try mapValidation(model: ExampleRecordAdapter.diagnosticName) {
+            try LocalDatabaseValidator.validate(id: id)
+        }
         let store = try resolveStore()
         try Task.checkCancellation()
         return try await store.fetchRecord(id: id)
@@ -28,7 +30,7 @@ actor LocalDatabaseService: ILocalDatabaseService {
         matching query: ExampleQuery
     ) async throws -> [ExampleRecord] {
         try Task.checkCancellation()
-        try mapValidation {
+        try mapValidation(model: ExampleRecordAdapter.diagnosticName) {
             try LocalDatabaseValidator.validate(query: query)
         }
         let store = try resolveStore()
@@ -38,7 +40,7 @@ actor LocalDatabaseService: ILocalDatabaseService {
 
     func upsert(_ record: ExampleRecord) async throws {
         try Task.checkCancellation()
-        try mapValidation {
+        try mapValidation(model: ExampleRecordAdapter.diagnosticName) {
             try LocalDatabaseValidator.validate(record: record)
         }
         let store = try resolveStore()
@@ -48,7 +50,7 @@ actor LocalDatabaseService: ILocalDatabaseService {
 
     func upsert(_ records: [ExampleRecord]) async throws {
         try Task.checkCancellation()
-        try mapValidation {
+        try mapValidation(model: ExampleRecordAdapter.diagnosticName) {
             try LocalDatabaseValidator.validate(records: records)
         }
         guard !records.isEmpty else { return }
@@ -59,7 +61,9 @@ actor LocalDatabaseService: ILocalDatabaseService {
 
     func deleteRecord(id: String) async throws -> Bool {
         try Task.checkCancellation()
-        try mapValidation { try LocalDatabaseValidator.validate(id: id) }
+        try mapValidation(model: ExampleRecordAdapter.diagnosticName) {
+            try LocalDatabaseValidator.validate(id: id)
+        }
         let store = try resolveStore()
         try Task.checkCancellation()
         return try await store.deleteRecord(id: id)
@@ -94,6 +98,7 @@ actor LocalDatabaseService: ILocalDatabaseService {
             } catch {
                 LocalDatabaseDiagnostics.report(
                     operation: .initialization,
+                    entityType: "LocalDatabase",
                     recordCount: 0,
                     error: error
                 )
@@ -107,12 +112,16 @@ actor LocalDatabaseService: ILocalDatabaseService {
     }
 
     private func mapValidation(
+        model: String,
         _ operation: () throws -> Void
     ) throws {
         do {
             try operation()
         } catch let error as LocalDatabaseValidationError {
-            throw LocalDatabaseError.validation(error)
+            throw LocalDatabaseError.validation(
+                model: model,
+                reason: error
+            )
         }
     }
 }

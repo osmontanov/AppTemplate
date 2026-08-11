@@ -162,10 +162,11 @@ private func expectValidation(
         try await operation()
         Issue.record("Expected LocalDatabaseError.validation")
     } catch let error as LocalDatabaseError {
-        guard case let .validation(actual) = error else {
+        guard case let .validation(model, actual) = error else {
             Issue.record("Expected LocalDatabaseError.validation")
             return
         }
+        #expect(model == ExampleRecordAdapter.diagnosticName)
         #expect(actual == expected)
     } catch {
         Issue.record("Unexpected error type: \(type(of: error))")

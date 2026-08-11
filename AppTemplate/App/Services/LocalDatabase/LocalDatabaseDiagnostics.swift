@@ -26,13 +26,14 @@ enum LocalDatabaseDiagnostics {
 
     static func metadata(
         operation: LocalDatabaseDiagnosticOperation,
+        entityType: String,
         recordCount: Int,
         error: any Error
     ) -> LocalDatabaseFailureMetadata {
         let frameworkError = error as NSError
         return LocalDatabaseFailureMetadata(
             operation: operation,
-            entityType: "StoredExampleRecord",
+            entityType: entityType,
             recordCount: recordCount,
             errorDomain: frameworkError.domain,
             errorCode: frameworkError.code
@@ -41,11 +42,13 @@ enum LocalDatabaseDiagnostics {
 
     static func report(
         operation: LocalDatabaseDiagnosticOperation,
+        entityType: String,
         recordCount: Int,
         error: any Error
     ) {
         let value = metadata(
             operation: operation,
+            entityType: entityType,
             recordCount: recordCount,
             error: error
         )

@@ -215,10 +215,11 @@ struct SwiftDataLocalStoreQueryTests {
             _ = try await store.fetchRecords(matching: ExampleQuery())
             Issue.record("Expected read failure")
         } catch let error as LocalDatabaseError {
-            guard case let .read(operation, _) = error else {
+            guard case let .read(model, operation, _) = error else {
                 Issue.record("Expected LocalDatabaseError.read")
                 return
             }
+            #expect(model == ExampleRecordAdapter.diagnosticName)
             #expect(operation == .fetchMany)
         }
     }

@@ -4,6 +4,7 @@ enum LocalDatabaseValidationError: Error, Equatable, Sendable {
     case invalidLimit(actual: Int, allowed: ClosedRange<Int>)
     case batchTooLarge(actual: Int, maximum: Int)
     case duplicateID
+    case unregisteredModel
 }
 
 nonisolated
@@ -22,13 +23,18 @@ enum LocalDatabaseWriteOperation: Equatable, Sendable {
 
 nonisolated
 enum LocalDatabaseError: Error {
-    case validation(LocalDatabaseValidationError)
+    case validation(
+        model: String,
+        reason: LocalDatabaseValidationError
+    )
     case initialization(underlying: any Error)
     case read(
+        model: String,
         operation: LocalDatabaseReadOperation,
         underlying: any Error
     )
     case write(
+        model: String,
         operation: LocalDatabaseWriteOperation,
         underlying: any Error
     )

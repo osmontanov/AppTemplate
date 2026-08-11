@@ -5,7 +5,7 @@ import Testing
 
 struct SwiftDataLocalStoreBatchTests {
     @Test
-    func batchInsertsAndUpdatesWithOneSave() async throws {
+    func genericBatchInsertsAndUpdatesWithOneSave() async throws {
         let recorder = LocalDatabaseHookRecorder()
         let store = try makeInMemoryLocalStore(hooks: recorder.hooks())
         try await store.upsert([
@@ -15,7 +15,7 @@ struct SwiftDataLocalStoreBatchTests {
 
         #expect(recorder.saves == [.upsertBatch])
         #expect(
-            try await store.fetchRecord(id: "a")
+            try await store.fetch(ExampleRecord.self, id: "a")
                 == ExampleRecord(id: "a", payload: "one")
         )
 
@@ -27,12 +27,12 @@ struct SwiftDataLocalStoreBatchTests {
     }
 
     @Test
-    func emptyAndFullyUnchangedBatchesDoNotSave() async throws {
+    func emptyAndFullyUnchangedGenericBatchesDoNotSave() async throws {
         let recorder = LocalDatabaseHookRecorder()
         let store = try makeInMemoryLocalStore(hooks: recorder.hooks())
         let records = [ExampleRecord(id: "a", payload: "same")]
 
-        try await store.upsert([])
+        try await store.upsert([ExampleRecord]())
         #expect(recorder.saves.isEmpty)
         try await store.upsert(records)
         try await store.upsert(records)
@@ -40,7 +40,7 @@ struct SwiftDataLocalStoreBatchTests {
     }
 
     @Test
-    func failedBatchRollsBackEveryPendingChange() async throws {
+    func failedGenericBatchRollsBackEveryPendingChange() async throws {
         let recorder = LocalDatabaseHookRecorder(
             failingCheckpoint: .beforeSave(.upsertBatch)
         )
@@ -53,24 +53,25 @@ struct SwiftDataLocalStoreBatchTests {
             ])
             Issue.record("Expected batch write failure")
         } catch let error as LocalDatabaseError {
-            guard case let .write(operation, _) = error else {
+            guard case let .write(model, operation, _) = error else {
                 Issue.record("Expected LocalDatabaseError.write")
                 return
             }
+            #expect(model == ExampleRecordAdapter.diagnosticName)
             #expect(operation == .upsertBatch)
         }
 
         #expect(recorder.rollbacks == [.upsertBatch])
-        #expect(try await store.fetchRecord(id: "a") == nil)
-        #expect(try await store.fetchRecord(id: "b") == nil)
+        #expect(try await store.fetch(ExampleRecord.self, id: "a") == nil)
+        #expect(try await store.fetch(ExampleRecord.self, id: "b") == nil)
     }
 
     @Test
-    func deleteAllReturnsCountUsesOneBatchCheckpointAndNeverSaves() async throws {
+    func genericDeleteAllReturnsCountUsesOneCheckpointAndNeverSaves() async throws {
         let recorder = LocalDatabaseHookRecorder()
         let store = try makeInMemoryLocalStore(hooks: recorder.hooks())
 
-        #expect(try await store.deleteAllRecords() == 0)
+        #expect(try await store.deleteAll(ExampleRecord.self) == 0)
         #expect(recorder.saves.isEmpty)
         #expect(
             !recorder.checkpoints.contains(
@@ -82,14 +83,14 @@ struct SwiftDataLocalStoreBatchTests {
             ExampleRecord(id: "b", payload: "two")
         ])
 
-        #expect(try await store.deleteAllRecords() == 2)
+        #expect(try await store.deleteAll(ExampleRecord.self) == 2)
         #expect(recorder.saves == [.upsertBatch])
         #expect(
             recorder.checkpoints.filter {
                 $0 == .beforeBatchDelete(.deleteAll)
             }.count == 1
         )
-        #expect(try await store.fetchRecord(id: "a") == nil)
+        #expect(try await store.fetch(ExampleRecord.self, id: "a") == nil)
     }
 
     @Test
@@ -116,7 +117,7 @@ struct SwiftDataLocalStoreBatchTests {
             #expect(error is CancellationError)
         }
         #expect(recorder.rollbacks == [.upsertBatch])
-        #expect(try await store.fetchRecord(id: "a") == nil)
+        #expect(try await store.fetch(ExampleRecord.self, id: "a") == nil)
     }
 
     @Test
@@ -129,17 +130,20 @@ struct SwiftDataLocalStoreBatchTests {
         try await store.upsert(record)
 
         do {
-            _ = try await store.deleteRecord(id: record.id)
+            _ = try await store.delete(ExampleRecord.self, id: record.id)
             Issue.record("Expected delete failure")
         } catch let error as LocalDatabaseError {
-            guard case let .write(operation, _) = error else {
+            guard case let .write(model, operation, _) = error else {
                 Issue.record("Expected LocalDatabaseError.write")
                 return
             }
+            #expect(model == ExampleRecordAdapter.diagnosticName)
             #expect(operation == .deleteOne)
         }
         #expect(recorder.rollbacks == [.deleteOne])
-        #expect(try await store.fetchRecord(id: record.id) == record)
+        #expect(
+            try await store.fetch(ExampleRecord.self, id: record.id) == record
+        )
     }
 
     @Test
@@ -154,7 +158,9 @@ struct SwiftDataLocalStoreBatchTests {
         ]
         try await store.upsert(records)
         let request = Task { () -> Result<Int, any Error> in
-            do { return .success(try await store.deleteAllRecords()) }
+            do {
+                return .success(try await store.deleteAll(ExampleRecord.self))
+            }
             catch { return .failure(error) }
         }
 
@@ -164,8 +170,12 @@ struct SwiftDataLocalStoreBatchTests {
         }
         #expect(error is CancellationError)
         #expect(recorder.rollbacks == [.deleteAll])
-        #expect(try await store.fetchRecord(id: "a") == records[0])
-        #expect(try await store.fetchRecord(id: "b") == records[1])
+        #expect(
+            try await store.fetch(ExampleRecord.self, id: "a") == records[0]
+        )
+        #expect(
+            try await store.fetch(ExampleRecord.self, id: "b") == records[1]
+        )
     }
 
     @Test
@@ -181,18 +191,23 @@ struct SwiftDataLocalStoreBatchTests {
         try await store.upsert(records)
 
         do {
-            _ = try await store.deleteAllRecords()
+            _ = try await store.deleteAll(ExampleRecord.self)
             Issue.record("Expected delete-all failure")
         } catch let error as LocalDatabaseError {
-            guard case let .write(operation, _) = error else {
+            guard case let .write(model, operation, _) = error else {
                 Issue.record("Expected LocalDatabaseError.write")
                 return
             }
+            #expect(model == ExampleRecordAdapter.diagnosticName)
             #expect(operation == .deleteAll)
         }
         #expect(recorder.rollbacks == [.deleteAll])
-        #expect(try await store.fetchRecord(id: "a") == records[0])
-        #expect(try await store.fetchRecord(id: "b") == records[1])
+        #expect(
+            try await store.fetch(ExampleRecord.self, id: "a") == records[0]
+        )
+        #expect(
+            try await store.fetch(ExampleRecord.self, id: "b") == records[1]
+        )
     }
 
     @Test
