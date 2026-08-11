@@ -18,4 +18,11 @@ struct ExampleLocalModelTests {
 
         #expect(restored == original)
     }
+
+    @Test
+    func recordIdentityRemainsExact() {
+        let record = ExampleRecord(id: " local-42 ", payload: "value")
+
+        #expect(record.id == " local-42 ")
+    }
 }
