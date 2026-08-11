@@ -33,6 +33,7 @@
 - Use quoted single-test selectors including `()` or parameter labels. Every GREEN test bundle must report `Passed`, a nonzero test count, and zero failed, skipped, or expected-failure tests.
 - Create every derived-data/result root with `mktemp -d` and validate it is a real directory, not a symlink. Do not delete temporary artifacts; retain their paths in the task report.
 - Store task evidence under `.superpowers/sdd/2026-08-12-generic-local-database/`; that tree is ignored by Git. Production and test edits must still use `apply_patch`.
+- `ENABLE_APP_SANDBOX=NO` is a command-line override only for Task 1's baseline writer and Task 6's retained-artifact reader compatibility probes, allowing one external retained store to cross app-hosted test runs. Never change `project.pbxproj`, entitlements, schemes, or persistent build settings for it; the final gates continue to exercise the normally sandboxed product.
 
 ---
 
@@ -213,7 +214,7 @@ struct PreRefactorBaselineExporterTests {
 }
 ```
 
-- [ ] **Step 3: Export and validate the pre-refactor store**
+- [ ] **Step 3: Export and validate the pre-refactor store through an injected macOS test run**
 
 Run:
 
@@ -230,20 +231,58 @@ esac
 test -d "$baseline_root"
 test ! -L "$baseline_root"
 
-APP_TEMPLATE_PRE_REFACTOR_BASELINE_ROOT="$baseline_root" \
-xcodebuild test \
+writer_derived_data="$baseline_root/DerivedData-writer"
+writer_products="$writer_derived_data/Build/Products"
+writer_xcresult="$baseline_root/writer.xcresult"
+test ! -e "$writer_derived_data"
+test ! -e "$writer_xcresult"
+
+xcodebuild build-for-testing \
   -project AppTemplate.xcodeproj \
   -scheme AppTemplate \
   -configuration Debug \
-  -destination 'platform=macOS' \
-  -derivedDataPath "$baseline_root/DerivedData-writer" \
-  -resultBundlePath "$baseline_root/writer.xcresult" \
-  -only-testing:AppTemplateTests/PreRefactorBaselineExporterTests \
+  -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath "$writer_derived_data" \
+  ENABLE_APP_SANDBOX=NO \
   SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
   GCC_TREAT_WARNINGS_AS_ERRORS=YES
 
+test -d "$writer_products"
+xctestrun_matches="$(
+  find "$writer_products" -maxdepth 1 -type f \
+    -name 'AppTemplate_macosx*-arm64.xctestrun' -print
+)"
+xctestrun_match_count="$(
+  printf '%s\n' "$xctestrun_matches" | sed '/^$/d' | wc -l | tr -d ' '
+)"
+test "$xctestrun_match_count" -eq 1
+generated_xctestrun="$(
+  printf '%s\n' "$xctestrun_matches" | sed '/^$/d'
+)"
+test -f "$generated_xctestrun"
+test ! -L "$generated_xctestrun"
+
+writer_xctestrun="$writer_products/AppTemplate_BaselineWriterInjected.xctestrun"
+test ! -e "$writer_xctestrun"
+cp "$generated_xctestrun" "$writer_xctestrun"
+plutil -insert \
+  'AppTemplateTests.EnvironmentVariables.APP_TEMPLATE_PRE_REFACTOR_BASELINE_ROOT' \
+  -string "$baseline_root" \
+  "$writer_xctestrun"
+test "$(
+  plutil -extract \
+    'AppTemplateTests.EnvironmentVariables.APP_TEMPLATE_PRE_REFACTOR_BASELINE_ROOT' \
+    raw -o - "$writer_xctestrun"
+)" = "$baseline_root"
+
+xcodebuild test-without-building \
+  -xctestrun "$writer_xctestrun" \
+  -destination 'platform=macOS,arch=arm64' \
+  -resultBundlePath "$writer_xcresult" \
+  '-only-testing:AppTemplateTests/PreRefactorBaselineExporterTests/exportsExampleSpecificDiskStore()'
+
 xcrun xcresulttool get test-results summary \
-  --path "$baseline_root/writer.xcresult" --compact \
+  --path "$writer_xcresult" --compact \
 | jq -e '
     .result == "Passed"
     and .totalTestCount == 1
@@ -266,7 +305,7 @@ jq -e '
 ' "$baseline_root/expected.json"
 ```
 
-Expected: one test passes and both the disk store and exact JSON oracle remain under the fixed baseline root.
+Expected: `build-for-testing` creates exactly one matching arm64 macOS `.xctestrun`; the copied adjacent configuration contains the exact retained-root value under `AppTemplateTests.EnvironmentVariables`; the exact method selector runs once, passes, and leaves both the disk store and exact JSON oracle under the fixed baseline root. The command-line sandbox override applies only to this compatibility probe, not to project settings or final gates.
 
 - [ ] **Step 4: Remove the temporary exporter before implementation changes**
 
@@ -2717,7 +2756,7 @@ The direct-V1 case must:
 
 This is permanent portable coverage; it never duplicates or edits the schema declaration.
 
-- [ ] **Step 6: Reopen the retained pre-refactor artifact, then remove the temporary reader**
+- [ ] **Step 6: Reopen the retained pre-refactor artifact through an injected macOS test run, then remove the temporary reader**
 
 Create `PostRefactorBaselineReaderTests.swift`:
 
@@ -2787,20 +2826,58 @@ reader_root="$(
 test -d "$reader_root"
 test ! -L "$reader_root"
 
-APP_TEMPLATE_PRE_REFACTOR_BASELINE_ROOT="$baseline_root" \
-xcodebuild test \
+reader_derived_data="$reader_root/DerivedData-reader"
+reader_products="$reader_derived_data/Build/Products"
+reader_xcresult="$reader_root/Reader.xcresult"
+test ! -e "$reader_derived_data"
+test ! -e "$reader_xcresult"
+
+xcodebuild build-for-testing \
   -project AppTemplate.xcodeproj \
   -scheme AppTemplate \
   -configuration Debug \
-  -destination 'platform=macOS' \
-  -derivedDataPath "$reader_root/DerivedData" \
-  -resultBundlePath "$reader_root/Reader.xcresult" \
-  -only-testing:AppTemplateTests/PostRefactorBaselineReaderTests \
+  -destination 'platform=macOS,arch=arm64' \
+  -derivedDataPath "$reader_derived_data" \
+  ENABLE_APP_SANDBOX=NO \
   SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
   GCC_TREAT_WARNINGS_AS_ERRORS=YES
 
+test -d "$reader_products"
+xctestrun_matches="$(
+  find "$reader_products" -maxdepth 1 -type f \
+    -name 'AppTemplate_macosx*-arm64.xctestrun' -print
+)"
+xctestrun_match_count="$(
+  printf '%s\n' "$xctestrun_matches" | sed '/^$/d' | wc -l | tr -d ' '
+)"
+test "$xctestrun_match_count" -eq 1
+generated_xctestrun="$(
+  printf '%s\n' "$xctestrun_matches" | sed '/^$/d'
+)"
+test -f "$generated_xctestrun"
+test ! -L "$generated_xctestrun"
+
+reader_xctestrun="$reader_products/AppTemplate_BaselineReaderInjected.xctestrun"
+test ! -e "$reader_xctestrun"
+cp "$generated_xctestrun" "$reader_xctestrun"
+plutil -insert \
+  'AppTemplateTests.EnvironmentVariables.APP_TEMPLATE_PRE_REFACTOR_BASELINE_ROOT' \
+  -string "$baseline_root" \
+  "$reader_xctestrun"
+test "$(
+  plutil -extract \
+    'AppTemplateTests.EnvironmentVariables.APP_TEMPLATE_PRE_REFACTOR_BASELINE_ROOT' \
+    raw -o - "$reader_xctestrun"
+)" = "$baseline_root"
+
+xcodebuild test-without-building \
+  -xctestrun "$reader_xctestrun" \
+  -destination 'platform=macOS,arch=arm64' \
+  -resultBundlePath "$reader_xcresult" \
+  '-only-testing:AppTemplateTests/PostRefactorBaselineReaderTests/reopensPreRefactorV1CompatibilityArtifact()'
+
 xcrun xcresulttool get test-results summary \
-  --path "$reader_root/Reader.xcresult" --compact \
+  --path "$reader_xcresult" --compact \
 | jq -e '
     .result == "Passed"
     and .totalTestCount == 1
@@ -2812,6 +2889,8 @@ xcrun xcresulttool get test-results summary \
 
 printf 'Retained baseline reader artifacts: %s\n' "$reader_root"
 ```
+
+Expected: `build-for-testing` creates exactly one matching arm64 macOS `.xctestrun`; the copied adjacent reader configuration contains the exact retained-root value under `AppTemplateTests.EnvironmentVariables`; the exact reader method selector runs once and passes. The command-line sandbox override is restricted to this external-artifact compatibility probe; it does not change project settings or the normally sandboxed final gates.
 
 Then delete only `PostRefactorBaselineReaderTests.swift` with `apply_patch` and run:
 
