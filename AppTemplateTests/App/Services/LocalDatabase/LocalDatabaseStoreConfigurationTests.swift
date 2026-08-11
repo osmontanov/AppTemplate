@@ -68,10 +68,10 @@ struct LocalDatabaseStoreConfigurationTests {
     }
 
     @Test
-    func liveFactoryDoesNotResolveLocationUntilInvoked() throws {
+    func liveConfigurationDoesNotResolveLocationUntilFactoryInvocation() throws {
         let calls = SynchronousCounter()
         let url = try uniqueLocalDatabaseStoreURL(label: "lazy-live")
-        let factory = LocalDatabaseContainerFactories.live(
+        let configuration = LocalDatabaseStoreConfiguration.live(
             locationResolver: .init(resolve: {
                 calls.increment()
                 return url
@@ -79,15 +79,15 @@ struct LocalDatabaseStoreConfigurationTests {
         )
 
         #expect(calls.value == 0)
-        _ = try factory()
+        _ = try configuration.containerFactory()
         #expect(calls.value == 1)
     }
 
     @Test
-    func inMemoryFactoryCreatesIndependentContainers() throws {
-        let factory = LocalDatabaseContainerFactories.inMemory()
-        let first = try factory()
-        let second = try factory()
+    func inMemoryConfigurationCreatesIndependentContainersWithProductionRegistry() throws {
+        let configuration = LocalDatabaseStoreConfiguration.inMemory()
+        let first = try configuration.containerFactory()
+        let second = try configuration.containerFactory()
 
         #expect(first !== second)
         let firstIsInMemory = first.configurations.allSatisfy(
@@ -98,17 +98,36 @@ struct LocalDatabaseStoreConfigurationTests {
         )
         #expect(firstIsInMemory)
         #expect(secondIsInMemory)
+        #expect(
+            configuration.modelRegistry.registrationCount
+                == LocalDatabaseModelRegistry.production.registrationCount
+        )
+        #expect(
+            configuration.modelRegistry.registeredEntityIdentifiers
+                == LocalDatabaseModelRegistry.production
+                    .registeredEntityIdentifiers
+        )
     }
 
     @Test
-    func diskFactoryUsesExactURLAndAllowsSave() throws {
+    func diskConfigurationUsesExactURLAllowsSaveAndProductionRegistry() throws {
         let url = try uniqueLocalDatabaseStoreURL(label: "configuration")
-        let container = try LocalDatabaseContainerFactories.disk(url: url)()
-        let configuration = try #require(container.configurations.first)
+        let configuration = LocalDatabaseStoreConfiguration.disk(url: url)
+        let container = try configuration.containerFactory()
+        let modelConfiguration = try #require(container.configurations.first)
 
-        #expect(configuration.url == url)
-        #expect(configuration.allowsSave)
-        #expect(!configuration.isStoredInMemoryOnly)
+        #expect(modelConfiguration.url == url)
+        #expect(modelConfiguration.allowsSave)
+        #expect(!modelConfiguration.isStoredInMemoryOnly)
+        #expect(
+            configuration.modelRegistry.registrationCount
+                == LocalDatabaseModelRegistry.production.registrationCount
+        )
+        #expect(
+            configuration.modelRegistry.registeredEntityIdentifiers
+                == LocalDatabaseModelRegistry.production
+                    .registeredEntityIdentifiers
+        )
     }
 
     @Test

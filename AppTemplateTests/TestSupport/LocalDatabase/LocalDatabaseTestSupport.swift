@@ -118,6 +118,15 @@ final class LocalDatabaseContainerFactoryRecorder: Sendable {
             return try make(invocation)
         }
     }
+
+    func configuration(
+        registry: LocalDatabaseModelRegistry = .production
+    ) -> LocalDatabaseStoreConfiguration {
+        LocalDatabaseStoreConfiguration(
+            containerFactory: factory,
+            modelRegistry: registry
+        )
+    }
 }
 
 nonisolated

@@ -109,3 +109,34 @@ enum LocalDatabaseContainerFactories {
         }
     }
 }
+
+nonisolated
+struct LocalDatabaseStoreConfiguration: Sendable {
+    let containerFactory: LocalDatabaseContainerFactory
+    let modelRegistry: LocalDatabaseModelRegistry
+
+    static func live(
+        locationResolver: LocalDatabaseStoreLocationResolver = .live()
+    ) -> LocalDatabaseStoreConfiguration {
+        LocalDatabaseStoreConfiguration(
+            containerFactory: LocalDatabaseContainerFactories.live(
+                locationResolver: locationResolver
+            ),
+            modelRegistry: .production
+        )
+    }
+
+    static func disk(url: URL) -> LocalDatabaseStoreConfiguration {
+        LocalDatabaseStoreConfiguration(
+            containerFactory: LocalDatabaseContainerFactories.disk(url: url),
+            modelRegistry: .production
+        )
+    }
+
+    static func inMemory() -> LocalDatabaseStoreConfiguration {
+        LocalDatabaseStoreConfiguration(
+            containerFactory: LocalDatabaseContainerFactories.inMemory(),
+            modelRegistry: .production
+        )
+    }
+}
