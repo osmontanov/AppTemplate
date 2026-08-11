@@ -57,6 +57,36 @@ struct LocalDatabaseModelRegistryTests {
     }
 
     @Test
+    func integrityFailurePrioritizesAdapterAcrossCompetingCollisions() {
+        let identities = [
+            LocalDatabaseRegistrationIdentity(
+                adapterIdentifier: ObjectIdentifier(IdentityA.self),
+                valueIdentifier: ObjectIdentifier(IdentityB.self),
+                entityIdentifier: ObjectIdentifier(IdentityC.self),
+                diagnosticName: "shared"
+            ),
+            LocalDatabaseRegistrationIdentity(
+                adapterIdentifier: ObjectIdentifier(IdentityD.self),
+                valueIdentifier: ObjectIdentifier(IdentityE.self),
+                entityIdentifier: ObjectIdentifier(IdentityF.self),
+                diagnosticName: "shared"
+            ),
+            LocalDatabaseRegistrationIdentity(
+                adapterIdentifier: ObjectIdentifier(IdentityA.self),
+                valueIdentifier: ObjectIdentifier(IdentityG.self),
+                entityIdentifier: ObjectIdentifier(IdentityH.self),
+                diagnosticName: "unique"
+            )
+        ]
+
+        #expect(
+            LocalDatabaseRegistrationIdentityValidator
+                .firstIntegrityError(in: identities)
+                == .duplicateAdapter
+        )
+    }
+
+    @Test
     func invalidRegistryReportsDuplicateAdapter() {
         let registry = LocalDatabaseModelRegistry(
             adapters: [ExampleRecordAdapter.self, ExampleRecordAdapter.self]

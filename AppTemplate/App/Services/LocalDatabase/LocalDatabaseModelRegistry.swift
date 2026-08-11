@@ -64,25 +64,18 @@ enum LocalDatabaseRegistrationIdentityValidator {
     static func firstIntegrityError(
         in identities: [LocalDatabaseRegistrationIdentity]
     ) -> LocalDatabaseModelRegistryError? {
-        var adapterIDs = Set<ObjectIdentifier>()
-        var valueIDs = Set<ObjectIdentifier>()
-        var entityIDs = Set<ObjectIdentifier>()
-        var names = Set<String>()
-
-        for identity in identities {
-            guard adapterIDs.insert(identity.adapterIdentifier).inserted else {
-                return .duplicateAdapter
-            }
-            guard valueIDs.insert(identity.valueIdentifier).inserted else {
-                return .duplicateValue
-            }
-            guard entityIDs.insert(identity.entityIdentifier).inserted else {
-                return .duplicateEntity
-            }
-            guard names.insert(identity.diagnosticName).inserted else {
-                return .duplicateDiagnosticName
-            }
-        }
+        guard Set(identities.map(\.adapterIdentifier)).count
+            == identities.count
+        else { return .duplicateAdapter }
+        guard Set(identities.map(\.valueIdentifier)).count
+            == identities.count
+        else { return .duplicateValue }
+        guard Set(identities.map(\.entityIdentifier)).count
+            == identities.count
+        else { return .duplicateEntity }
+        guard Set(identities.map(\.diagnosticName)).count
+            == identities.count
+        else { return .duplicateDiagnosticName }
         return nil
     }
 }
