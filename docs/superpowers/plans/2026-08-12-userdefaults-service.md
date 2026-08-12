@@ -982,6 +982,7 @@ expected_raw_files="$(printf '%s\n' \
 test "$actual_raw_files" = "$expected_raw_files"
 
 keychain_spec='docs/superpowers/specs/2026-08-12-keychain-service-design.md'
+keychain_plan='docs/superpowers/plans/2026-08-12-keychain-service.md'
 for documentation_commit in \
   96205b098e9084db96745b3d7259ab6c4275903b \
   a83574042cd38ee6a53eb2f74bc7f59e2196e7ac; do
@@ -990,11 +991,18 @@ for documentation_commit in \
 done
 test "$(git rev-parse "HEAD:$keychain_spec")" = \
   "$(git rev-parse "a83574042cd38ee6a53eb2f74bc7f59e2196e7ac:$keychain_spec")"
+if git cat-file -e "HEAD:$keychain_plan" 2>/dev/null; then
+  keychain_plan_introducing_commit="$(git log --diff-filter=A --format='%H' -- "$keychain_plan")"
+  test "$(printf '%s\n' "$keychain_plan_introducing_commit" | wc -l | tr -d ' ')" = 1
+  test "$(git diff-tree --no-commit-id --name-only -r "$keychain_plan_introducing_commit")" = \
+    "$keychain_plan"
+fi
 
 changed_paths="$({
   git diff 31e79d156dd042b97b1f436152f17a7d4d669d12 --name-only
   git ls-files --others --exclude-standard
-} | LC_ALL=C sort -u | awk -v excluded="$keychain_spec" '$0 != excluded')"
+} | LC_ALL=C sort -u \
+  | awk -v spec="$keychain_spec" -v plan="$keychain_plan" '$0 != spec && $0 != plan')"
 while IFS= read -r path; do
   test -n "$path" || continue
   case "$path" in
@@ -1270,6 +1278,7 @@ rg -q 'NSPrivacyAccessedAPICategoryUserDefaults' docs/RELEASE_CHECKLIST.md
 rg -q 'CA92\.1' docs/RELEASE_CHECKLIST.md
 
 keychain_spec='docs/superpowers/specs/2026-08-12-keychain-service-design.md'
+keychain_plan='docs/superpowers/plans/2026-08-12-keychain-service.md'
 for documentation_commit in \
   96205b098e9084db96745b3d7259ab6c4275903b \
   a83574042cd38ee6a53eb2f74bc7f59e2196e7ac; do
@@ -1278,11 +1287,18 @@ for documentation_commit in \
 done
 test "$(git rev-parse "HEAD:$keychain_spec")" = \
   "$(git rev-parse "a83574042cd38ee6a53eb2f74bc7f59e2196e7ac:$keychain_spec")"
+if git cat-file -e "HEAD:$keychain_plan" 2>/dev/null; then
+  keychain_plan_introducing_commit="$(git log --diff-filter=A --format='%H' -- "$keychain_plan")"
+  test "$(printf '%s\n' "$keychain_plan_introducing_commit" | wc -l | tr -d ' ')" = 1
+  test "$(git diff-tree --no-commit-id --name-only -r "$keychain_plan_introducing_commit")" = \
+    "$keychain_plan"
+fi
 
 changed_paths="$({
   git diff 31e79d156dd042b97b1f436152f17a7d4d669d12 --name-only
   git ls-files --others --exclude-standard
-} | LC_ALL=C sort -u | awk -v excluded="$keychain_spec" '$0 != excluded')"
+} | LC_ALL=C sort -u \
+  | awk -v spec="$keychain_spec" -v plan="$keychain_plan" '$0 != spec && $0 != plan')"
 while IFS= read -r path; do
   test -n "$path" || continue
   case "$path" in
