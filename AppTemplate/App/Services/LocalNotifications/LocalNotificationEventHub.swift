@@ -21,6 +21,7 @@ actor LocalNotificationEventHub {
     private var publicContinuations: [
         UUID: AsyncStream<LocalNotificationEvent>.Continuation
     ] = [:]
+    private var subscriptionCountWaiters: [SubscriptionCountWaiter] = []
     private var nextEventSequence: UInt64 = 0
 
     init() {
@@ -34,6 +35,19 @@ actor LocalNotificationEventHub {
 
     var activeSubscriptionCount: Int { publicContinuations.count }
 
+    func waitUntilSubscriptionCountForTesting(_ expectedCount: Int) async {
+        precondition(expectedCount >= 0, "Subscription count cannot be negative")
+        guard publicContinuations.count != expectedCount else { return }
+        await withCheckedContinuation { continuation in
+            subscriptionCountWaiters.append(
+                SubscriptionCountWaiter(
+                    expectedCount: expectedCount,
+                    continuation: continuation
+                )
+            )
+        }
+    }
+
     func events() -> AsyncStream<LocalNotificationEvent> {
         let id = UUID()
         let pair = AsyncStream.makeStream(
@@ -45,6 +59,7 @@ actor LocalNotificationEventHub {
             Task { await self.removePublicContinuation(id: id) }
         }
         publicContinuations[id] = pair.continuation
+        resumeSatisfiedSubscriptionCountWaiters()
         return pair.stream
     }
 
@@ -68,7 +83,22 @@ actor LocalNotificationEventHub {
 
     private func removePublicContinuation(id: UUID) {
         publicContinuations[id] = nil
+        resumeSatisfiedSubscriptionCountWaiters()
     }
+
+    private func resumeSatisfiedSubscriptionCountWaiters() {
+        let currentCount = publicContinuations.count
+        let satisfiedWaiters = subscriptionCountWaiters.filter {
+            $0.expectedCount == currentCount
+        }
+        subscriptionCountWaiters.removeAll { $0.expectedCount == currentCount }
+        for waiter in satisfiedWaiters { waiter.continuation.resume() }
+    }
+}
+
+private nonisolated struct SubscriptionCountWaiter: Sendable {
+    let expectedCount: Int
+    let continuation: CheckedContinuation<Void, Never>
 }
 
 private nonisolated struct SequencedLocalNotificationEvent: Sendable {

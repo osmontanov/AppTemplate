@@ -66,6 +66,7 @@ struct LocalNotificationEventHubTests {
         await iteration.waitUntilStarted()
         cancelledConsumer.cancel()
         #expect(await cancelledConsumer.value == nil)
+        await hub.waitUntilSubscriptionCountForTesting(1)
 
         let expected = try LocalNotificationFixtures.diagnostic(.missingEnvelope)
         let remainingConsumer = Task {
