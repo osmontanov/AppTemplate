@@ -34,6 +34,16 @@ enum LocalNotificationActionRoute: Hashable, Codable, Sendable {
     case button(id: LocalNotificationActionID, deepLink: URL?)
     case textInput(id: LocalNotificationActionID, deepLink: URL?)
 
+    private enum CodingKeys: String, CodingKey, CaseIterable {
+        case button
+        case textInput
+    }
+
+    private enum RouteCodingKeys: String, CodingKey, CaseIterable {
+        case id
+        case deepLink
+    }
+
     var id: LocalNotificationActionID {
         switch self {
         case let .button(id, _), let .textInput(id, _): id
@@ -43,6 +53,59 @@ enum LocalNotificationActionRoute: Hashable, Codable, Sendable {
     var deepLink: URL? {
         switch self {
         case let .button(_, deepLink), let .textInput(_, deepLink): deepLink
+        }
+    }
+
+    init(from decoder: any Decoder) throws {
+        let caseContainer = try decoder.container(keyedBy: LocalNotificationDynamicCodingKey.self)
+        try LocalNotificationEnvelopeStrictSchema.requireOnlyKeys(
+            in: caseContainer,
+            allowed: Set(CodingKeys.allCases.map(\.rawValue))
+        )
+        guard caseContainer.allKeys.count == 1,
+              let key = caseContainer.allKeys.first else {
+            throw LocalNotificationEnvelopeStrictSchema.corruptSchemaError(codingPath: decoder.codingPath)
+        }
+
+        switch key.stringValue {
+        case CodingKeys.button.rawValue:
+            let payloadDecoder = try caseContainer.superDecoder(forKey: key)
+            let payload = try payloadDecoder.container(keyedBy: LocalNotificationDynamicCodingKey.self)
+            try LocalNotificationEnvelopeStrictSchema.requireOnlyKeys(
+                in: payload,
+                allowed: Set(RouteCodingKeys.allCases.map(\.rawValue))
+            )
+            self = .button(
+                id: try payload.decode(LocalNotificationActionID.self, forKey: .init("id")),
+                deepLink: try payload.decodeIfPresent(URL.self, forKey: .init("deepLink"))
+            )
+        case CodingKeys.textInput.rawValue:
+            let payloadDecoder = try caseContainer.superDecoder(forKey: key)
+            let payload = try payloadDecoder.container(keyedBy: LocalNotificationDynamicCodingKey.self)
+            try LocalNotificationEnvelopeStrictSchema.requireOnlyKeys(
+                in: payload,
+                allowed: Set(RouteCodingKeys.allCases.map(\.rawValue))
+            )
+            self = .textInput(
+                id: try payload.decode(LocalNotificationActionID.self, forKey: .init("id")),
+                deepLink: try payload.decodeIfPresent(URL.self, forKey: .init("deepLink"))
+            )
+        default:
+            throw LocalNotificationEnvelopeStrictSchema.corruptSchemaError(codingPath: decoder.codingPath)
+        }
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case let .button(id, deepLink):
+            var payload = container.nestedContainer(keyedBy: RouteCodingKeys.self, forKey: .button)
+            try payload.encode(id, forKey: .id)
+            try payload.encodeIfPresent(deepLink, forKey: .deepLink)
+        case let .textInput(id, deepLink):
+            var payload = container.nestedContainer(keyedBy: RouteCodingKeys.self, forKey: .textInput)
+            try payload.encode(id, forKey: .id)
+            try payload.encodeIfPresent(deepLink, forKey: .deepLink)
         }
     }
 }
@@ -185,7 +248,7 @@ nonisolated
 private enum LocalNotificationEnvelopeWire: Codable {
     case v1(LocalNotificationEnvelopeV1)
 
-    private enum CodingKeys: String, CodingKey {
+    private enum CodingKeys: String, CodingKey, CaseIterable {
         case schemaVersion
         case requestID
         case categoryID
@@ -197,6 +260,11 @@ private enum LocalNotificationEnvelopeWire: Codable {
     }
 
     init(from decoder: any Decoder) throws {
+        let strictContainer = try decoder.container(keyedBy: LocalNotificationDynamicCodingKey.self)
+        try LocalNotificationEnvelopeStrictSchema.requireOnlyKeys(
+            in: strictContainer,
+            allowed: Set(CodingKeys.allCases.map(\.rawValue))
+        )
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
         guard schemaVersion == 1 else {
@@ -232,5 +300,40 @@ private enum LocalNotificationEnvelopeWire: Codable {
             try container.encode(envelope.foregroundPresentation, forKey: .foregroundPresentation)
             try container.encode(envelope.actionRoutes, forKey: .actionRoutes)
         }
+    }
+}
+
+nonisolated
+private struct LocalNotificationDynamicCodingKey: CodingKey, Hashable {
+    let stringValue: String
+    let intValue: Int?
+
+    init(_ stringValue: String) {
+        self.stringValue = stringValue
+        intValue = nil
+    }
+
+    init?(stringValue: String) {
+        self.init(stringValue)
+    }
+
+    init?(intValue: Int) {
+        return nil
+    }
+}
+
+nonisolated
+private enum LocalNotificationEnvelopeStrictSchema {
+    static func requireOnlyKeys(
+        in container: KeyedDecodingContainer<LocalNotificationDynamicCodingKey>,
+        allowed: Set<String>
+    ) throws {
+        guard container.allKeys.allSatisfy({ allowed.contains($0.stringValue) }) else {
+            throw corruptSchemaError(codingPath: container.codingPath)
+        }
+    }
+
+    static func corruptSchemaError(codingPath: [any CodingKey]) -> DecodingError {
+        .dataCorrupted(.init(codingPath: codingPath, debugDescription: "Invalid local notification envelope schema"))
     }
 }

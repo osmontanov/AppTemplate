@@ -43,6 +43,61 @@ struct LocalNotificationEnvelopeTests {
     }
 
     @Test
+    func envelopeRejectsUnknownTopLevelAndActionRouteFields() throws {
+        let envelope = LocalNotificationEnvelopeV1.fixture(
+            requestID: try .init("request"),
+            sound: .none,
+            deepLink: nil,
+            actionRoutes: [
+                .button(id: try .init("open"), deepLink: nil)
+            ]
+        )
+        let encoded = try LocalNotificationEnvelopeCodec.encode(envelope)
+
+        var topLevel = try #require(
+            JSONSerialization.jsonObject(with: encoded) as? [String: Any]
+        )
+        topLevel["title"] = "VISIBLE-TITLE"
+        let topLevelUnknown = try JSONSerialization.data(withJSONObject: topLevel, options: [.sortedKeys])
+        #expect(throws: LocalNotificationEnvelopeError.corruptEnvelope) {
+            try LocalNotificationEnvelopeCodec.decode(topLevelUnknown)
+        }
+
+        var nested = try #require(
+            JSONSerialization.jsonObject(with: encoded) as? [String: Any]
+        )
+        var routes = try #require(nested["actionRoutes"] as? [[String: Any]])
+        var route = try #require(routes.first)
+        var button = try #require(route["button"] as? [String: Any])
+        button["attachmentURL"] = "/private/source.mov"
+        route["button"] = button
+        routes[0] = route
+        nested["actionRoutes"] = routes
+        let nestedUnknown = try JSONSerialization.data(withJSONObject: nested, options: [.sortedKeys])
+        #expect(throws: LocalNotificationEnvelopeError.corruptEnvelope) {
+            try LocalNotificationEnvelopeCodec.decode(nestedUnknown)
+        }
+    }
+
+    @Test
+    func everyIdentifierUsesSingleStringJSONAndRoundTrips() throws {
+        let request = try LocalNotificationID("request")
+        let category = try LocalNotificationCategoryID("category")
+        let action = try LocalNotificationActionID("action")
+        let attachment = try LocalNotificationAttachmentID("attachment")
+
+        #expect(try JSONEncoder().encode(request) == Data(#""request""#.utf8))
+        #expect(try JSONEncoder().encode(category) == Data(#""category""#.utf8))
+        #expect(try JSONEncoder().encode(action) == Data(#""action""#.utf8))
+        #expect(try JSONEncoder().encode(attachment) == Data(#""attachment""#.utf8))
+
+        #expect(try JSONDecoder().decode(LocalNotificationID.self, from: Data(#""request""#.utf8)) == request)
+        #expect(try JSONDecoder().decode(LocalNotificationCategoryID.self, from: Data(#""category""#.utf8)) == category)
+        #expect(try JSONDecoder().decode(LocalNotificationActionID.self, from: Data(#""action""#.utf8)) == action)
+        #expect(try JSONDecoder().decode(LocalNotificationAttachmentID.self, from: Data(#""attachment""#.utf8)) == attachment)
+    }
+
+    @Test
     func missingEnvelopeIsTypedAndRedacted() throws {
         let physicalRequestID = try LocalNotificationNamespace().physicalRequestID(.init("request"))
 
