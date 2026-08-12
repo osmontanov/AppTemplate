@@ -2806,6 +2806,14 @@ test "$(rg -o '\bSecItem(CopyMatching|Update|Add|Delete)\s*\(' \
   "$live_security_file" | wc -l | tr -d ' ')" = 4
 test -z "$(rg -n '\bSecItem(CopyMatching|Update|Add|Delete)\s*\(' \
   AppTemplateTests AppTemplateUITests --glob '*.swift')"
+test -z "$(rg -nF 'KeychainSecurityAPI.live' \
+  AppTemplateTests AppTemplateUITests)"
+test -z "$(rg -nU --pcre2 \
+  '(?s)(?<![A-Za-z0-9_])SecurityKeychainSecItemExecutor\s*\(\s*\)' \
+  AppTemplateTests AppTemplateUITests)"
+test -z "$(rg -nU --pcre2 \
+  '(?s)(?<![A-Za-z0-9_])KeychainService\s*\((?:(?!\bexecutor\s*:).)*?\)' \
+  AppTemplateTests AppTemplateUITests)"
 test -z "$(rg -n '@unchecked Sendable|unsafeBitCast|Logger|OSLog|SecCopyErrorMessageString|SecKeychain' "$keychain")"
 test "$(rg -n '@unchecked Sendable' AppTemplateTests/App/Services/Keychain \
   AppTemplateTests/TestSupport/Keychain --glob '*.swift' \
@@ -2813,14 +2821,14 @@ test "$(rg -n '@unchecked Sendable' AppTemplateTests/App/Services/Keychain \
 test "$(rg -l '@unchecked Sendable' AppTemplateTests/App/Services/Keychain \
   AppTemplateTests/TestSupport/Keychain --glob '*.swift')" = \
   'AppTemplateTests/App/Services/Keychain/SecurityKeychainSecItemExecutorTests.swift'
-rg -q '^nonisolated final class MutableCFDataSource: @unchecked Sendable {' \
+rg -qF 'nonisolated final class MutableCFDataSource: @unchecked Sendable {' \
   AppTemplateTests/App/Services/Keychain/SecurityKeychainSecItemExecutorTests.swift
 rg -q 'unsafeDowncast' "$keychain/Internal/SecurityKeychainSecItemExecutor.swift"
-rg -q 'Data(bytes: bytes, count: count)' \
+rg -qF 'Data(bytes: bytes, count: count)' \
   "$keychain/Internal/SecurityKeychainSecItemExecutor.swift"
 test -z "$(rg -n 'Data\(referencing:|bytesNoCopy' \
   "$keychain/Internal/SecurityKeychainSecItemExecutor.swift")"
-rg -q 'security\.add(attributes as CFDictionary, nil)' \
+rg -qF 'security.add(attributes as CFDictionary, nil)' \
   "$keychain/Internal/SecurityKeychainSecItemExecutor.swift"
 test -z "$(rg -n 'kSecAttrSynchronizableAny|kSecAttrAccessGroup|kSecUseAuthenticationUI|kSecAccessControl|kSecAttrLabel|kSecAttrDescription|kSecAttrComment|kSecReturnPersistentRef|kSecReturnRef' "$keychain")"
 rg -q 'kSecUseDataProtectionKeychain: requiredCFBoolean\(true\)' \
@@ -2842,7 +2850,7 @@ for literal in \
   test "$(rg -F -- "$literal" "$keychain" | wc -l | tr -d ' ')" = 1
 done
 test -z "$(rg -n 'precondition(Failure)?\([^,]+,[[:space:]]*"' "$keychain")"
-rg -q '^nonisolated private func requiredCFBoolean(_ value: Bool) -> CFBoolean {' \
+rg -qF 'nonisolated private func requiredCFBoolean(_ value: Bool) -> CFBoolean {' \
   "$keychain/Internal/SecurityKeychainSecItemExecutor.swift"
 test "$(rg -o 'JSONEncoder\(\)\.encode\(value\)' \
   "$keychain/IKeychainService.swift" | wc -l | tr -d ' ')" = 1
@@ -2899,6 +2907,14 @@ rg -q 'com.apple.application-identifier' docs/RELEASE_CHECKLIST.md
 rg -q 'keychain-access-groups' docs/RELEASE_CHECKLIST.md
 git diff --check
 ```
+
+The ordinary-test source boundary is intentionally stricter than the direct
+`SecItem` call guard. Tests and UI tests may not reference
+`KeychainSecurityAPI.live`, construct a zero-argument
+`SecurityKeychainSecItemExecutor`, or construct `KeychainService` without an
+explicit `executor:` injection. The multiline PCRE guards still permit the
+fixed-literal invalid-service tests because those constructors supply the
+scripted executor seam.
 
 - [ ] **Step 4: Run the focused six-suite GREEN**
 
