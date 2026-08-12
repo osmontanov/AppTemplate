@@ -2153,10 +2153,21 @@ struct KeychainServiceTests {
     }
 
     #if os(macOS)
-    @Test(arguments: [" \n\t ", "Bad\0Service"])
-    func invalidServiceNamespacesTerminate(_ namespace: String) async {
+    @Test func blankServiceNamespaceTerminates() async {
         await #expect(processExitsWith: .failure) {
-            _ = KeychainService(service: namespace, executor: ScriptedKeychainSecItemExecutor([]))
+            _ = KeychainService(
+                service: " \n\t ",
+                executor: ScriptedKeychainSecItemExecutor([])
+            )
+        }
+    }
+
+    @Test func nulServiceNamespaceTerminates() async {
+        await #expect(processExitsWith: .failure) {
+            _ = KeychainService(
+                service: "Bad\0Service",
+                executor: ScriptedKeychainSecItemExecutor([])
+            )
         }
     }
     #endif
@@ -2206,6 +2217,12 @@ nonisolated private func service(
     KeychainService(service: "AppTemplate", executor: executor)
 }
 ```
+
+The pinned Apple Swift 6.3.3 compiler crashes in `SendNonSendable` when a
+parameterized Swift Testing argument is captured by a `processExitsWith`
+closure, the same compiler failure established in Task 1. Keep the two service
+namespace exit tests as separate, fixed-literal, nonparameterized no-capture
+tests. Do not consolidate them into an argument-driven helper or test.
 
 Define one test-local `terminalStatusCases` constant containing all 22 terminal pairs from `everyTerminalSecurityStatusMapsExactly` (the 21 named mapped statuses plus `(-7777, .unexpectedStatus(-7777))`). Reuse that exact constant for read, remove, and each of the four reachable set positions; do not maintain shorter duplicate lists. Keep `expectedSetOperations(count:data:)` as the single exact service/account/data/order oracle for every set path; there is no default branch.
 
@@ -2372,13 +2389,32 @@ green_root="$(mktemp -d /tmp/AppTemplate-Keychain-Task3-GREEN.XXXXXX)"
 xcodebuild test -project AppTemplate.xcodeproj -scheme AppTemplate \
   -configuration Debug -destination 'platform=macOS' \
   -only-testing:AppTemplateTests/KeychainServiceTests \
+  -only-testing:AppTemplateTests/KeychainKeyTests \
   -derivedDataPath "$green_root/DerivedData" \
   -resultBundlePath "$green_root/Tests.xcresult" \
   SWIFT_TREAT_WARNINGS_AS_ERRORS=YES GCC_TREAT_WARNINGS_AS_ERRORS=YES
 xcrun xcresulttool get test-results summary --path "$green_root/Tests.xcresult" --compact \
-| jq -e '.result == "Passed" and .totalTestCount > 0 and .passedTests == .totalTestCount and .failedTests == 0 and .skippedTests == 0 and .expectedFailures == 0'
+| jq -e '.result == "Passed" and .totalTestCount == 27 and .passedTests == 27 and .failedTests == 0 and .skippedTests == 0 and .expectedFailures == 0'
 xcrun xcresulttool get build-results --path "$green_root/Tests.xcresult" --compact \
 | jq -e '(.status | ascii_downcase) == "succeeded" and (.errorCount // 0) == 0 and (.warningCount // 0) == 0 and (.analyzerWarningCount // 0) == 0'
+tests_json="$green_root/tests.json"
+xcrun xcresulttool get test-results tests --path "$green_root/Tests.xcresult" --compact >"$tests_json"
+jq -e '
+  def descendants: recurse(.children[]?);
+  [.testNodes[] | descendants
+    | select(.nodeType == "Test Suite" and
+        (.name == "KeychainKeyTests" or .name == "KeychainServiceTests"))
+    | {
+        name,
+        result,
+        count: ([. | descendants | select(.nodeType == "Test Case")] | length)
+      }]
+  | sort_by(.name)
+  == [
+    {name: "KeychainKeyTests", result: "Passed", count: 7},
+    {name: "KeychainServiceTests", result: "Passed", count: 20}
+  ]
+' "$tests_json"
 ```
 
 Perform and restore these mutations with a fresh expected-RED root each time:
@@ -2390,7 +2426,8 @@ Perform and restore these mutations with a fresh expected-RED root each time:
 5. Map injected Swift errors by rethrowing them in each raw operation; `injectedReadFailureMapsToRedactedInternalFailureWithoutExtraCall`, `injectedExecutorFailureMapsToRedactedInternalFailureAtEverySetCall`, and `removeMapsEveryTerminalStatusAndInjectedFailureWithoutExtraCall` must fail on the real sentinel localized description.
 6. Treat duplicate as valid for read/remove, duplicate as valid for update, or item-not-found as valid for add; the corresponding case in `operationSpecificSpecialStatusesRejectEveryForbiddenPosition` must fail its exact error/call-prefix assertion.
 7. Remove the entry cancellation check from read, set/update, or remove/delete one at a time; the corresponding branch of `preCancelledPublicOperationsInvokeNothing` must record a call or throw the wrong error.
-8. Restore all code and rerun the complete GREEN command.
+8. First remove the NUL predicate from `KeychainComponent.serviceFailure(_:)`. Rerun the complete `KeychainServiceTests` and `KeychainKeyTests` suites; require exactly 27 test cases with exactly two failures: `nulServiceNamespaceTerminates()` must fail its exit assertion with child `exitCode(0)`, `everyValidationBranchBindsItsExactFixedDiagnostic()` must fail its `.nulService` assertion, and `blankServiceNamespaceTerminates()` plus every other case must pass. Restore. Then swap the `.blankService` and `.nulService` returns in `serviceFailure(_:)`; rerun both complete suites and require exactly 27 test cases with exactly one failed case, `everyValidationBranchBindsItsExactFixedDiagnostic()`, while both fixed-literal service exit tests pass. Restore. This proves the exit tests reject both invalid inputs without capturing a parameter, while the branch-binding test independently proves their exact fixed diagnostics.
+9. Restore all code and rerun the complete two-suite GREEN command, including the exact 20-case `KeychainServiceTests` and 7-case `KeychainKeyTests` oracles.
 
 - [ ] **Step 5: Commit Task 3**
 
