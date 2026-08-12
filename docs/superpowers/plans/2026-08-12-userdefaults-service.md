@@ -792,13 +792,20 @@ Add:
     #expect(try storage.load() == .data(Data([0x01, 0x02])))
     try storage.save(Data([0x03]))
     try storage.remove()
-    #expect(spy.operations == [
-        .read(name: "AppState", kind: .data),
-        .set(name: "AppState", kind: .data, data: Data([0x03])),
-        .remove(name: "AppState", kind: .data),
-    ])
+    let expectedKey = UserDefaultsServiceSpy.KeyRecord(
+        logicalName: "AppState",
+        physicalKind: .data
+    )
+    #expect(spy.requestedValueKeys == [expectedKey])
+    #expect(spy.requestedSetKeys == [expectedKey])
+    #expect(spy.savedValues == [Data([0x03])])
+    #expect(spy.requestedRemoveKeys == [expectedKey])
 }
 ```
+
+Task 3 deliberately exposes four lock-protected snapshots rather than a combined operation
+enum. Task 4 reuses that shipped spy contract; it does not expand the spy or the two-file task
+scope merely to duplicate the same observations in another representation.
 
 Retain all existing preview/UI/test injection tests. Expected RED: `extra argument 'userDefaultsService' in call`.
 
