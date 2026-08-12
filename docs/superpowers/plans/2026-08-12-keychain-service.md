@@ -15,6 +15,7 @@
 - Work only in `/Users/aurora/Documents/AppTemplate/.worktrees/generic-local-database` on branch `codex/userdefaults-service`. Commit this reviewed plan before implementation Task 1 starts; implementation tasks require a clean worktree and do not stage the plan.
 - **Hard execution precondition:** do not create a production or test Keychain Swift file until the preceding UserDefaults Task 6 report says PASS and records PASS for all nine gates. At plan-writing time `.superpowers/sdd/2026-08-12-userdefaults-service/final-verification-report.md` is blocked by macOS UI-automation initialization and gates 1–9 are not run. Planning may complete; implementation may not start from that state.
 - The rerun that clears the precondition must treat the Keychain spec's committed history as the two documentation-only commits above, prove the reviewed Keychain plan was introduced by one documentation-only commit, exclude exactly those two documentation paths from the UserDefaults changed-path set, and must not require the current spec blob to equal the earlier `96205b0` blob.
+- The bounded Task 7 UI-gate fix is governed by `docs/superpowers/specs/2026-08-12-ipad-ui-gate-stabilization-design.md` at commit `fa0f80b8510cbb82f4ba36e172a0f90cfc9b1f88` and `docs/superpowers/plans/2026-08-12-ipad-ui-gate-stabilization.md`. It may change only `AppTemplateUITests/AppTemplateUITests.swift` plus those two documentation files and this plan. It must not change production UI, navigation, dependencies, Keychain code, project settings, signing, entitlements, or privacy metadata.
 - Follow strict TDD in every implementation task: write the focused failing test, retain the intended RED evidence, add only the minimum implementation, rerun a fresh GREEN bundle, perform the listed mutation probes, restore production code, rerun GREEN, review, then commit.
 - Every Swift declaration that must escape MainActor-default isolation is explicitly `nonisolated`. Both production layers and the in-memory service are actors; production code uses no detached task, semaphore, lock, global queue, callback bridge, or global mutable cache. Test-only synchronization is limited to the explicitly specified `Synchronization.Mutex`/`Atomic` fixtures and actor barriers; no real Security closure is invoked by them.
 - Public storage is exactly raw `Data` read/set/Bool-remove. UTF-8 `String` and versioned `Codable & Sendable` conveniences live only on `IKeychainService`; no public Security dictionary, status, access group, default value, logger, property wrapper, enumeration, or delete-all API is authorized.
@@ -2930,12 +2931,15 @@ while IFS= read -r changed_path; do
   test -n "$changed_path" || continue
   case "$changed_path" in
     docs/superpowers/plans/2026-08-12-keychain-service.md | \
+    docs/superpowers/plans/2026-08-12-ipad-ui-gate-stabilization.md | \
+    docs/superpowers/specs/2026-08-12-ipad-ui-gate-stabilization-design.md | \
     README.md | docs/ARCHITECTURE.md | docs/CUSTOMIZATION.md | docs/RELEASE_CHECKLIST.md | \
     AppTemplate/App/Services/Keychain/* | \
     AppTemplate/App/AppDependencies/AppDependencies.swift | \
     AppTemplateTests/App/Services/Keychain/* | \
     AppTemplateTests/TestSupport/Keychain/* | \
-    AppTemplateTests/App/Composition/AppDependenciesTests.swift) ;;
+    AppTemplateTests/App/Composition/AppDependenciesTests.swift | \
+    AppTemplateUITests/AppTemplateUITests.swift) ;;
     *) printf 'Out-of-scope path: %s\n' "$changed_path" >&2; exit 1 ;;
   esac
 done <<<"$changed_paths"
@@ -2997,6 +3001,7 @@ test -z "$(git status --porcelain)"
 **Files:**
 
 - Verify only; edit only through a reviewed focused fix round.
+- The reviewed iPad UI stabilization round additionally authorizes only `AppTemplateUITests/AppTemplateUITests.swift`, `docs/superpowers/specs/2026-08-12-ipad-ui-gate-stabilization-design.md`, `docs/superpowers/plans/2026-08-12-ipad-ui-gate-stabilization.md`, and this plan. The retained failed Gate 7 bundle `/tmp/AppTemplate-Keychain-final.EQBmBF/ui-iPadA16.xcresult` is its accepted RED; every final Task 7 artifact must come from a new root.
 - Evidence: `.superpowers/sdd/2026-08-12-keychain-service/final-verification-report.md` (ignored, never committed).
 
 **Interfaces:**
