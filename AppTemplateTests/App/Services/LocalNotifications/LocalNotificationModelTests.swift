@@ -104,14 +104,19 @@ struct LocalNotificationModelTests {
 
     @Test
     func serviceErrorHasStableCodableAndRedactedPresentation() throws {
-        let error = LocalNotificationServiceError.system(
+        let systemError = LocalNotificationServiceError.system(
             operation: .schedule,
             domain: "com.example.private",
             code: 42
         )
-        let data = try JSONEncoder().encode(error)
-        #expect(try JSONDecoder().decode(LocalNotificationServiceError.self, from: data) == error)
-        #expect(error.errorDescription == "Local notification system operation failed.")
+        let systemData = try JSONEncoder().encode(systemError)
+        #expect(try JSONDecoder().decode(LocalNotificationServiceError.self, from: systemData) == systemError)
+        #expect(systemError.errorDescription == "Local notification system operation failed.")
+
+        let categoryError = LocalNotificationServiceError.invalidCategory(.unknownCategory)
+        let categoryData = try JSONEncoder().encode(categoryError)
+        #expect(try JSONDecoder().decode(LocalNotificationServiceError.self, from: categoryData) == categoryError)
+        #expect(categoryError.errorDescription == "Local notification category is invalid.")
     }
 
     @Test

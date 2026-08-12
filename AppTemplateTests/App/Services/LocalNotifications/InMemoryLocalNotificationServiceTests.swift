@@ -100,6 +100,44 @@ struct InMemoryLocalNotificationServiceTests {
     }
 
     @Test
+    func expiredCalendarReplacementIsRejectedWithoutRemovingExistingPendingRequest() async throws {
+        let service = InMemoryLocalNotificationService.fixture()
+        let original = try LocalNotificationFixtures.request(id: "same", body: "first")
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let expired = try makeRequest(
+            id: "same",
+            body: "expired",
+            trigger: .calendar(
+                DateComponents(
+                    calendar: calendar,
+                    timeZone: calendar.timeZone,
+                    year: 2024,
+                    month: 1,
+                    day: 1,
+                    hour: 0,
+                    minute: 0,
+                    second: 0
+                ),
+                repeats: false
+            )
+        )
+
+        try await service.schedule(original)
+        await #expect(throws: LocalNotificationServiceError.invalidTrigger(.noNextTriggerDate)) {
+            try await service.schedule(expired)
+        }
+
+        let pending = await service.pending()
+        #expect(pending.count == 1)
+        guard case let .decoded(request)? = pending.first?.payload else {
+            Issue.record("Expected the original decoded pending request")
+            return
+        }
+        #expect(request.content.body == "first")
+    }
+
+    @Test
     func sameIdentifierReplacesOnlyPendingRequest() async throws {
         let service = InMemoryLocalNotificationService.fixture()
         let first = try LocalNotificationFixtures.request(id: "same", body: "first")

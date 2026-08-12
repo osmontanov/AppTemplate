@@ -60,11 +60,12 @@ actor InMemoryLocalNotificationService: ILocalNotificationService {
            categoriesByID[categoryID] == nil {
             throw LocalNotificationServiceError.invalidCategory(.unknownCategory)
         }
+        let nextTriggerDate = try nextTriggerDate(for: request.trigger)
         let storedRequest = try makeStoredRequest(from: request)
         let snapshot = LocalNotificationPendingSnapshot(
             id: request.id,
             payload: .decoded(storedRequest),
-            nextTriggerDate: nextTriggerDate(for: request.trigger)
+            nextTriggerDate: nextTriggerDate
         )
         try Task.checkCancellation()
         pendingByID[request.id] = snapshot
@@ -242,7 +243,7 @@ actor InMemoryLocalNotificationService: ILocalNotificationService {
 
     private func nextTriggerDate(
         for trigger: LocalNotificationTrigger
-    ) -> Date? {
+    ) throws -> Date? {
         let referenceDate = Date.now
         switch trigger {
         case .immediate:
@@ -250,11 +251,14 @@ actor InMemoryLocalNotificationService: ILocalNotificationService {
         case let .timeInterval(seconds, _):
             return referenceDate.addingTimeInterval(seconds)
         case let .calendar(components, _):
-            return (components.calendar ?? Calendar.current).nextDate(
+            guard let date = (components.calendar ?? Calendar.current).nextDate(
                 after: referenceDate,
                 matching: components,
                 matchingPolicy: .strict
-            )
+            ) else {
+                throw LocalNotificationServiceError.invalidTrigger(.noNextTriggerDate)
+            }
+            return date
         }
     }
 
