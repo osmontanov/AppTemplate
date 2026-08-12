@@ -163,41 +163,46 @@ struct UserDefaultsKey<Value: Sendable>: Sendable {
 }
 ```
 
-It exposes these factories through constrained extensions:
+It exposes these factories through explicitly nonisolated constrained
+extensions:
 
 ```swift
-extension UserDefaultsKey where Value == Bool {
+nonisolated extension UserDefaultsKey where Value == Bool {
     static func bool(_ name: String) -> Self
 }
 
-extension UserDefaultsKey where Value == Int {
+nonisolated extension UserDefaultsKey where Value == Int {
     static func int(_ name: String) -> Self
 }
 
-extension UserDefaultsKey where Value == Float {
+nonisolated extension UserDefaultsKey where Value == Float {
     static func float(_ name: String) -> Self
 }
 
-extension UserDefaultsKey where Value == Double {
+nonisolated extension UserDefaultsKey where Value == Double {
     static func double(_ name: String) -> Self
 }
 
-extension UserDefaultsKey where Value == String {
+nonisolated extension UserDefaultsKey where Value == String {
     static func string(_ name: String) -> Self
 }
 
-extension UserDefaultsKey where Value == Data {
+nonisolated extension UserDefaultsKey where Value == Data {
     static func data(_ name: String) -> Self
 }
 
-extension UserDefaultsKey where Value == Date {
+nonisolated extension UserDefaultsKey where Value == Date {
     static func date(_ name: String) -> Self
 }
 
-extension UserDefaultsKey where Value: Codable {
+nonisolated extension UserDefaultsKey where Value: Codable {
     static func codable(_ name: String) -> Self
 }
 ```
+
+All eight factory declarations must remain explicitly nonisolated. Marking
+the generic type `nonisolated` does not propagate to separately declared
+extensions under the project's MainActor default isolation.
 
 The native factories store `Bool`, `Int`, `Float`, `Double`, `String`, `Data`,
 and `Date` in their native property-list representations. `.codable` always
@@ -336,9 +341,22 @@ not interchangeable. The macOS, iPhone, and iPad tests characterize and
 enforce these representations for the supported Xcode 26.6 toolchain.
 
 String, Data, and Date validation uses the corresponding Foundation bridge and
-copies the result into the matching Swift value. Arrays, dictionaries, URLs,
-and every unsupported object are invalid for all factories in this design.
-Codable keys require physical `Data` before JSON decoding begins.
+copies the result into the matching Swift value. Validation sees only the
+Foundation-normalized object returned by `object(forKey:)`; it cannot recover
+which `set` overload or source type produced that object.
+
+In particular, Foundation may normalize or archive a value written with
+`set(URL, forKey:)` into `Data`. That object is then physically
+indistinguishable from bytes written through `set(Data, forKey:)`. Such
+URL-origin Data is therefore valid for `.data`, and `.codable` passes it to the
+JSON decoder, whose success or `.decodingFailed` result decides the outcome.
+The service adds no provenance envelope or type tag because doing so would
+break the required raw-Data compatibility of `AppTemplate.AppState`.
+
+Arrays, dictionaries, and every other normalized object that does not match a
+factory's required physical representation remain invalid. There is no URL
+key factory in this design. Codable keys require physical `Data` before JSON
+decoding begins.
 
 ### Setting and equal cross-type replacement
 
@@ -530,6 +548,8 @@ Focused tests cover:
 
 - fixed-name construction and the shared nonblank component validator used by
   the namespace and key preconditions;
+- construction of all eight factory variants from a nonisolated test helper
+  under the project's MainActor default isolation;
 - missing `nil`, set/read round trip, replacement, and removal for Bool, Int,
   Float, Double, String, raw Data, and Date;
 - Codable round trip with JSON stored physically as raw Data;
@@ -539,6 +559,9 @@ Focused tests cover:
   unchanged;
 - every wrong physical representation maps to `.invalidStoredValue` and
   remains unchanged;
+- wrong-representation cases explicitly exclude URL seeds because Foundation
+  may normalize `set(URL, forKey:)` to Data; URL-origin Data is accepted by
+  `.data`, while `.codable` reaches JSON decoding and reports that result;
 - strict Core Foundation recognition of Bool, Int, Float, and Double;
 - a direct Boolean seed is not readable as Int, and a direct integer seed is
   not readable as Bool;
@@ -709,8 +732,9 @@ security property.
 - dynamic keys based on user IDs, server values, routes, or arbitrary input;
 - key aliases, migrations, registration defaults, default-bearing keys, or
   property wrappers;
-- URL, arrays, dictionaries, arbitrary property-list types, or untyped `Any`
-  APIs;
+- a URL key factory/API, arrays, dictionaries, arbitrary property-list types,
+  or untyped `Any` APIs; Foundation-normalized URL-origin Data remains valid
+  raw Data because write provenance is unavailable;
 - a generic service property in `AppDependencies` or Feature exposure;
 - changes to AppState JSON, schema version, recovery, or logging;
 - manual flush/fsync guarantees or `synchronize()`; and
@@ -762,11 +786,13 @@ The implementation is complete only when all of the following are true:
    remove operations specified here and is explicitly nonisolated and
    Sendable.
 2. `UserDefaultsKey<Value: Sendable>` has only the seven native factories and
-   Codable-as-JSON-Data factory, validates nonblank fixed logical names, and
+   Codable-as-JSON-Data factory, all eight constrained factory declarations
+   are explicitly nonisolated, fixed logical names are nonblank, and the key
    stores no default value.
-3. Missing values return `nil`; wrong physical representations throw
-   `.invalidStoredValue`; encoding and decoding failures remain distinct and
-   redacted.
+3. Missing values return `nil`; genuinely wrong observable physical
+   representations throw `.invalidStoredValue`; encoding and decoding
+   failures remain distinct and redacted. URL-origin Data normalized by
+   Foundation is treated as Data because its provenance is indistinguishable.
 4. Bool, Int, Float, and Double use the strict Core Foundation representation
    checks in this design, and equal cross-type replacement round-trips after
    mandatory incompatible-value removal.
