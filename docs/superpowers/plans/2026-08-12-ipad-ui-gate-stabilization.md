@@ -195,7 +195,10 @@ xcrun xcresulttool get build-results --path "$suite_root/Tests.xcresult" --compa
 ```bash
 set -euo pipefail
 test "$(git diff --name-only)" = AppTemplateUITests/AppTemplateUITests.swift
-test -z "$(rg 'sleep\(|usleep\(|while[[:space:]]|repeat[[:space:]]|coordinate|forceTap' AppTemplateUITests/AppTemplateUITests.swift || true)"
+# Skip Swift comments and string literals, then reject line-start loop statements
+# and the prohibited call expressions. This must not treat diagnostic prose as code.
+source_oracle='(?xs)""".*?"""(*SKIP)(*F)|"(?:\\.|[^"\\])*"(*SKIP)(*F)|//[^\r\n]*(*SKIP)(*F)|/\*.*?\*/(*SKIP)(*F)|^[\t ]*(?:while|repeat)\b|\b(?:sleep|usleep|forceTap|coordinate)[\t ]*\('
+test -z "$(rg -U -P "$source_oracle" AppTemplateUITests/AppTemplateUITests.swift || true)"
 test "$(rg -F 'private func activateTab(' AppTemplateUITests/AppTemplateUITests.swift | wc -l | tr -d ' ')" = 1
 test "$(rg -F 'try activateTab(' AppTemplateUITests/AppTemplateUITests.swift | wc -l | tr -d ' ')" = 3
 test "$(rg -U -P 'try activateTab\(\s*in: (app|second),\s*identifier: "tab\\.browse",\s*destinationIdentifier: "screen\\.browse"\s*\)' AppTemplateUITests/AppTemplateUITests.swift | wc -l | tr -d ' ')" = 3
