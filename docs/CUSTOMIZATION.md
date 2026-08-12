@@ -70,30 +70,49 @@ is sufficient. To replace it:
 
 Before shipping product data:
 
-1. Replace `ExampleRecord` and `ILocalDatabaseService` with feature-semantic
-   values and operations; do not use `payload` as an untyped domain envelope.
-2. Keep SwiftData entities, contexts, containers, predicates, and identifiers
-   behind the persistence implementation. ViewModels receive a feature
-   protocol, never SwiftData or `AppDependencies`.
-3. Keep the live URL stable at
+The engine is typed and explicitly registered: it is not a schemaless or
+arbitrary-`Codable` store. Add a product model in this order:
+
+1. Create a detached immutable `Sendable` record and typed `Query`.
+2. Create a schema entity with a schema-enforced unique business ID.
+3. Add its adapter and record conformance.
+4. Add a new immutable `VersionedSchema` version—never edit a shipped schema.
+5. Add a migration stage and disk transition fixture.
+6. Add the production registry entry.
+7. Add schema/registry bijection and uniqueness tests.
+8. Add a semantic Feature repository that maps Domain values to local records.
+
+The production registry's entity set and cardinality must equal the active
+schema. Keep SwiftData entities, contexts, containers, predicates, and
+identifiers behind the persistence implementation. ViewModels receive a
+feature protocol, never SwiftData or `AppDependencies`; do not use `payload`
+as an untyped domain envelope.
+
+Continue to apply these product decisions before shipping:
+
+1. Keep the live URL stable at
    `Application Support/<bundle identifier>/LocalDatabase.store`, or design and
    test an explicit move before changing it.
-4. Retain every shipped `VersionedSchema`. Add a real migration stage only when
+2. Retain every shipped `VersionedSchema`. Add a real migration stage only when
    a transition exists, and verify that transition with a disk fixture created
    from the earlier schema.
-5. Decide retention, user-visible deletion, backup/restore, import/export, and
+3. Decide retention, user-visible deletion, backup/restore, import/export, and
    recovery from initialization or migration failure. Never silently erase or
    replace an unreadable store with memory.
-6. Decide separately whether CloudKit, App Groups, cross-process access, or
+4. Decide separately whether CloudKit, App Groups, cross-process access, or
    application-level encryption is required. The template configures
    `cloudKitDatabase: .none` and provides none of those guarantees.
-7. Preserve operation-specific persistence-boundary tests: exactly one save for
+5. Preserve operation-specific persistence-boundary tests: exactly one save for
    state-changing upsert/delete-one, exactly one type-level call and zero saves
    for successful nonempty delete-all, documented no-op tests, deterministic
    pre-call failure and cancellation tests, the disk-backed immediate-durability
    regression, and reopen tests for the final feature contract.
-8. Keep `AppStateStore` in UserDefaults unless an independently designed
+6. Keep `AppStateStore` in UserDefaults unless an independently designed
    asynchronous startup and migration flow replaces it.
+
+`AppStateStore` remains UserDefaults-owned synchronous launch state. Moving it
+to a `UserDefaultsService`, and introducing a separate `KeychainService`, are
+future cycles; neither is part of this local-persistence implementation.
 
 ### Remote service
 

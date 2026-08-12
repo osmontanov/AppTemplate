@@ -40,7 +40,9 @@ Onboarding, Authentication, Maintenance, or Main root from the saved facts.
 
 This launch-policy state remains owned by `AppStateStore` and
 `IAppStateStorage` in UserDefaults. The local SwiftData reference store does not
-participate in root selection or startup restoration.
+participate in root selection or startup restoration. A `UserDefaultsService`
+followed by a separate `KeychainService` are future cycles, not part of this
+implementation.
 
 Screen actions do not choose roots directly. `IAuthenticationActions`,
 `IOnboardingActions`, and `IMaintenanceActions` expose narrow semantic
@@ -98,11 +100,28 @@ is injected into Settings.
 
 ### Local SwiftData reference store
 
-`ILocalDatabaseService` is a Sendable, `ExampleRecord`-specific value API.
+`ILocalDatabaseService` is a Sendable typed value API, implemented by one
+explicitly registered local-persistence engine. Its first production model is
+`ExampleRecord`; that model does not define a hard-coded service API.
+
+The local persistence path is:
+
+```text
+detached LocalDatabaseModel
+  -> associated typed Query and LocalEntityAdapter
+  -> adapter-owned SwiftData entity/predicate/mapping
+  -> operation-scoped ModelContext inside SwiftDataLocalStore
+```
+
 `LocalDatabaseService` is an actor facade that performs cancellation and pure
 validation before lazily creating a `ModelContainer`. It caches successful
 bootstrap and non-cancellation bootstrap failures without erasing the store or
-falling back to memory.
+falling back to memory. `LocalDatabaseModelRegistry` authorizes the adapter,
+value, entity, and name identity for one service. `VersionedSchema` owns the
+physical persisted entities and migrations. The production registry entity set
+and cardinality must match the active schema; adding a model is a deliberate
+compile-time schema-and-registry change, never runtime discovery of arbitrary
+`Codable` values.
 
 `SwiftDataLocalStore` is the internal ModelActor. SwiftData entities and
 `ModelContext` instances never leave it. Each synchronous engine operation uses
@@ -113,8 +132,8 @@ neither persistence call. Failed operation contexts are cleaned up and
 discarded so stale registered models cannot leak into the next call. For
 delete-all, rollback before the type-level call is no-op cleanup and is not
 claimed to compensate a completed or partially completed batch delete.
-Returned `ExampleRecord` values remain usable independently of the service and
-container.
+Returned detached values, including `ExampleRecord`, remain usable
+independently of the service and container.
 
 The delete-all rule reflects a disk-backed Xcode 26.6 regression: the
 type-level call is immediately durable, leaves `hasChanges == false`, and is not
@@ -128,8 +147,9 @@ successful return.
 The live store is resolved lazily at
 `Application Support/<bundle identifier>/LocalDatabase.store`. Preview and UI
 test graphs each create a fresh in-memory container. Schema V1 contains only
-the internal stored-example entity, and the migration plan intentionally has no
-stages because no earlier schema shipped. CloudKit is explicitly disabled.
+the adapter-owned entity for `ExampleRecord`, and the migration plan
+intentionally has no stages because no earlier schema shipped. CloudKit is
+explicitly disabled.
 
 The failure contract distinguishes validation, initialization (including
 migration/container load), read, and public write-operation failures.
@@ -137,10 +157,11 @@ Diagnostics expose only operation, fixed entity type, record count, NSError
 domain, and NSError code. They never include IDs, payloads, search text, error
 descriptions, userInfo, store contents, or user-specific paths.
 
-This is a reference store, not a generic repository and not product feature
-storage. A real feature should define a semantic protocol over its domain
-values, adapt or replace this sample internally, and inject that feature
-protocol into its ViewModel.
+This is a generic typed engine, not a product repository or product feature
+storage. A real feature should define a semantic repository protocol over its
+domain values, map those values to local records internally, and inject that
+feature protocol into its ViewModel. Features must not import SwiftData,
+`LocalDatabaseModel`, or `LocalEntityAdapter`.
 
 `IRemoteService` is the app-facing remote boundary. Its neutral
 `fetchExample(_:)` operation demonstrates a semantic service method without

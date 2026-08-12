@@ -3,7 +3,7 @@
 AppTemplate is a SwiftUI application template for iOS, iPadOS, and macOS. It
 provides typed scene-local navigation, persisted demo app policy, explicit
 dependency injection, deep links, previews, unit and UI tests, a hardened
-network layer, and a local-only SwiftData reference store for `ExampleRecord`.
+network layer, and a local-only typed SwiftData reference engine.
 Platform verification is performed locally.
 
 ## Start here
@@ -33,19 +33,28 @@ The implemented examples focus on reusable application structure:
 - explicit live, preview, test, and UI-test dependency construction;
 - static Home, Browse, Projects, and Settings content that is safe to replace.
 
-The template includes an intentionally small SwiftData reference store for the
-sample `ExampleRecord` value. It demonstrates a Sendable service facade, an
-internal ModelActor, explicit schema versioning, lazy disk bootstrap, isolated
-in-memory preview/UI-test composition, bounded reads, operation-specific
-persistence boundaries, and failure-safe operation contexts. It does not
-choose product entities, a feature-specific repository contract, retention
-policy, backup policy, application-level encryption, CloudKit synchronization,
-App Group sharing, or cross-process access. Replace the sample boundary
-deliberately when adding a real feature; do not encode unrelated domain data
-into `payload` merely to reuse it.
+The template includes a typed, explicitly registered SwiftData reference
+engine. `ExampleRecord` is its first detached local-persistence model, not a
+hard-coded service API. Generic does not mean schemaless or arbitrary Codable storage.
+It is one compile-time engine for models explicitly added to a schema/registry,
+not runtime model discovery. The engine demonstrates a
+Sendable service facade, an internal ModelActor, explicit schema versioning,
+lazy disk bootstrap, isolated in-memory preview/UI-test composition, bounded
+reads, operation-specific persistence boundaries, and failure-safe operation
+contexts.
+
+Feature and ViewModel code should depend on a semantic repository over domain
+values rather than `ILocalDatabaseService`. The engine does not choose product
+entities, a feature repository contract, retention policy, backup policy,
+application-level encryption, CloudKit synchronization, App Group sharing, or
+cross-process access. Add each product model deliberately to the schema and
+registry; do not encode unrelated domain data into `payload` merely to reuse
+`ExampleRecord`.
 
 `AppStateStore` remains a separate UserDefaults-backed launch-policy store. It
-is not migrated to SwiftData by this reference implementation.
+is not migrated to SwiftData by this reference implementation. A
+`UserDefaultsService` and then a separate `KeychainService` are future cycles,
+not part of this implementation.
 
 ## Documentation
 
