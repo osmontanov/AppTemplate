@@ -301,9 +301,22 @@ struct KeychainKeyTests {
     }
 
     #if os(macOS)
-    @Test(arguments: [" \n\t ", "Bad\0Name", "Bad.schema-Name"])
-    func invalidLogicalNamesTerminate(_ value: String) async {
-        await #expect(processExitsWith: .failure) { _ = KeychainKey.data(value) }
+    @Test func blankLogicalNameTerminates() async {
+        await #expect(processExitsWith: .failure) {
+            _ = KeychainKey.data(" \n\t ")
+        }
+    }
+
+    @Test func nulLogicalNameTerminates() async {
+        await #expect(processExitsWith: .failure) {
+            _ = KeychainKey.data("Bad\0Name")
+        }
+    }
+
+    @Test func reservedSchemaMarkerLogicalNameTerminates() async {
+        await #expect(processExitsWith: .failure) {
+            _ = KeychainKey.data("Bad.schema-Name")
+        }
     }
 
     @Test func zeroSchemaVersionTerminates() async {
@@ -319,6 +332,12 @@ nonisolated private func constructKeychainKeysFromNonisolatedContext() {
     let _: KeychainCodableKey<FirstSecret> = .codable("Model", schemaVersion: 1)
 }
 ```
+
+The pinned Apple Swift 6.3.3 compiler crashes in `SendNonSendable` when a
+parameterized Swift Testing argument is captured by a `processExitsWith` closure;
+the same crash occurs for both `String` and a `Sendable` enum argument. Keep the
+three logical-name exit tests as separate, fixed-literal, nonparameterized
+no-capture tests. Do not consolidate them into an argument-driven helper or test.
 
 Create `KeychainConvenienceTests` with these exact tests:
 
@@ -727,6 +746,15 @@ xcrun xcresulttool get test-results summary --path "$green_root/Tests.xcresult" 
 | jq -e '.result == "Passed" and .totalTestCount > 0 and .passedTests == .totalTestCount and .failedTests == 0 and .skippedTests == 0 and .expectedFailures == 0'
 xcrun xcresulttool get build-results --path "$green_root/Tests.xcresult" --compact \
 | jq -e '(.status | ascii_downcase) == "succeeded" and (.errorCount // 0) == 0 and (.warningCount // 0) == 0 and (.analyzerWarningCount // 0) == 0'
+tests_json="$green_root/tests.json"
+xcrun xcresulttool get test-results tests --path "$green_root/Tests.xcresult" --compact >"$tests_json"
+jq -e '
+  def descendants: recurse(.children[]?);
+  [.testNodes[] | descendants
+    | select(.nodeType == "Test Suite" and .name == "KeychainKeyTests" and .result == "Passed")
+    | ([. | descendants | select(.nodeType == "Test Case" and .result == "Passed")] | length)]
+  | length == 1 and .[0] == 7
+' "$tests_json"
 
 compile_root="$(mktemp -d /tmp/AppTemplate-Keychain-Task1-CompileNegative.XXXXXX)"
 set +e
@@ -749,7 +777,7 @@ rg -n "cannot (convert|assign).*FirstSecret.*(to|as).*SecondSecret" \
 2. Change derived account to `"\(name).v\(schemaVersion)"`. Rerun `schemaVersionsProduceDifferentPhysicalAccounts` and `codableModelsRoundTripAndSchemaVersionsCoexist`; require at least the exact-account test to fail, restore.
 3. Convert a codec-thrown `CancellationError` into `.encodingFailed`/`.decodingFailed`. Rerun `codecCancellationRemainsCancellationError`; require failure, restore.
 4. Change the non-cancellation codec catch from the fixed public error to `throw error`. Rerun `realCodecFailuresAreRedactedAtThePublicBoundary`; require the sentinel payload/coding-path assertion to fail, then restore.
-5. Swap the `.blankKey` and `.nulKey` returns in `keyFailure(_:)`. Rerun `everyValidationBranchBindsItsExactFixedDiagnostic`; require failure, then restore. This proves the tests bind each branch to its literal rather than merely finding all six strings somewhere in source.
+5. First remove the NUL predicate from `keyFailure(_:)`. Rerun `nulLogicalNameTerminates`, `blankLogicalNameTerminates`, `reservedSchemaMarkerLogicalNameTerminates`, and `everyValidationBranchBindsItsExactFixedDiagnostic`; require only `nulLogicalNameTerminates` to fail its exit assertion with child `exitCode(0)`, require `everyValidationBranchBindsItsExactFixedDiagnostic` to fail, and require the blank and reserved-marker exit tests to pass. Restore. Then swap the `.blankKey` and `.nulKey` returns in `keyFailure(_:)`; rerun `everyValidationBranchBindsItsExactFixedDiagnostic` and require failure, then restore. This proves the tests bind each validation branch to its literal rather than merely finding all six strings somewhere in source.
 6. Temporarily change the compile fixture assignment to `FirstSecret?`; require the negative build to succeed. Restore `SecondSecret?`, rerun the negative proof, and require the mismatch diagnostic.
 7. Replace either inline fresh JSON codec with a cached/shared `JSONEncoder` or
    `JSONDecoder`. The exact fresh-codec source oracle below must fail even though
