@@ -2660,12 +2660,13 @@ static func fetch(
     in context: ModelContext,
     progress: (_ examinedCount: Int) throws -> Void
 ) throws -> [StoredTestLocalRecord] {
-    let descriptor = FetchDescriptor<StoredTestLocalRecord>(
+    var descriptor = FetchDescriptor<StoredTestLocalRecord>(
         sortBy: [
             SortDescriptor(\.score),
             SortDescriptor(\.businessID)
         ]
     )
+    descriptor.includePendingChanges = false
     let entities = try context.fetch(descriptor, batchSize: 128)
     var result: [StoredTestLocalRecord] = []
     var examined = 0
@@ -2682,6 +2683,8 @@ static func fetch(
     return result
 }
 ```
+
+This is required for SwiftData batched fetches and is safe because every operation uses a fresh context with no pending changes.
 
 After all three replacements, remove the now-unused `GenericLocalDatabaseFixtureError`; the final test support contains no deliberate not-implemented path.
 
