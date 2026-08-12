@@ -6,74 +6,95 @@ actor LocalDatabaseService: ILocalDatabaseService {
     }
 
     private var state: State
+    private let modelRegistry: LocalDatabaseModelRegistry
     private let hooks: LocalDatabaseStoreHooks
 
     init(
-        containerFactory: @escaping LocalDatabaseContainerFactory,
+        configuration: LocalDatabaseStoreConfiguration,
         hooks: LocalDatabaseStoreHooks = .production
     ) {
-        state = .uninitialized(containerFactory)
+        state = .uninitialized(configuration.containerFactory)
+        modelRegistry = configuration.modelRegistry
         self.hooks = hooks
     }
 
-    func fetchRecord(id: String) async throws -> ExampleRecord? {
+    func fetch<Model: LocalDatabaseModel>(
+        _ type: Model.Type,
+        id: Model.ID
+    ) async throws -> Model? {
         try Task.checkCancellation()
-        try mapValidation(model: ExampleRecordAdapter.diagnosticName) {
-            try LocalDatabaseValidator.validate(id: id)
+        try mapValidation(Model.self) {
+            try Model.Persistence.validate(id: id)
         }
+        try validateRegistration(Model.self)
         let store = try resolveStore()
         try Task.checkCancellation()
-        return try await store.fetchRecord(id: id)
+        return try await store.fetch(Model.self, id: id)
     }
 
-    func fetchRecords(
-        matching query: ExampleQuery
-    ) async throws -> [ExampleRecord] {
+    func fetch<Model: LocalDatabaseModel>(
+        _ type: Model.Type,
+        matching query: Model.Query
+    ) async throws -> [Model] {
         try Task.checkCancellation()
-        try mapValidation(model: ExampleRecordAdapter.diagnosticName) {
-            try LocalDatabaseValidator.validate(query: query)
+        try mapValidation(Model.self) {
+            try Model.Persistence.validate(query: query)
         }
+        try validateRegistration(Model.self)
         let store = try resolveStore()
         try Task.checkCancellation()
-        return try await store.fetchRecords(matching: query)
+        return try await store.fetch(Model.self, matching: query)
     }
 
-    func upsert(_ record: ExampleRecord) async throws {
+    func upsert<Model: LocalDatabaseModel>(
+        _ value: Model
+    ) async throws {
         try Task.checkCancellation()
-        try mapValidation(model: ExampleRecordAdapter.diagnosticName) {
-            try LocalDatabaseValidator.validate(record: record)
+        try mapValidation(Model.self) {
+            try Model.Persistence.validate(value: value)
         }
+        try validateRegistration(Model.self)
         let store = try resolveStore()
         try Task.checkCancellation()
-        try await store.upsert(record)
+        try await store.upsert(value)
     }
 
-    func upsert(_ records: [ExampleRecord]) async throws {
+    func upsert<Model: LocalDatabaseModel>(
+        _ values: [Model]
+    ) async throws {
         try Task.checkCancellation()
-        try mapValidation(model: ExampleRecordAdapter.diagnosticName) {
-            try LocalDatabaseValidator.validate(records: records)
+        try mapValidation(Model.self) {
+            try LocalDatabaseValidator.validate(values: values)
         }
-        guard !records.isEmpty else { return }
+        try validateRegistration(Model.self)
+        guard !values.isEmpty else { return }
         let store = try resolveStore()
         try Task.checkCancellation()
-        try await store.upsert(records)
+        try await store.upsert(values)
     }
 
-    func deleteRecord(id: String) async throws -> Bool {
+    func delete<Model: LocalDatabaseModel>(
+        _ type: Model.Type,
+        id: Model.ID
+    ) async throws -> Bool {
         try Task.checkCancellation()
-        try mapValidation(model: ExampleRecordAdapter.diagnosticName) {
-            try LocalDatabaseValidator.validate(id: id)
+        try mapValidation(Model.self) {
+            try Model.Persistence.validate(id: id)
         }
+        try validateRegistration(Model.self)
         let store = try resolveStore()
         try Task.checkCancellation()
-        return try await store.deleteRecord(id: id)
+        return try await store.delete(Model.self, id: id)
     }
 
-    func deleteAllRecords() async throws -> Int {
+    func deleteAll<Model: LocalDatabaseModel>(
+        _ type: Model.Type
+    ) async throws -> Int {
         try Task.checkCancellation()
+        try validateRegistration(Model.self)
         let store = try resolveStore()
         try Task.checkCancellation()
-        return try await store.deleteAllRecords()
+        return try await store.deleteAll(Model.self)
     }
 
     private func resolveStore() throws -> SwiftDataLocalStore {
@@ -111,16 +132,38 @@ actor LocalDatabaseService: ILocalDatabaseService {
         }
     }
 
-    private func mapValidation(
-        model: String,
+    private func mapValidation<Model: LocalDatabaseModel>(
+        _ type: Model.Type,
         _ operation: () throws -> Void
     ) throws {
         do {
             try operation()
-        } catch let error as LocalDatabaseValidationError {
+        } catch let reason as LocalDatabaseValidationError {
             throw LocalDatabaseError.validation(
-                model: model,
-                reason: error
+                model: Model.Persistence.diagnosticName,
+                reason: reason
+            )
+        }
+    }
+
+    private func validateRegistration<Model: LocalDatabaseModel>(
+        _ type: Model.Type
+    ) throws {
+        do {
+            try modelRegistry.validateIntegrity()
+        } catch {
+            LocalDatabaseDiagnostics.report(
+                operation: .initialization,
+                entityType: "LocalDatabase",
+                recordCount: 0,
+                error: error
+            )
+            throw LocalDatabaseError.initialization(underlying: error)
+        }
+        guard modelRegistry.contains(Model.Persistence.self) else {
+            throw LocalDatabaseError.validation(
+                model: Model.Persistence.diagnosticName,
+                reason: .unregisteredModel
             )
         }
     }

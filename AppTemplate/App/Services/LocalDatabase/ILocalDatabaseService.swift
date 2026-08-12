@@ -1,15 +1,31 @@
 nonisolated
 protocol ILocalDatabaseService: Sendable {
-    func fetchRecord(id: String) async throws -> ExampleRecord?
-    func fetchRecords(
-        matching query: ExampleQuery
-    ) async throws -> [ExampleRecord]
-    func upsert(_ record: ExampleRecord) async throws
-    func upsert(_ records: [ExampleRecord]) async throws
+    func fetch<Model: LocalDatabaseModel>(
+        _ type: Model.Type,
+        id: Model.ID
+    ) async throws -> Model?
+
+    func fetch<Model: LocalDatabaseModel>(
+        _ type: Model.Type,
+        matching query: Model.Query
+    ) async throws -> [Model]
+
+    func upsert<Model: LocalDatabaseModel>(
+        _ value: Model
+    ) async throws
+
+    func upsert<Model: LocalDatabaseModel>(
+        _ values: [Model]
+    ) async throws
 
     @discardableResult
-    func deleteRecord(id: String) async throws -> Bool
+    func delete<Model: LocalDatabaseModel>(
+        _ type: Model.Type,
+        id: Model.ID
+    ) async throws -> Bool
 
     @discardableResult
-    func deleteAllRecords() async throws -> Int
+    func deleteAll<Model: LocalDatabaseModel>(
+        _ type: Model.Type
+    ) async throws -> Int
 }

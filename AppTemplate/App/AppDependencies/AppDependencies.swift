@@ -11,7 +11,7 @@ struct AppDependencies: Sendable {
     ) -> AppDependencies {
         AppDependencies(
             localDatabase: LocalDatabaseService(
-                containerFactory: LocalDatabaseContainerFactories.live(
+                configuration: .live(
                     locationResolver: localDatabaseStoreLocationResolver
                 )
             ),
@@ -24,7 +24,7 @@ struct AppDependencies: Sendable {
     static func uiTesting(initialState: AppState) -> AppDependencies {
         AppDependencies(
             localDatabase: LocalDatabaseService(
-                containerFactory: LocalDatabaseContainerFactories.inMemory()
+                configuration: .inMemory()
             ),
             remote: RemoteService(),
             appStateStorage: InMemoryAppStateStorage(initialState: initialState),
@@ -41,7 +41,7 @@ struct AppDependencies: Sendable {
         settings: SettingsDependencies,
         appStateStorage: any IAppStateStorage = InMemoryAppStateStorage(),
         localDatabaseService: any ILocalDatabaseService = LocalDatabaseService(
-            containerFactory: LocalDatabaseContainerFactories.inMemory()
+            configuration: .inMemory()
         ),
         remoteService: any IRemoteService = RemoteService()
     ) -> AppDependencies {

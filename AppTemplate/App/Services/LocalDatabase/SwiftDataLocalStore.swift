@@ -40,16 +40,6 @@ actor SwiftDataLocalStore {
         }
     }
 
-    func fetchRecord(id: String) throws -> ExampleRecord? {
-        try fetch(ExampleRecord.self, id: id)
-    }
-
-    func fetchRecords(
-        matching query: ExampleQuery
-    ) throws -> [ExampleRecord] {
-        try fetch(ExampleRecord.self, matching: query)
-    }
-
     func fetch<Model: LocalDatabaseModel>(
         _ type: Model.Type,
         matching query: Model.Query
@@ -183,10 +173,6 @@ actor SwiftDataLocalStore {
         }
     }
 
-    func deleteRecord(id: String) throws -> Bool {
-        try delete(ExampleRecord.self, id: id)
-    }
-
     func deleteAll<Model: LocalDatabaseModel>(
         _ type: Model.Type
     ) throws -> Int {
@@ -218,10 +204,6 @@ actor SwiftDataLocalStore {
                 recordCount: recordCount
             )
         }
-    }
-
-    func deleteAllRecords() throws -> Int {
-        try deleteAll(ExampleRecord.self)
     }
 
     private func makeOperationContext() -> ModelContext {

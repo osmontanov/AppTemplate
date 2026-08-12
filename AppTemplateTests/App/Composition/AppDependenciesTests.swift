@@ -15,7 +15,7 @@ struct AppDependenciesTests {
     }
 
     @Test
-    func liveGraphDefersResolverUntilFirstValidDatabaseOperation() async {
+    func liveGraphDefersResolverUntilFirstValidRegisteredOperation() async {
         let calls = Mutex(0)
         let dependencies = AppDependencies.live(
             localDatabaseStoreLocationResolver: .init(resolve: {
@@ -26,7 +26,10 @@ struct AppDependenciesTests {
 
         #expect(calls.withLock { $0 } == 0)
         do {
-            _ = try await dependencies.localDatabase.fetchRecord(id: "record-1")
+            _ = try await dependencies.localDatabase.fetch(
+                ExampleRecord.self,
+                id: "record-1"
+            )
             Issue.record("Expected initialization failure")
         } catch let error as LocalDatabaseError {
             guard case .initialization = error else {
@@ -50,7 +53,10 @@ struct AppDependenciesTests {
             ExampleRecord(id: "preview", payload: "first")
         )
         #expect(
-            try await secondPreview.localDatabase.fetchRecord(id: "preview")
+            try await secondPreview.localDatabase.fetch(
+                ExampleRecord.self,
+                id: "preview"
+            )
                 == nil
         )
 
@@ -65,8 +71,29 @@ struct AppDependenciesTests {
             ExampleRecord(id: "ui", payload: "first")
         )
         #expect(
-            try await secondUI.localDatabase.fetchRecord(id: "ui") == nil
+            try await secondUI.localDatabase.fetch(
+                ExampleRecord.self,
+                id: "ui"
+            ) == nil
         )
+    }
+
+    @Test
+    func previewAndUITestingGraphsRejectTestOnlyModel() async {
+        let settings = SettingsDependencies(
+            appInfo: AppInfoService(displayName: "Preview", version: "1")
+        )
+        let preview = AppDependencies.preview(settings: settings)
+        let uiTesting = AppDependencies.uiTesting(
+            initialState: AppState(
+                isAuthenticated: false,
+                hasCompletedOnboarding: false,
+                isMaintenanceEnabled: false
+            )
+        )
+
+        await expectUnregisteredTestModel(preview.localDatabase)
+        await expectUnregisteredTestModel(uiTesting.localDatabase)
     }
 
     @Test
@@ -190,17 +217,54 @@ private func decodedState(from storage: InMemoryAppStateStorage) throws -> AppSt
     return try JSONDecoder().decode(AppState.self, from: data)
 }
 
+private func expectUnregisteredTestModel(
+    _ service: any ILocalDatabaseService
+) async {
+    do {
+        _ = try await service.fetch(
+            TestLocalRecord.self,
+            id: TestLocalRecordID(rawValue: 1)
+        )
+        Issue.record("Expected LocalDatabaseError.validation")
+    } catch let error as LocalDatabaseError {
+        guard case let .validation(model, reason) = error else {
+            Issue.record("Expected LocalDatabaseError.validation")
+            return
+        }
+        #expect(model == TestLocalRecordAdapter.diagnosticName)
+        #expect(reason == .unregisteredModel)
+    } catch {
+        Issue.record("Unexpected error type: \(type(of: error))")
+    }
+}
+
 private actor InjectedLocalDatabaseService: ILocalDatabaseService {
-    func fetchRecord(id: String) async throws -> ExampleRecord? { nil }
+    func fetch<Model: LocalDatabaseModel>(
+        _ type: Model.Type,
+        id: Model.ID
+    ) async throws -> Model? { nil }
 
-    func fetchRecords(
-        matching query: ExampleQuery
-    ) async throws -> [ExampleRecord] { [] }
+    func fetch<Model: LocalDatabaseModel>(
+        _ type: Model.Type,
+        matching query: Model.Query
+    ) async throws -> [Model] { [] }
 
-    func upsert(_ record: ExampleRecord) async throws {}
-    func upsert(_ records: [ExampleRecord]) async throws {}
-    func deleteRecord(id: String) async throws -> Bool { false }
-    func deleteAllRecords() async throws -> Int { 0 }
+    func upsert<Model: LocalDatabaseModel>(
+        _ value: Model
+    ) async throws {}
+
+    func upsert<Model: LocalDatabaseModel>(
+        _ values: [Model]
+    ) async throws {}
+
+    func delete<Model: LocalDatabaseModel>(
+        _ type: Model.Type,
+        id: Model.ID
+    ) async throws -> Bool { false }
+
+    func deleteAll<Model: LocalDatabaseModel>(
+        _ type: Model.Type
+    ) async throws -> Int { 0 }
 }
 private actor InjectedRemoteService: IRemoteService {
     func fetchExample(

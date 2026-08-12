@@ -31,6 +31,49 @@ struct LocalDatabaseContractTests {
         #expect(LocalDatabaseMigrationPlan.schemas.count == 1)
         #expect(LocalDatabaseMigrationPlan.stages.isEmpty)
     }
+
+    @Test
+    func genericServiceContractIsCallableThroughExistential() async throws {
+        let service: any ILocalDatabaseService = GenericNoOpDatabase()
+        #expect(
+            try await service.fetch(ExampleRecord.self, id: "id") == nil
+        )
+        #expect(
+            try await service.fetch(
+                TestLocalRecord.self,
+                matching: TestLocalQuery()
+            ).isEmpty
+        )
+    }
+}
+
+actor GenericNoOpDatabase: ILocalDatabaseService {
+    func fetch<Model: LocalDatabaseModel>(
+        _ type: Model.Type,
+        id: Model.ID
+    ) async throws -> Model? { nil }
+
+    func fetch<Model: LocalDatabaseModel>(
+        _ type: Model.Type,
+        matching query: Model.Query
+    ) async throws -> [Model] { [] }
+
+    func upsert<Model: LocalDatabaseModel>(
+        _ value: Model
+    ) async throws {}
+
+    func upsert<Model: LocalDatabaseModel>(
+        _ values: [Model]
+    ) async throws {}
+
+    func delete<Model: LocalDatabaseModel>(
+        _ type: Model.Type,
+        id: Model.ID
+    ) async throws -> Bool { false }
+
+    func deleteAll<Model: LocalDatabaseModel>(
+        _ type: Model.Type
+    ) async throws -> Int { 0 }
 }
 
 private func requireModelAssociation<Model: LocalDatabaseModel>(

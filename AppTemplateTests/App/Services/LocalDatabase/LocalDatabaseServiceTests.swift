@@ -4,39 +4,106 @@ import Testing
 
 struct LocalDatabaseServiceTests {
     @Test
-    func invalidInputAndEmptyBatchDoNotInitializeStore() async throws {
+    func invalidExampleInputAndEmptyRegisteredBatchDoNotInitializeStore()
+        async throws
+    {
         let recorder = LocalDatabaseContainerFactoryRecorder { _ in
             try makeInMemoryLocalDatabaseContainer()
         }
         let service = LocalDatabaseService(
-            containerFactory: recorder.factory
+            configuration: recorder.configuration()
         )
 
         await expectValidation(.emptyID) {
-            _ = try await service.fetchRecord(id: " \n")
+            _ = try await service.fetch(ExampleRecord.self, id: " \n")
         }
         await expectValidation(
             .invalidLimit(actual: 0, allowed: 1...200)
         ) {
-            _ = try await service.fetchRecords(
+            _ = try await service.fetch(
+                ExampleRecord.self,
                 matching: ExampleQuery(limit: 0)
             )
         }
-        try await service.upsert([])
+        try await service.upsert([ExampleRecord]())
         #expect(recorder.callCount == 0)
     }
 
     @Test
-    func preCancellationPrecedesValidationAndInitialization() async {
+    func unregisteredModelFailsBeforeStoreInitialization() async {
         let recorder = LocalDatabaseContainerFactoryRecorder { _ in
             try makeInMemoryLocalDatabaseContainer()
         }
         let service = LocalDatabaseService(
-            containerFactory: recorder.factory
+            configuration: recorder.configuration()
+        )
+
+        await expectValidation(
+            .unregisteredModel,
+            model: TestLocalRecordAdapter.diagnosticName
+        ) {
+            _ = try await service.fetch(
+                TestLocalRecord.self,
+                id: TestLocalRecordID(rawValue: 1)
+            )
+        }
+        #expect(recorder.callCount == 0)
+    }
+
+    @Test
+    func emptyUnregisteredBatchFailsBeforeNoOpAndInitialization() async {
+        let recorder = LocalDatabaseContainerFactoryRecorder { _ in
+            try makeInMemoryLocalDatabaseContainer()
+        }
+        let service = LocalDatabaseService(
+            configuration: recorder.configuration()
+        )
+
+        await expectValidation(
+            .unregisteredModel,
+            model: TestLocalRecordAdapter.diagnosticName
+        ) {
+            try await service.upsert([TestLocalRecord]())
+        }
+        #expect(recorder.callCount == 0)
+    }
+
+    @Test
+    func invalidRegistryFailsBeforeContainerFactory() async {
+        let recorder = LocalDatabaseContainerFactoryRecorder { _ in
+            try makeInMemoryLocalDatabaseContainer()
+        }
+        let invalidRegistry = LocalDatabaseModelRegistry(adapters: [
+            ExampleRecordAdapter.self,
+            ExampleRecordAdapter.self
+        ])
+        let service = LocalDatabaseService(
+            configuration: recorder.configuration(registry: invalidRegistry)
+        )
+
+        await expectInitializationFailure {
+            try await service.upsert([ExampleRecord]())
+        }
+        #expect(recorder.callCount == 0)
+    }
+
+    @Test
+    func preCancellationPrecedesValidationRegistrationAndInitialization()
+        async
+    {
+        let recorder = LocalDatabaseContainerFactoryRecorder { _ in
+            try makeInMemoryLocalDatabaseContainer()
+        }
+        let invalidRegistry = LocalDatabaseModelRegistry(adapters: [
+            ExampleRecordAdapter.self,
+            ExampleRecordAdapter.self
+        ])
+        let service = LocalDatabaseService(
+            configuration: recorder.configuration(registry: invalidRegistry)
         )
 
         let result = await resultOfPreCancelledChildTask {
-            try await service.fetchRecord(id: "")
+            try await service.fetch(ExampleRecord.self, id: "")
         }
 
         guard case let .failure(error) = result else {
@@ -48,12 +115,12 @@ struct LocalDatabaseServiceTests {
     }
 
     @Test
-    func validAndConcurrentCallsInitializeExactlyOnce() async throws {
+    func validConcurrentGenericCallsInitializeExactlyOnce() async throws {
         let recorder = LocalDatabaseContainerFactoryRecorder { _ in
             try makeInMemoryLocalDatabaseContainer()
         }
         let service = LocalDatabaseService(
-            containerFactory: recorder.factory
+            configuration: recorder.configuration()
         )
 
         try await withThrowingTaskGroup(of: Void.self) { group in
@@ -72,102 +139,130 @@ struct LocalDatabaseServiceTests {
 
         #expect(recorder.callCount == 1)
         #expect(
-            try await service.fetchRecords(
+            try await service.fetch(
+                ExampleRecord.self,
                 matching: ExampleQuery(limit: 200)
             ).count == 100
         )
     }
 
     @Test
-    func factoryCancellationIsRetriedButOtherFailureIsCached() async throws {
-        let cancelled = LocalDatabaseContainerFactoryRecorder { invocation in
+    func bootstrapCancellationRetries() async throws {
+        let recorder = LocalDatabaseContainerFactoryRecorder { invocation in
             if invocation == 1 { throw CancellationError() }
             return try makeInMemoryLocalDatabaseContainer()
         }
-        let retryingService = LocalDatabaseService(
-            containerFactory: cancelled.factory
+        let service = LocalDatabaseService(
+            configuration: recorder.configuration()
         )
+
         await expectCancellation {
-            _ = try await retryingService.fetchRecord(id: "record-1")
+            _ = try await service.fetch(ExampleRecord.self, id: "record-1")
         }
         #expect(
-            try await retryingService.fetchRecord(id: "record-1") == nil
+            try await service.fetch(ExampleRecord.self, id: "record-1") == nil
         )
-        #expect(cancelled.callCount == 2)
+        #expect(recorder.callCount == 2)
+    }
 
-        let failed = LocalDatabaseContainerFactoryRecorder { _ in
+    @Test
+    func nonCancellationBootstrapFailureIsCached() async {
+        let recorder = LocalDatabaseContainerFactoryRecorder { _ in
             throw LocalDatabaseTestError.injectedFailure
         }
-        let failedService = LocalDatabaseService(
-            containerFactory: failed.factory
+        let service = LocalDatabaseService(
+            configuration: recorder.configuration()
+        )
+
+        await expectInitializationFailure {
+            _ = try await service.fetch(ExampleRecord.self, id: "record-1")
+        }
+        await expectInitializationFailure {
+            _ = try await service.fetch(ExampleRecord.self, id: "record-2")
+        }
+        #expect(recorder.callCount == 1)
+    }
+
+    @Test
+    func validationRegistrationNoOpAndCancellationPrecedeCachedFailure()
+        async throws
+    {
+        let recorder = LocalDatabaseContainerFactoryRecorder { _ in
+            throw LocalDatabaseTestError.injectedFailure
+        }
+        let service = LocalDatabaseService(
+            configuration: recorder.configuration()
         )
         await expectInitializationFailure {
-            _ = try await failedService.fetchRecord(id: "record-1")
+            _ = try await service.fetch(ExampleRecord.self, id: "record-1")
         }
-        await expectInitializationFailure {
-            _ = try await failedService.fetchRecord(id: "record-2")
-        }
-        #expect(failed.callCount == 1)
 
         await expectValidation(.emptyID) {
-            _ = try await failedService.fetchRecord(id: "")
+            _ = try await service.fetch(ExampleRecord.self, id: "")
         }
-        try await failedService.upsert([])
+        await expectValidation(
+            .unregisteredModel,
+            model: TestLocalRecordAdapter.diagnosticName
+        ) {
+            _ = try await service.deleteAll(TestLocalRecord.self)
+        }
+        try await service.upsert([ExampleRecord]())
         let preCancelled = await resultOfPreCancelledChildTask {
-            try await failedService.fetchRecord(id: "record-3")
+            try await service.fetch(ExampleRecord.self, id: "record-3")
         }
         guard case let .failure(preCancelledError) = preCancelled else {
             Issue.record("Expected CancellationError")
             return
         }
         #expect(preCancelledError is CancellationError)
-        #expect(failed.callCount == 1)
+        #expect(recorder.callCount == 1)
     }
 
     @Test
-    func cancellationRaisedBySuccessfulFactoryIsObservedBeforeEngineWork() async throws {
+    func successfulFactoryCancellationIsObservedBeforeEngineWork()
+        async throws
+    {
         let recorder = LocalDatabaseContainerFactoryRecorder { invocation in
             if invocation == 1 {
                 withUnsafeCurrentTask { $0?.cancel() }
             }
             return try makeInMemoryLocalDatabaseContainer()
         }
-        let service = LocalDatabaseService(containerFactory: recorder.factory)
-        let first = Task { () -> Result<ExampleRecord?, any Error> in
-            do {
-                return .success(
-                    try await service.fetchRecord(id: "record-1")
-                )
-            } catch {
-                return .failure(error)
-            }
+        let service = LocalDatabaseService(
+            configuration: recorder.configuration()
+        )
+        let first: Result<ExampleRecord?, any Error> = await resultOfChildTask {
+            try await service.fetch(ExampleRecord.self, id: "record-1")
         }
 
-        guard case let .failure(error) = await first.value else {
+        guard case let .failure(error) = first else {
             Issue.record("Expected CancellationError")
             return
         }
         #expect(error is CancellationError)
         #expect(recorder.callCount == 1)
-        #expect(try await service.fetchRecord(id: "record-1") == nil)
+        #expect(
+            try await service.fetch(ExampleRecord.self, id: "record-1") == nil
+        )
         #expect(recorder.callCount == 2)
     }
 }
 
 private func expectValidation(
     _ expected: LocalDatabaseValidationError,
+    model: String = ExampleRecordAdapter.diagnosticName,
     operation: () async throws -> Void
 ) async {
     do {
         try await operation()
         Issue.record("Expected LocalDatabaseError.validation")
     } catch let error as LocalDatabaseError {
-        guard case let .validation(model, actual) = error else {
+        guard case let .validation(actualModel, actualReason) = error else {
             Issue.record("Expected LocalDatabaseError.validation")
             return
         }
-        #expect(model == ExampleRecordAdapter.diagnosticName)
-        #expect(actual == expected)
+        #expect(actualModel == model)
+        #expect(actualReason == expected)
     } catch {
         Issue.record("Unexpected error type: \(type(of: error))")
     }
@@ -206,10 +301,13 @@ extension LocalDatabaseServiceTests {
         let recorder = LocalDatabaseContainerFactoryRecorder { _ in
             try makeInMemoryLocalDatabaseContainer()
         }
-        let service = LocalDatabaseService(containerFactory: recorder.factory)
+        let service = LocalDatabaseService(
+            configuration: recorder.configuration()
+        )
 
         #expect(
-            try await service.fetchRecords(
+            try await service.fetch(
+                ExampleRecord.self,
                 matching: ExampleQuery(limit: limit)
             ).isEmpty
         )
@@ -221,12 +319,15 @@ extension LocalDatabaseServiceTests {
         let recorder = LocalDatabaseContainerFactoryRecorder { _ in
             try makeInMemoryLocalDatabaseContainer()
         }
-        let service = LocalDatabaseService(containerFactory: recorder.factory)
+        let service = LocalDatabaseService(
+            configuration: recorder.configuration()
+        )
 
         await expectValidation(
             .invalidLimit(actual: limit, allowed: 1...200)
         ) {
-            _ = try await service.fetchRecords(
+            _ = try await service.fetch(
+                ExampleRecord.self,
                 matching: ExampleQuery(limit: limit)
             )
         }
@@ -238,21 +339,25 @@ extension LocalDatabaseServiceTests {
         let recorder = LocalDatabaseContainerFactoryRecorder { _ in
             try makeInMemoryLocalDatabaseContainer()
         }
-        let service = LocalDatabaseService(containerFactory: recorder.factory)
+        let service = LocalDatabaseService(
+            configuration: recorder.configuration()
+        )
 
         await expectValidation(.emptyID) {
-            _ = try await service.deleteRecord(id: id)
+            _ = try await service.delete(ExampleRecord.self, id: id)
         }
         #expect(recorder.callCount == 0)
     }
 
     @Test
-    func batchOfFiveHundredSucceedsAndFiveHundredOneFailsBeforeInitialization() async throws {
+    func batchOfFiveHundredSucceedsAndFiveHundredOneFailsBeforeInitialization()
+        async throws
+    {
         let validRecorder = LocalDatabaseContainerFactoryRecorder { _ in
             try makeInMemoryLocalDatabaseContainer()
         }
         let validService = LocalDatabaseService(
-            containerFactory: validRecorder.factory
+            configuration: validRecorder.configuration()
         )
         let fiveHundred = (0..<500).map {
             ExampleRecord(id: "valid-\($0)", payload: "value")
@@ -264,7 +369,7 @@ extension LocalDatabaseServiceTests {
             try makeInMemoryLocalDatabaseContainer()
         }
         let invalidService = LocalDatabaseService(
-            containerFactory: invalidRecorder.factory
+            configuration: invalidRecorder.configuration()
         )
         let fiveHundredOne = (0..<501).map {
             ExampleRecord(id: "invalid-\($0)", payload: "value")
@@ -283,7 +388,7 @@ extension LocalDatabaseServiceTests {
             try makeInMemoryLocalDatabaseContainer()
         }
         let duplicateService = LocalDatabaseService(
-            containerFactory: duplicateRecorder.factory
+            configuration: duplicateRecorder.configuration()
         )
         await expectValidation(.duplicateID) {
             try await duplicateService.upsert([
@@ -297,7 +402,7 @@ extension LocalDatabaseServiceTests {
             try makeInMemoryLocalDatabaseContainer()
         }
         let distinctService = LocalDatabaseService(
-            containerFactory: distinctRecorder.factory
+            configuration: distinctRecorder.configuration()
         )
         try await distinctService.upsert([
             ExampleRecord(id: "same", payload: "one"),
@@ -313,7 +418,9 @@ extension LocalDatabaseServiceTests {
         let recorder = LocalDatabaseContainerFactoryRecorder { _ in
             try makeInMemoryLocalDatabaseContainer()
         }
-        let service = LocalDatabaseService(containerFactory: recorder.factory)
+        let service = LocalDatabaseService(
+            configuration: recorder.configuration()
+        )
 
         let result = await resultOfPreCancelledChildTask {
             try await invocation.invoke(on: service)

@@ -147,9 +147,12 @@ enum LocalDatabasePreCancelledInvocation:
     func invoke(on service: any ILocalDatabaseService) async throws {
         switch self {
         case .fetchOne:
-            _ = try await service.fetchRecord(id: "record-1")
+            _ = try await service.fetch(ExampleRecord.self, id: "record-1")
         case .fetchMany:
-            _ = try await service.fetchRecords(matching: ExampleQuery())
+            _ = try await service.fetch(
+                ExampleRecord.self,
+                matching: ExampleQuery()
+            )
         case .upsertOne:
             try await service.upsert(
                 ExampleRecord(id: "record-1", payload: "value")
@@ -159,9 +162,9 @@ enum LocalDatabasePreCancelledInvocation:
                 ExampleRecord(id: "record-1", payload: "value")
             ])
         case .deleteOne:
-            _ = try await service.deleteRecord(id: "record-1")
+            _ = try await service.delete(ExampleRecord.self, id: "record-1")
         case .deleteAll:
-            _ = try await service.deleteAllRecords()
+            _ = try await service.deleteAll(ExampleRecord.self)
         }
     }
 }
@@ -191,6 +194,16 @@ private actor ControlledLocalDatabaseOperationStart {
         releaseWaiter?.resume()
         releaseWaiter = nil
     }
+}
+
+nonisolated
+func resultOfChildTask<Value: Sendable>(
+    _ operation: @escaping @Sendable () async throws -> Value
+) async -> Result<Value, any Error> {
+    await Task {
+        do { return .success(try await operation()) }
+        catch { return .failure(error) }
+    }.value
 }
 
 nonisolated
