@@ -110,9 +110,34 @@ Continue to apply these product decisions before shipping:
 6. Keep `AppStateStore` in UserDefaults unless an independently designed
    asynchronous startup and migration flow replaces it.
 
-`AppStateStore` remains UserDefaults-owned synchronous launch state. Moving it
-to a `UserDefaultsService`, and introducing a separate `KeychainService`, are
-future cycles; neither is part of this local-persistence implementation.
+### Typed UserDefaults settings
+
+`AppStateStore` remains synchronous UserDefaults-owned launch state through
+`UserDefaultsAppStateStorage`. Keep that startup path synchronous unless an
+independently designed asynchronous launch, migration, and root-selection flow
+replaces it.
+
+Declare each product setting as a fixed typed key in its semantic storage
+adapter or repository, for example:
+
+```swift
+private static let appearanceKey: UserDefaultsKey<String> =
+    .string("Appearance")
+```
+
+Choose one stable service namespace and one stable logical name for every key;
+after release, changing either changes the physical key and requires an
+explicitly designed migration. Use a native factory (`.bool`, `.int`,
+`.float`, `.double`, `.string`, `.data`, or `.date`) when the property-list
+representation is the intended compatibility contract. Use `.codable` only
+when JSON stored as raw `Data` is the intended long-term representation, and
+do not switch factories for a shipped logical key.
+
+Keys are compile-time constants, never values derived from user input, account
+IDs, routes, remote configuration, or other arbitrary data. UserDefaults is
+for nonsensitive app-private settings only; passwords, credentials, tokens,
+private keys, and other secrets require a separately designed
+`KeychainService` and product data policy.
 
 ### Remote service
 

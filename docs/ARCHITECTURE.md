@@ -40,9 +40,32 @@ Onboarding, Authentication, Maintenance, or Main root from the saved facts.
 
 This launch-policy state remains owned by `AppStateStore` and
 `IAppStateStorage` in UserDefaults. The local SwiftData reference store does not
-participate in root selection or startup restoration. A `UserDefaultsService`
-followed by a separate `KeychainService` are future cycles, not part of this
-implementation.
+participate in root selection or startup restoration.
+
+The typed persistence path is:
+
+```text
+UserDefaultsKey
+  -> UserDefaultsService
+  -> UserDefaultsAppStateStorage
+  -> AppStateStore
+```
+
+`UserDefaultsKey<Data>.data("AppState")` supplies the fixed logical name and
+raw-Data codec. The live `UserDefaultsService` supplies the stable
+`AppTemplate` namespace, so the physical record remains exactly
+`AppTemplate.AppState`. Existing bytes pass through
+`UserDefaultsAppStateStorage` unchanged; AppState JSON encoding, schema
+inspection, repair, and future-schema protection stay in `AppStateStore`.
+
+`UserDefaultsService` is the one lock-confined raw UserDefaults boundary. Raw
+reads and mutations are serialized, while typed codecs execute outside the
+lock. The API is synchronous because root policy is needed during startup, but
+a successful set or removal means Foundation accepted/enqueued the mutation,
+not that it was fsynced to persistent media. Application-level "persisted"
+results mean the synchronous storage boundary accepted the mutation before
+in-memory policy changed. Secrets remain outside this path and require a
+separate Keychain boundary.
 
 Screen actions do not choose roots directly. `IAuthenticationActions`,
 `IOnboardingActions`, and `IMaintenanceActions` expose narrow semantic

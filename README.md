@@ -51,10 +51,10 @@ cross-process access. Add each product model deliberately to the schema and
 registry; do not encode unrelated domain data into `payload` merely to reuse
 `ExampleRecord`.
 
-`AppStateStore` remains a separate UserDefaults-backed launch-policy store. It
-is not migrated to SwiftData by this reference implementation. A
-`UserDefaultsService` and then a separate `KeychainService` are future cycles,
-not part of this implementation.
+`AppStateStore` remains separate from SwiftData and now uses a synchronous,
+typed app-private UserDefaults boundary for its launch-policy record. This
+boundary is for nonsensitive settings only; secrets still belong in a separate
+future `KeychainService`.
 
 ## Documentation
 

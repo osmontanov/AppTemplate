@@ -60,6 +60,9 @@ Complete this checklist for the adopted product, not for the untouched sample.
   treated as errors; perform distribution signing/archive checks separately.
 - [ ] Review the schema-1 app-state model, storage key, recovery behavior, and
   migration policy against every previously shipped version.
+- [ ] Preserve the exact `AppTemplate.AppState` physical key and raw `Data`
+  representation, or ship and test an explicit namespace/logical-key or value
+  migration; verify existing AppState bytes still load and save unchanged.
 - [ ] Review scene navigation restoration and migrations for every previously
   shipped navigation snapshot schema.
 
@@ -67,6 +70,10 @@ Complete this checklist for the adopted product, not for the untouched sample.
 
 - [ ] Add and validate the product-specific `PrivacyInfo.xcprivacy`, including
   required-reason API declarations and the manifests of included SDKs.
+- [ ] Review `NSPrivacyAccessedAPICategoryUserDefaults` against the shipped app
+  and every included SDK. Use `CA92.1` only when the final behavior remains
+  app-private standard-defaults access and revalidate the approved reason at
+  release time.
 - [ ] Audit data collection, tracking, retention, deletion, encryption,
   credentials, logs, and network transport against the product privacy policy.
 - [ ] Add only necessary permission usage descriptions, capabilities, and
@@ -77,6 +84,9 @@ Complete this checklist for the adopted product, not for the untouched sample.
   `com.apple.security.app-sandbox = true` and
   `com.apple.security.network.client = true`, and require
   `com.apple.security.network.server` to be absent.
+- [ ] Require `com.apple.security.application-groups` to be absent from source
+  and signed app entitlements unless an independently designed App Group,
+  shared-suite, and cross-process policy has been implemented and tested.
 - [ ] Inspect the archive's signing identities, embedded profiles, entitlements,
   bundled SDKs, debug symbols, and privacy manifests.
 
