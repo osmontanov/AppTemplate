@@ -270,25 +270,37 @@ struct SwiftDataLocalStoreQueryTests {
     }
 
     @Test
-    func fetchManyCheckpointFailureMapsReadOperation() async throws {
+    func fetchManyProgressFailureMapsModelOperationAndUnderlyingError() async throws {
         let recorder = LocalDatabaseHookRecorder(
-            failingCheckpoint: .read(.fetchMany)
+            failingCheckpoint: .readProgress(.fetchMany)
         )
         let store = try makeInMemoryLocalStore(hooks: recorder.hooks())
+        try await store.upsert(
+            (0..<128).map {
+                ExampleRecord(
+                    id: String(format: "item-%03d", $0),
+                    payload: "haystack"
+                )
+            }
+        )
 
         do {
             _ = try await store.fetch(
                 ExampleRecord.self,
-                matching: ExampleQuery()
+                matching: ExampleQuery(searchText: "missing")
             )
             Issue.record("Expected read failure")
         } catch let error as LocalDatabaseError {
-            guard case let .read(model, operation, _) = error else {
+            guard case let .read(model, operation, underlying) = error else {
                 Issue.record("Expected LocalDatabaseError.read")
                 return
             }
             #expect(model == ExampleRecordAdapter.diagnosticName)
             #expect(operation == .fetchMany)
+            #expect(
+                (underlying as? LocalDatabaseTestError)
+                    == .injectedFailure
+            )
         }
     }
 }
