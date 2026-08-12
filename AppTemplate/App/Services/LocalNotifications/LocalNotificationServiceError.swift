@@ -24,6 +24,7 @@ enum LocalNotificationTriggerFailure: String, Codable, CaseIterable, Hashable, S
 
 nonisolated
 enum LocalNotificationCategoryFailure: String, Codable, CaseIterable, Hashable, Sendable {
+    case unknownCategory
     case duplicateCategoryID
     case duplicateActionID
     case tooManyActions
