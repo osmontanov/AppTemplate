@@ -1640,20 +1640,27 @@ test -z "$(rg -n '@unchecked Sendable|unsafeBitCast' AppTemplate/App/Services/Ke
 test "$(rg -n '@unchecked Sendable' \
   AppTemplateTests/App/Services/Keychain/SecurityKeychainSecItemExecutorTests.swift \
   | wc -l | tr -d ' ')" = 1
-rg -q '^nonisolated final class MutableCFDataSource: @unchecked Sendable {' \
+rg -qF 'nonisolated final class MutableCFDataSource: @unchecked Sendable {' \
   AppTemplateTests/App/Services/Keychain/SecurityKeychainSecItemExecutorTests.swift
 rg -q 'unsafeDowncast' AppTemplate/App/Services/Keychain/Internal/SecurityKeychainSecItemExecutor.swift
-rg -q 'Data(bytes: bytes, count: count)' \
+rg -qF 'Data(bytes: bytes, count: count)' \
   AppTemplate/App/Services/Keychain/Internal/SecurityKeychainSecItemExecutor.swift
 test -z "$(rg -n 'Data\(referencing:|bytesNoCopy' \
   AppTemplate/App/Services/Keychain/Internal/SecurityKeychainSecItemExecutor.swift)"
-rg -q 'security\.add(attributes as CFDictionary, nil)' \
+rg -qF 'security.add(attributes as CFDictionary, nil)' \
   AppTemplate/App/Services/Keychain/Internal/SecurityKeychainSecItemExecutor.swift
 rg -q 'value \? kCFBooleanTrue! : kCFBooleanFalse!' \
   AppTemplate/App/Services/Keychain/Internal/SecurityKeychainSecItemExecutor.swift
-rg -q '^nonisolated private func requiredCFBoolean(_ value: Bool) -> CFBoolean {' \
+rg -qF 'nonisolated private func requiredCFBoolean(_ value: Bool) -> CFBoolean {' \
   AppTemplate/App/Services/Keychain/Internal/SecurityKeychainSecItemExecutor.swift
 ```
+
+The four punctuated positive source oracles above are fixed-string searches:
+`rg -qF` prevents their parentheses, dots, and braces from being interpreted as
+regular expressions, while the negative regex guards remain regular
+expressions. Before accepting this plan amendment, run every Step 5 source
+guard under both Bash and Zsh against the Task 2 files; the exhaustive probe
+must record that all other Task 2 guards still pass.
 
 Perform and restore these mutations, using a fresh bundle for every expected failure:
 
