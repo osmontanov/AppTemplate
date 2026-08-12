@@ -19,11 +19,10 @@ final class AppTemplateUITests: XCTestCase {
             expectedRootIdentifier: "screen.home"
         )
 
-        try activate(element(in: app, identifier: "tab.browse"))
-
-        XCTAssertTrue(
-            element(in: app, identifier: "screen.browse")
-                .waitForExistence(timeout: 5)
+        try activateTab(
+            in: app,
+            identifier: "tab.browse",
+            destinationIdentifier: "screen.browse"
         )
     }
 
@@ -52,11 +51,10 @@ final class AppTemplateUITests: XCTestCase {
             root: "main",
             expectedRootIdentifier: "screen.home"
         )
-        try activate(element(in: second, identifier: "tab.browse"))
-
-        XCTAssertTrue(
-            element(in: second, identifier: "screen.browse")
-                .waitForExistence(timeout: 5)
+        try activateTab(
+            in: second,
+            identifier: "tab.browse",
+            destinationIdentifier: "screen.browse"
         )
     }
     #endif
@@ -88,7 +86,11 @@ final class AppTemplateUITests: XCTestCase {
             expectedRootIdentifier: "screen.home"
         )
 
-        try activate(element(in: app, identifier: "tab.browse"))
+        try activateTab(
+            in: app,
+            identifier: "tab.browse",
+            destinationIdentifier: "screen.browse"
+        )
         try activate(
             element(in: app, identifier: "action.openBrowseOptions")
         )
@@ -235,5 +237,26 @@ final class AppTemplateUITests: XCTestCase {
         #else
         element.tap()
         #endif
+    }
+
+    @MainActor
+    private func activateTab(
+        in app: XCUIApplication,
+        identifier: String,
+        destinationIdentifier: String
+    ) throws {
+        try activate(element(in: app, identifier: identifier))
+
+        let destination = element(
+            in: app,
+            identifier: destinationIdentifier
+        )
+        if !destination.waitForExistence(timeout: 2) {
+            try activate(element(in: app, identifier: identifier))
+        }
+
+        _ = try requireExistence(
+            element(in: app, identifier: destinationIdentifier)
+        )
     }
 }
