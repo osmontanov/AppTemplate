@@ -69,6 +69,18 @@ enum LocalNotificationValidator {
     }
 
     static func validate(trigger: LocalNotificationTrigger) throws {
+        try validate(
+            trigger: trigger,
+            calendar: deterministicCalendar,
+            referenceDate: deterministicReferenceDate
+        )
+    }
+
+    static func validate(
+        trigger: LocalNotificationTrigger,
+        calendar: Calendar,
+        referenceDate: Date
+    ) throws {
         switch trigger {
         case .immediate:
             return
@@ -77,7 +89,7 @@ enum LocalNotificationValidator {
                 throw LocalNotificationServiceError.invalidTrigger(.invalidTimeInterval)
             }
         case let .calendar(components, _):
-            try validate(calendar: components)
+            try validate(calendar: components, fallbackCalendar: calendar, referenceDate: referenceDate)
         }
     }
 
@@ -162,7 +174,11 @@ enum LocalNotificationValidator {
         }
     }
 
-    private static func validate(calendar components: DateComponents) throws {
+    private static func validate(
+        calendar components: DateComponents,
+        fallbackCalendar: Calendar,
+        referenceDate: Date
+    ) throws {
         guard components.nanosecond == nil, components.isLeapMonth == nil else {
             throw LocalNotificationServiceError.invalidTrigger(.unsupportedCalendarComponent)
         }
@@ -174,11 +190,18 @@ enum LocalNotificationValidator {
         guard supported else {
             throw LocalNotificationServiceError.invalidTrigger(.missingCalendarComponent)
         }
-        let calendar = components.calendar ?? Calendar.current
-        guard calendar.nextDate(after: .now, matching: components, matchingPolicy: .strict) != nil else {
+        let calendar = components.calendar ?? fallbackCalendar
+        guard calendar.nextDate(after: referenceDate, matching: components, matchingPolicy: .strict) != nil else {
             throw LocalNotificationServiceError.invalidTrigger(.noNextTriggerDate)
         }
     }
+
+    private static let deterministicReferenceDate = Date(timeIntervalSince1970: 1_700_000_000)
+    private static let deterministicCalendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        return calendar
+    }()
 
     private static func validate(identifierLike value: String?, failure: LocalNotificationContentFailure) throws {
         guard let value else { return }

@@ -71,16 +71,27 @@ struct LocalNotificationValidationTests {
 
     @Test
     func calendarAllowsOnlyMatchingFieldsAndRequiresANextDate() throws {
-        try LocalNotificationValidator.validate(trigger: .calendar(DateComponents(hour: 10), repeats: true))
+        let referenceDate = Date(timeIntervalSince1970: 1_700_000_000)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        try LocalNotificationValidator.validate(
+            trigger: .calendar(DateComponents(hour: 10), repeats: true),
+            calendar: calendar,
+            referenceDate: referenceDate
+        )
 
         #expect(throws: LocalNotificationServiceError.invalidTrigger(.unsupportedCalendarComponent)) {
             try LocalNotificationValidator.validate(
-                trigger: .calendar(DateComponents(nanosecond: 1), repeats: false)
+                trigger: .calendar(DateComponents(nanosecond: 1), repeats: false),
+                calendar: calendar,
+                referenceDate: referenceDate
             )
         }
         #expect(throws: LocalNotificationServiceError.invalidTrigger(.noNextTriggerDate)) {
             try LocalNotificationValidator.validate(
-                trigger: .calendar(DateComponents(year: 1, month: 2, day: 30), repeats: false)
+                trigger: .calendar(DateComponents(year: 1, month: 2, day: 30), repeats: false),
+                calendar: calendar,
+                referenceDate: referenceDate
             )
         }
     }

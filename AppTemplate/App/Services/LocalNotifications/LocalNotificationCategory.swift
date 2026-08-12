@@ -1,6 +1,24 @@
 import Foundation
 
-nonisolated struct LocalNotificationActionOptions: OptionSet, Hashable, Codable, Sendable { let rawValue: UInt; static let foreground = Self(rawValue: 1 << 0); static let destructive = Self(rawValue: 1 << 1); static let authenticationRequired = Self(rawValue: 1 << 2); static let allowed: Self = [.foreground, .destructive, .authenticationRequired]; init(rawValue: UInt) { self.rawValue = rawValue } }
+nonisolated struct LocalNotificationActionOptions: OptionSet, Hashable, Sendable { let rawValue: UInt; static let foreground = Self(rawValue: 1 << 0); static let destructive = Self(rawValue: 1 << 1); static let authenticationRequired = Self(rawValue: 1 << 2); static let allowed: Self = [.foreground, .destructive, .authenticationRequired]; init(rawValue: UInt) { self.rawValue = rawValue } }
+nonisolated extension LocalNotificationActionOptions: Codable {
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let options = Self(rawValue: try container.decode(UInt.self))
+        guard options.subtracting(.allowed).isEmpty else {
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid local notification action options")
+        }
+        self = options
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        guard subtracting(.allowed).isEmpty else {
+            throw EncodingError.invalidValue(self, .init(codingPath: encoder.codingPath, debugDescription: "Invalid local notification action options"))
+        }
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+}
 nonisolated struct LocalNotificationButtonAction: Hashable, Codable, Sendable { let id: LocalNotificationActionID; let title: String; let options: LocalNotificationActionOptions; let deepLink: URL?; init(id: LocalNotificationActionID, title: String, options: LocalNotificationActionOptions = [], deepLink: URL? = nil) { self.id = id; self.title = title; self.options = options; self.deepLink = deepLink } }
 nonisolated struct LocalNotificationTextInputAction: Hashable, Codable, Sendable { let id: LocalNotificationActionID; let title: String; let options: LocalNotificationActionOptions; let deepLink: URL?; let textInputButtonTitle: String; let textInputPlaceholder: String?; init(id: LocalNotificationActionID, title: String, options: LocalNotificationActionOptions = [], deepLink: URL? = nil, textInputButtonTitle: String, textInputPlaceholder: String? = nil) { self.id = id; self.title = title; self.options = options; self.deepLink = deepLink; self.textInputButtonTitle = textInputButtonTitle; self.textInputPlaceholder = textInputPlaceholder } }
 nonisolated enum LocalNotificationAction: Hashable, Codable, Sendable { case button(LocalNotificationButtonAction); case textInput(LocalNotificationTextInputAction); var id: LocalNotificationActionID { switch self { case let .button(action): action.id; case let .textInput(action): action.id } } }
