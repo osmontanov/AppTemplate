@@ -2851,7 +2851,7 @@ test -z "$(rg -n '\bSecItem(CopyMatching|Update|Add|Delete)\s*\(' \
 test -z "$(rg -nF 'KeychainSecurityAPI.live' \
   AppTemplateTests AppTemplateUITests)"
 test -z "$(rg -nU --pcre2 \
-  '(?s)(?<![A-Za-z0-9_])SecurityKeychainSecItemExecutor\s*\(\s*\)' \
+  '(?s)(?<![A-Za-z0-9_])SecurityKeychainSecItemExecutor\s*\(\s*(?:security\s*:\s*\.live\s*,?\s*)?\)' \
   AppTemplateTests AppTemplateUITests)"
 test -z "$(rg -nU --pcre2 \
   '(?s)(?<![A-Za-z0-9_])KeychainService\s*\((?:(?!\bexecutor\s*:).)*?\)' \
@@ -2953,10 +2953,11 @@ git diff --check
 The ordinary-test source boundary is intentionally stricter than the direct
 `SecItem` call guard. Tests and UI tests may not reference
 `KeychainSecurityAPI.live`, construct a zero-argument
-`SecurityKeychainSecItemExecutor`, or construct `KeychainService` without an
-explicit `executor:` injection. The multiline PCRE guards still permit the
-fixed-literal invalid-service tests because those constructors supply the
-scripted executor seam.
+`SecurityKeychainSecItemExecutor`, inject its live table contextually as
+`security: .live`, or construct `KeychainService` without an explicit
+`executor:` injection. The multiline PCRE guards still permit
+`security: recorder.api` and the fixed-literal invalid-service tests because
+those constructors supply fake executor seams.
 
 - [ ] **Step 4: Run the focused six-suite GREEN**
 
