@@ -24,6 +24,11 @@ struct LocalNotificationID: Hashable, Codable, Sendable {
         }
         self.value = value
     }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(value)
+    }
 }
 
 nonisolated
@@ -41,6 +46,11 @@ struct LocalNotificationCategoryID: Hashable, Codable, Sendable {
             throw DecodingError.dataCorruptedError(in: try decoder.singleValueContainer(), debugDescription: "Invalid local notification category identifier")
         }
         self.value = value
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(value)
     }
 }
 
@@ -60,6 +70,11 @@ struct LocalNotificationActionID: Hashable, Codable, Sendable {
         }
         self.value = value
     }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(value)
+    }
 }
 
 nonisolated
@@ -77,6 +92,11 @@ struct LocalNotificationAttachmentID: Hashable, Codable, Sendable {
             throw DecodingError.dataCorruptedError(in: try decoder.singleValueContainer(), debugDescription: "Invalid local notification attachment identifier")
         }
         self.value = value
+    }
+
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(value)
     }
 }
 
