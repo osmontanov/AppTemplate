@@ -531,9 +531,9 @@ xcodebuild test -project AppTemplate.xcodeproj -scheme AppTemplate \
   -resultBundlePath "$red_root/Tests.xcresult" \
   SWIFT_TREAT_WARNINGS_AS_ERRORS=YES GCC_TREAT_WARNINGS_AS_ERRORS=YES \
   >"$red_root/xcodebuild.log" 2>&1
-status=$?
+exit_code=$?
 set -e
-test "$status" -ne 0
+test "$exit_code" -ne 0
 rg -n 'cannot find.*Keychain(Key|Service|ServiceError)|cannot find.*IKeychainService' \
   "$red_root/xcodebuild.log"
 ```
@@ -736,9 +736,9 @@ xcodebuild build-for-testing -project AppTemplate.xcodeproj -scheme AppTemplate 
   SWIFT_ACTIVE_COMPILATION_CONDITIONS='$(inherited) KEYCHAIN_CODABLE_TYPE_MISMATCH_COMPILE_FIXTURE' \
   SWIFT_TREAT_WARNINGS_AS_ERRORS=YES GCC_TREAT_WARNINGS_AS_ERRORS=YES \
   >"$compile_root/build.log" 2>&1
-status=$?
+exit_code=$?
 set -e
-test "$status" -ne 0
+test "$exit_code" -ne 0
 rg -n "cannot (convert|assign).*FirstSecret.*(to|as).*SecondSecret" \
   "$compile_root/build.log"
 ```
@@ -1452,9 +1452,9 @@ xcodebuild test -project AppTemplate.xcodeproj -scheme AppTemplate \
   -resultBundlePath "$red_root/Tests.xcresult" \
   SWIFT_TREAT_WARNINGS_AS_ERRORS=YES GCC_TREAT_WARNINGS_AS_ERRORS=YES \
   >"$red_root/xcodebuild.log" 2>&1
-status=$?
+exit_code=$?
 set -e
-test "$status" -ne 0
+test "$exit_code" -ne 0
 rg -n 'cannot find.*SecurityKeychainSecItemExecutor|cannot find.*KeychainSecurityAPI' \
   "$red_root/xcodebuild.log"
 ```
@@ -2186,9 +2186,9 @@ xcodebuild test -project AppTemplate.xcodeproj -scheme AppTemplate \
   -resultBundlePath "$red_root/Tests.xcresult" \
   SWIFT_TREAT_WARNINGS_AS_ERRORS=YES GCC_TREAT_WARNINGS_AS_ERRORS=YES \
   >"$red_root/xcodebuild.log" 2>&1
-status=$?
+exit_code=$?
 set -e
-test "$status" -ne 0
+test "$exit_code" -ne 0
 rg -n 'cannot find.*KeychainService' "$red_root/xcodebuild.log"
 ```
 
@@ -2581,9 +2581,9 @@ xcodebuild test -project AppTemplate.xcodeproj -scheme AppTemplate \
   -resultBundlePath "$red_root/Tests.xcresult" \
   SWIFT_TREAT_WARNINGS_AS_ERRORS=YES GCC_TREAT_WARNINGS_AS_ERRORS=YES \
   >"$red_root/xcodebuild.log" 2>&1
-status=$?
+exit_code=$?
 set -e
-test "$status" -ne 0
+test "$exit_code" -ne 0
 rg -n 'no member.*keychain|extra argument.*keychainService|missing argument.*keychain' \
   "$red_root/xcodebuild.log"
 ```
@@ -2789,9 +2789,9 @@ changed_paths="$({
   git diff fb683478a36736f5f062ab036bd956cb2faecd17 --name-only
   git ls-files --others --exclude-standard
 } | LC_ALL=C sort -u)"
-while IFS= read -r path; do
-  test -n "$path" || continue
-  case "$path" in
+while IFS= read -r changed_path; do
+  test -n "$changed_path" || continue
+  case "$changed_path" in
     docs/superpowers/plans/2026-08-12-keychain-service.md | \
     README.md | docs/ARCHITECTURE.md | docs/CUSTOMIZATION.md | docs/RELEASE_CHECKLIST.md | \
     AppTemplate/App/Services/Keychain/* | \
@@ -2799,7 +2799,7 @@ while IFS= read -r path; do
     AppTemplateTests/App/Services/Keychain/* | \
     AppTemplateTests/TestSupport/Keychain/* | \
     AppTemplateTests/App/Composition/AppDependenciesTests.swift) ;;
-    *) printf 'Out-of-scope path: %s\n' "$path" >&2; exit 1 ;;
+    *) printf 'Out-of-scope path: %s\n' "$changed_path" >&2; exit 1 ;;
   esac
 done <<<"$changed_paths"
 
@@ -2881,9 +2881,9 @@ xcodebuild build-for-testing -project AppTemplate.xcodeproj -scheme AppTemplate 
   SWIFT_ACTIVE_COMPILATION_CONDITIONS='$(inherited) KEYCHAIN_CODABLE_TYPE_MISMATCH_COMPILE_FIXTURE' \
   SWIFT_TREAT_WARNINGS_AS_ERRORS=YES GCC_TREAT_WARNINGS_AS_ERRORS=YES \
   >"$compile_root/build.log" 2>&1
-status=$?
+exit_code=$?
 set -e
-test "$status" -ne 0
+test "$exit_code" -ne 0
 rg -n "cannot (convert|assign).*FirstSecret.*(to|as).*SecondSecret" \
   "$compile_root/build.log"
 ```
