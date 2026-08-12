@@ -63,7 +63,6 @@ struct LocalNotificationSystemContent: Hashable, Sendable {
     let relevanceScore: Double?
     let interruptionLevel: LocalNotificationInterruptionLevel
     let attachments: [LocalNotificationSystemAttachment]
-    let envelopeKey: String
     let envelopeData: Data?
 
     init(
@@ -80,7 +79,6 @@ struct LocalNotificationSystemContent: Hashable, Sendable {
         relevanceScore: Double?,
         interruptionLevel: LocalNotificationInterruptionLevel,
         attachments: [LocalNotificationSystemAttachment],
-        envelopeKey: String,
         envelopeData: Data?
     ) {
         self.title = title
@@ -96,7 +94,6 @@ struct LocalNotificationSystemContent: Hashable, Sendable {
         self.relevanceScore = relevanceScore
         self.interruptionLevel = interruptionLevel
         self.attachments = attachments
-        self.envelopeKey = envelopeKey
         self.envelopeData = envelopeData
     }
 }
@@ -114,15 +111,18 @@ struct LocalNotificationSystemRequest: Hashable, Sendable {
     let identifier: String
     let content: LocalNotificationSystemContent
     let trigger: LocalNotificationSystemTrigger
+    let nextTriggerDate: Date?
 
     init(
         identifier: String,
         content: LocalNotificationSystemContent,
-        trigger: LocalNotificationSystemTrigger
+        trigger: LocalNotificationSystemTrigger,
+        nextTriggerDate: Date? = nil
     ) {
         self.identifier = identifier
         self.content = content
         self.trigger = trigger
+        self.nextTriggerDate = nextTriggerDate
     }
 }
 

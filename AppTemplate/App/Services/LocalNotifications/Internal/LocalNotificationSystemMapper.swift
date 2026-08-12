@@ -1,8 +1,6 @@
+import CoreGraphics
 import Foundation
 import UserNotifications
-#if os(iOS)
-import UIKit
-#endif
 
 nonisolated
 enum LocalNotificationSystemMapperError: Error, Hashable, Sendable {
@@ -125,7 +123,7 @@ enum LocalNotificationSystemMapper {
         mapped.interruptionLevel = interruptionLevel(content.interruptionLevel)
         mapped.attachments = try content.attachments.map(notificationAttachment)
         if let envelopeData = content.envelopeData {
-            mapped.userInfo = [content.envelopeKey: envelopeData]
+            mapped.userInfo = [envelopeKey: envelopeData]
         }
         return mapped
     }
@@ -133,28 +131,31 @@ enum LocalNotificationSystemMapper {
     static func notificationAttachment(
         _ attachment: LocalNotificationSystemAttachment
     ) throws -> UNNotificationAttachment {
+        try UNNotificationAttachment(
+            identifier: attachment.identifier,
+            url: attachment.fileURL,
+            options: notificationAttachmentOptions(attachment)
+        )
+    }
+
+    static func notificationAttachmentOptions(
+        _ attachment: LocalNotificationSystemAttachment
+    ) -> [AnyHashable: Any] {
         var options: [AnyHashable: Any] = [:]
-        if let typeHint = attachment.options.typeHint {
+        if let typeHint = attachment.options.typeHint ?? attachment.typeIdentifier {
             options[UNNotificationAttachmentOptionsTypeHintKey] = typeHint
         }
         if attachment.options.hidesThumbnail {
             options[UNNotificationAttachmentOptionsThumbnailHiddenKey] = true
         }
         if let clippingRect = attachment.options.thumbnailClippingRect {
-#if os(macOS)
-            options[UNNotificationAttachmentOptionsThumbnailClippingRectKey] = NSValue(rect: clippingRect)
-#else
-            options[UNNotificationAttachmentOptionsThumbnailClippingRectKey] = NSValue(cgRect: clippingRect)
-#endif
+            options[UNNotificationAttachmentOptionsThumbnailClippingRectKey] =
+                CGRectCreateDictionaryRepresentation(clippingRect)
         }
         if let thumbnailTime = attachment.options.thumbnailTime {
             options[UNNotificationAttachmentOptionsThumbnailTimeKey] = thumbnailTime
         }
-        return try UNNotificationAttachment(
-            identifier: attachment.identifier,
-            url: attachment.fileURL,
-            options: options
-        )
+        return options
     }
 
     static func systemAttachment(
@@ -211,7 +212,8 @@ enum LocalNotificationSystemMapper {
         LocalNotificationSystemRequest(
             identifier: request.identifier,
             content: systemContent(request.content),
-            trigger: systemTrigger(request.trigger)
+            trigger: systemTrigger(request.trigger),
+            nextTriggerDate: nextTriggerDate(request.trigger)
         )
     }
 
@@ -294,7 +296,6 @@ enum LocalNotificationSystemMapper {
             relevanceScore: content.relevanceScore,
             interruptionLevel: content.interruptionLevel == .passive ? .passive : .active,
             attachments: content.attachments.map(systemAttachment),
-            envelopeKey: envelopeKey,
             envelopeData: content.userInfo[envelopeKey] as? Data
         )
     }
@@ -372,6 +373,17 @@ enum LocalNotificationSystemMapper {
 
     private static func nilIfEmpty(_ value: String) -> String? {
         value.isEmpty ? nil : value
+    }
+
+    private static func nextTriggerDate(_ trigger: UNNotificationTrigger?) -> Date? {
+        switch trigger {
+        case let interval as UNTimeIntervalNotificationTrigger:
+            interval.nextTriggerDate()
+        case let calendar as UNCalendarNotificationTrigger:
+            calendar.nextTriggerDate()
+        default:
+            nil
+        }
     }
 
     private static func setSummaryFields(
