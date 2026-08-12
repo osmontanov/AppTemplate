@@ -18,8 +18,9 @@ Add a practical, testable `KeychainService` that:
 
 - stores small secrets as generic-password items in the Data Protection
   Keychain on iOS, iPadOS, and macOS;
-- uses the app's private default keychain access group, with no sharing
-  entitlement or explicit access-group query;
+- uses the app's private default keychain access group, with no project-
+  configured sharing capability, custom access-group entitlement, or explicit
+  access-group query;
 - keeps every item nonsynchronizable and protected by
   `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`;
 - exposes raw `Data` as the canonical service contract, with UTF-8 `String`
@@ -105,7 +106,7 @@ The following alternatives are rejected:
 | Protocol conveniences | UTF-8 and JSON encode/decode behavior | Raw `SecItem` access or retries |
 | `KeychainService` | Cancellation, status mapping, bounded set state machine | CF dictionaries, logging, product credential policy |
 | `SecurityKeychainSecItemExecutor` | Exact query construction and one synchronous Security call per method | Public errors, retries, codecs, application state |
-| `KeychainSecurityAPI` | Internal closure table around the four `SecItem` functions | Query policy or mutable state |
+| `KeychainSecurityAPI` | Internal checked-`Sendable` table of four explicitly `@Sendable` `SecItem` closures | Query policy, mutable state, or unchecked conformance |
 | `InMemoryKeychainService` | Fresh isolated preview/UI-test storage | Security emulation, persistence, fault injection |
 | `AppDependencies` | Live/in-memory/test ownership and injection | Secret values or credential lifecycle |
 
@@ -167,8 +168,24 @@ A logical name must:
 - not contain the reserved marker `.schema-`.
 
 Violation is a precondition failure because keys are fixed program constants,
-not expected runtime input. The same nonblank and no-NUL validation applies to
-the concrete service namespace. Validation does not transform valid input.
+not expected runtime input. Validation does not transform valid input. Every
+diagnostic is a fixed, noninterpolating literal so an invalid component is
+never reflected into a crash report. The exact messages are:
+
+```text
+Keychain key must not be blank.
+Keychain key must not contain NUL.
+Keychain key must not contain '.schema-'.
+Keychain schema version must be greater than zero.
+Keychain service must not be blank.
+Keychain service must not contain NUL.
+```
+
+The first three apply to both key factories, the fourth applies to the Codable
+factory, and the last two apply to the concrete service namespace. A static
+source guard requires these exact literals and rejects string interpolation in
+every production Keychain precondition. The same nonblank and no-NUL
+validation applies to the concrete service namespace.
 
 The raw key's physical `kSecAttrAccount` is exactly its logical name. One raw
 logical key may be interpreted either as arbitrary Data or UTF-8 String for its
@@ -221,17 +238,25 @@ flag, accessibility policy, encoder instance, decoder instance, or secret.
 Every item uses `kSecClassGenericPassword`. The physical identity is:
 
 ```text
-class:           kSecClassGenericPassword
-service:         KeychainService.service
-account:         key physical account
-synchronizable:  false
-access group:    the app's omitted/default private access group
+class:                     kSecClassGenericPassword
+service:                   KeychainService.service
+account:                   key physical account
+synchronizable:            false
+access-group query field:  omitted
+add placement:             signed default private access group
+match scope:               every group the signed process is authorized to use
 ```
 
 Apple documents service, account, synchronizability, and access group as
-generic-password composite primary-key attributes. The service never uses
-`kSecAttrLabel`, `kSecAttrDescription`, `kSecAttrComment`, or
-`kSecAttrGeneric` as an additional identity channel.
+generic-password composite primary-key attributes. Omitting
+`kSecAttrAccessGroup` has operation-specific semantics: add places a new item
+in the default access group, while copy, update, and delete may match items in
+any access group authorized by the signed process. This design is app-private
+only because its source, project, signing, and release gates permit no
+additional authorized group. Under that invariant, the match scope contains
+only the default private group. The service never uses `kSecAttrLabel`,
+`kSecAttrDescription`, `kSecAttrComment`, or `kSecAttrGeneric` as an additional
+identity channel.
 
 The live service string is exactly `AppTemplate`. An adopter changes that
 fixed namespace before the first product release. After release, changing the
@@ -330,7 +355,7 @@ Special statuses are interpreted in the operation that receives them:
 
 | Status | Read | Remove | Set state machine |
 | --- | --- | --- | --- |
-| `errSecSuccess` | Executor must return copied Data | `true` | Current update/add step succeeds and returns |
+| `errSecSuccess` | Executor must return `.data` or `.invalid`; injected `.status(errSecSuccess)` is `.internalFailure` | `true` | Current update/add step succeeds and returns |
 | `errSecItemNotFound` | `nil` | `false` | Update step advances to add; an add returning this status is unexpected |
 | `errSecDuplicateItem` | Unexpected status | Unexpected status | First add advances to the second update; second add throws `.concurrentMutation` |
 
@@ -352,6 +377,10 @@ Every other terminal status maps exactly as follows:
 A successful copy call that returns no object or a non-Data object becomes
 `.invalidStoredData`; it is not an unexpected OSStatus because the status was
 success and the returned representation violated the query contract.
+`KeychainSecItemCopyResult.status(errSecSuccess)` is likewise an executor
+contract violation: a successful copy must be represented as `.data` or
+`.invalid`, never as `.status`. The service maps that impossible injected
+result to `.internalFailure`, not `.unexpectedStatus(errSecSuccess)`.
 
 The live executor may throw only `CancellationError` before invoking Security.
 The service propagates that error unchanged. If an injected executor violates
@@ -400,8 +429,8 @@ All four operations start from this base identity dictionary:
 | `kSecClass` | `kSecClassGenericPassword` |
 | `kSecAttrService` | Fixed service string |
 | `kSecAttrAccount` | Key's derived physical account |
-| `kSecAttrSynchronizable` | `kCFBooleanFalse` |
-| `kSecUseDataProtectionKeychain` | `kCFBooleanTrue` |
+| `kSecAttrSynchronizable` | `requiredCFBoolean(false)` (`kCFBooleanFalse!`) |
+| `kSecUseDataProtectionKeychain` | `requiredCFBoolean(true)` (`kCFBooleanTrue!`) |
 
 `kSecUseDataProtectionKeychain = true` is supplied on every operation. Apple
 documents that it selects the iOS-style Data Protection Keychain on macOS, is
@@ -412,9 +441,31 @@ service never uses `kSecAttrSynchronizableAny`, so it cannot accidentally
 read, update, or remove a separately created synchronizable item.
 
 The service intentionally omits `kSecAttrAccessGroup`. Apple then assigns a
-new item to the app's default access group. Because this design adds no
-Keychain Sharing or App Group entitlement, that default is the app-private
-group derived from its signed application identifier.
+new item to the app's default access group. For copy, update, and delete,
+omission searches across every access group the signed process is authorized
+to use; it does not itself constrain matching to the default group. The
+no-extra-groups source, project, signature, and release invariant below is
+therefore a safety property of every mutation, not merely a packaging
+preference. With only the default group authorized, all four operations remain
+confined to the app-private group derived from the signed application
+identifier.
+
+Every Core Foundation Boolean placed in a dictionary is obtained through one
+nonoptional helper with this exact construction:
+
+```swift
+private func requiredCFBoolean(_ value: Bool) -> CFBoolean {
+    value ? kCFBooleanTrue! : kCFBooleanFalse!
+}
+```
+
+The executor uses `requiredCFBoolean(true)` for
+`kSecUseDataProtectionKeychain` and `kSecReturnData`, and
+`requiredCFBoolean(false)` for `kSecAttrSynchronizable`. It never inserts an
+optional `CFBoolean`, Swift `Bool`, or a separately constructed `NSNumber`.
+Executor tests inspect each stored object's `CFGetTypeID` and `CFBoolean`
+value, so source-level equality or bridgeable truthiness is insufficient. The
+helper and those tests must compile with Swift and Clang warnings as errors.
 
 No operation includes authentication prompt text, `SecAccessControl`,
 biometric flags, `kSecUseAuthenticationUI`, a persistent reference, an item
@@ -426,7 +477,7 @@ The copy query is base identity plus:
 
 | Query key | Exact value |
 | --- | --- |
-| `kSecReturnData` | `kCFBooleanTrue` |
+| `kSecReturnData` | `requiredCFBoolean(true)` (`kCFBooleanTrue!`) |
 | `kSecMatchLimit` | `kSecMatchLimitOne` |
 
 It requests neither attributes nor references. `SecItemCopyMatching` is called
@@ -461,9 +512,11 @@ The add dictionary is base identity plus:
 ### Delete query
 
 The delete query is exactly the base identity and contains no return-result
-keys. Under the current no-sharing invariant the composite identity selects at
-most one app-private item. If a later product adds access groups, all identity
-and query assumptions must be redesigned before enabling that capability.
+keys. Under the current no-extra-groups invariant the composite identity
+selects at most one app-private item. Because an omitted group would make
+delete search all authorized groups, adding even one additional group would
+broaden this operation. All identity, collision, migration, and query
+assumptions must be redesigned before enabling that capability.
 
 ## Read Algorithm
 
@@ -474,7 +527,9 @@ and query assumptions must be redesigned before enabling that capability.
 3. If the executor returns `.data(data)`, return its copied Data immediately.
 4. If it returns `.invalid`, throw `.invalidStoredData`.
 5. If it returns `.status(errSecItemNotFound)`, return `nil`.
-6. Map every other status through the exact table above.
+6. If it returns `.status(errSecSuccess)`, throw `.internalFailure` because the
+   executor violated its success-result contract.
+7. Map every other status through the exact table above.
 
 There is no fallback query, synchronizable-any query, legacy macOS keychain
 query, repair, deletion, or rewrite after an invalid result.
@@ -588,23 +643,63 @@ Core Foundation dictionaries and result pointers therefore stay synchronous
 and executor-actor-local. They never cross an actor, task, or continuation
 boundary.
 
-`KeychainSecurityAPI` is an internal immutable `@unchecked Sendable` closure
-table for `SecItemCopyMatching`, `SecItemUpdate`, `SecItemAdd`, and
-`SecItemDelete`. Its unchecked conformance is justified only because:
+`KeychainSecurityAPI` is an internal immutable, checked-`Sendable` closure
+table. Every stored function type is explicitly `@Sendable`; the struct uses
+synthesized `Sendable` conformance and never declares `@unchecked Sendable`:
 
-- the table is immutable after initialization;
-- the live closures contain no captured mutable state;
-- every closure is invoked synchronously within executor isolation; and
-- no Core Foundation argument or pointer is retained after a closure returns.
+```swift
+nonisolated
+struct KeychainSecurityAPI: Sendable {
+    typealias CopyMatching = @Sendable (
+        CFDictionary,
+        UnsafeMutablePointer<CFTypeRef?>?
+    ) -> OSStatus
+
+    typealias Update = @Sendable (
+        CFDictionary,
+        CFDictionary
+    ) -> OSStatus
+
+    typealias Add = @Sendable (
+        CFDictionary,
+        UnsafeMutablePointer<CFTypeRef?>?
+    ) -> OSStatus
+
+    typealias Delete = @Sendable (CFDictionary) -> OSStatus
+
+    let copyMatching: CopyMatching
+    let update: Update
+    let add: Add
+    let delete: Delete
+}
+```
+
+The live closures contain no captured mutable state, and every closure is
+invoked synchronously within executor isolation. No Core Foundation argument
+or pointer is retained after a closure returns. A production source guard
+rejects `@unchecked Sendable` anywhere under
+`AppTemplate/App/Services/Keychain`; test-only recorders do not justify
+weakening a production conformance.
 
 The live table is the only production location that references the four
 global Security functions. Tests inject a closure table that snapshots the
-query synchronously and returns controlled values. This permits exact query
-tests without touching a user's Keychain.
+query synchronously and returns controlled values. Because the injected
+closures are `@Sendable`, every captured recorder is synchronized. The
+preferred test shape is a checked-`Sendable` reference whose mutable snapshot
+state is held in `Synchronization.Mutex`; every read and write uses
+`withLock`. A plain captured array, dictionary, counter, or unsynchronized
+class property is forbidden. This permits exact query tests without touching
+a user's Keychain or introducing a data race into the test seam.
 
 On a successful copy, the executor checks the Core Foundation type and makes
-an owned byte copy before returning. A test mutates its source `NSMutableData`
-after the call to prove the returned Data does not alias test-owned storage.
+an owned byte copy before returning. After casting to `CFData`, it obtains the
+length first. A zero length returns `.data(Data())` before asking
+`CFDataGetBytePtr` for a pointer, because a valid empty `CFData` may have a nil
+byte pointer. For a positive length, a nil byte pointer returns `.invalid`;
+otherwise the executor copies exactly that many bytes into a new `Data`. Tests
+cover the zero-length result explicitly and mutate a nonempty source
+`NSMutableData` after another call to prove the returned Data does not alias
+test-owned storage.
 
 ## Concurrency Contract
 
@@ -616,6 +711,11 @@ contracts are Sendable. Both production layers are actors:
 - `SecurityKeychainSecItemExecutor` serializes individual blocking Security
   calls and contains all non-Sendable query state; and
 - `InMemoryKeychainService` serializes its dictionary.
+
+`KeychainSecurityAPI` is an immutable checked-`Sendable` value. Its live
+closures capture no mutable state; fake closures may capture only a recorder
+whose state is synchronized for every access. This closure-table rule does not
+relax executor actor isolation for Core Foundation values.
 
 Actor serialization does not make a multi-call set atomic. Awaiting the
 executor permits reentrancy, and other processes or authorized code can bypass
@@ -736,6 +836,23 @@ synchronizability, access group, item class, or accessibility policy after
 shipping is a storage migration and requires a separate design with fixtures
 for every shipped identity.
 
+The signing identity is also part of physical reachability even though this
+service does not place it in a query. The migration-sensitive identity set
+therefore includes the platform application identifier, App ID prefix, Team
+ID, and bundle ID. On iOS/iPadOS the signed application-identifier entitlement
+key is `application-identifier`; on macOS it is
+`com.apple.application-identifier`. The App ID prefix embedded in that value
+must not be assumed to equal `com.apple.developer.team-identifier` for every
+legacy or transferred app.
+
+A bundle-ID change, signing-team change, App ID prefix change, or team transfer
+may change the default access group or the set of groups the new build can
+reach. None is a transparent rename. Before such a release, the adopter must
+design and test a platform-appropriate signed migration/continuity strategy
+with the old and new identities and provisioning profiles; this generic
+service neither discovers the old identity nor promises automatic access to
+its items.
+
 ## Security and Privacy Contract
 
 ### Protection policy
@@ -786,21 +903,49 @@ objects and must not be logged.
 
 ### App-private access and entitlements
 
-No `kSecAttrAccessGroup` is supplied. Apple documents that omission uses the
-app's default access group and that every signed app has a private group based
-on its application identifier. This cycle therefore adds no:
+No `kSecAttrAccessGroup` is supplied. For add, omission places the item in the
+app's default group. For copy, update, and delete, omission permits matching
+across all groups authorized by the process. This cycle is safe only while the
+authorized set contains no group beyond the default application-identifier
+group. Source and project inspection therefore require every item in the
+following list to remain absent:
 
 - Keychain Sharing capability;
-- `keychain-access-groups` entitlement;
+- custom `keychain-access-groups` entitlement or entitlement source;
 - App Group capability;
 - `com.apple.security.application-groups` entitlement;
 - entitlements file; or
 - extension-sharing configuration.
 
-The finished source and available signed artifacts must keep both explicit
-sharing entitlements absent. The automatically signed application identifier
-is expected and is what establishes the private default group; its presence is
-not a violation.
+Every bullet above must remain absent; the list names forbidden additions, not
+requirements to create them. Project inspection also rejects additional
+authorized-group build settings or capability metadata.
+
+Signing may materialize the default group even though source and project files
+contain no sharing configuration. Final signed-artifact inspection therefore
+uses this exact rule:
+
+- identify the platform application identifier from `application-identifier`
+  on iOS/iPadOS and `com.apple.application-identifier` on macOS;
+- `keychain-access-groups` may be absent, or it must be an array containing
+  exactly one string equal to that platform application identifier;
+- no second, wildcard, legacy, shared, or otherwise additional keychain group
+  is permitted; and
+- `com.apple.security.application-groups` must be absent.
+
+A final signed-and-provisioned distribution artifact must contain the expected
+platform application identifier. The absent application-identifier case is
+accepted only for generic/ad-hoc compile evidence, never for the mandatory
+runtime gate. If `keychain-access-groups` is present, the applicable platform
+application-identifier key must also be present so equality can be proved.
+
+The automatically signed singleton default group, platform application
+identifier, and `com.apple.developer.team-identifier` are identity metadata,
+not evidence that Keychain Sharing or App Groups were added. Conversely, a
+singleton group with a value different from the applicable platform
+application identifier fails the gate. An ad-hoc artifact that omits identity
+entitlements remains compile/link evidence only and cannot satisfy the runtime
+gate.
 
 On macOS, Data Protection Keychain access depends on the host executable's
 signed entitlements, provisioning, and user login context. Apple explicitly
@@ -808,14 +953,16 @@ notes that library code inherits the host process's access and that this
 keychain is unavailable outside a user context.
 
 An ad-hoc macOS build and an unsigned generic iOS build prove only that the
-code compiles, links Security, and introduces no explicit sharing entitlement.
-They are never accepted as evidence that Data Protection Keychain operations
-work at runtime. Ordinary unit tests also make no such claim.
+code compiles, links Security, and introduces no source/project sharing
+configuration; an available ad-hoc signature is still checked by the exact
+rule above. They are never accepted as evidence that Data Protection Keychain
+operations work at runtime. Ordinary unit tests also make no such claim.
 
 Before distribution, the adopter must run a separately identified
 signed-and-provisioned integration gate using the final team, bundle ID,
 profiles, app-like bundle, and a real user login context. That gate inspects the
-final code-signing entitlements and exercises missing, add, read, update, and
+final code-signing entitlements against the platform-specific identifier and
+singleton-or-absent group rule, then exercises missing, add, read, update, and
 remove on supported physical iPhone/iPad hardware and the signed macOS app. It
 uses an isolated product test service/account and cleans it up explicitly.
 
@@ -854,8 +1001,9 @@ described above.
 Focused tests cover:
 
 - raw and Codable fixed-name construction from nonisolated contexts;
-- component validation and the reserved `.schema-` marker;
-- positive schema-version precondition;
+- component validation, the reserved `.schema-` marker, and every exact fixed
+  noninterpolating precondition message;
+- positive schema-version precondition with its exact fixed message;
 - exact raw account and derived `name.schema-<version>` accounts;
 - different schema versions coexist and never address the same item;
 - compile-negative rejection of reading a
@@ -877,6 +1025,10 @@ barriers. Tests prove:
 
 - read Data, invalid result, missing result, every mapped status, and unexpected
   status behavior;
+- an injected `.status(errSecSuccess)` copy result throws exactly
+  `.internalFailure` and makes no additional executor call;
+- blank and NUL service namespaces fail with their exact fixed,
+  noninterpolating precondition messages;
 - remove returns true on success and false on absence;
 - set update success uses one call;
 - update-not-found then add success uses two calls;
@@ -900,8 +1052,15 @@ nondeterministic final winner.
 Tests inject `KeychainSecurityAPI` closures and synchronously snapshot only the
 expected query fields. They prove:
 
+- all four closure typealiases are explicitly `@Sendable`, the table has
+  checked `Sendable` conformance, and a lock-protected recorder survives a
+  concurrent stress run without unsynchronized mutation;
 - all operations use generic-password class, exact service/account,
   synchronizable false, and Data Protection Keychain true;
+- every Boolean query value satisfies
+  `CFGetTypeID(value) == CFBooleanGetTypeID()` and `CFEqual` against the
+  required `kCFBooleanTrue!` or `kCFBooleanFalse!` value, rather than merely
+  bridging to an equal Swift value;
 - no operation supplies access group, synchronization-any, prompt, access
   control, label, description, comment, or persistent reference;
 - copy alone requests return Data and match-limit one;
@@ -912,6 +1071,8 @@ expected query fields. They prove:
 - every executor method checks cancellation before its fake Security closure;
 - each method invokes exactly one closure;
 - success with nil or a wrong Core Foundation type returns `.invalid`;
+- successful zero-length `CFData` returns `.data(Data())` even when its byte
+  pointer is nil;
 - non-success returns `.status` and ignores any result object; and
 - successful returned Data is an owned copy that does not change when the fake
   source mutable bytes change later.
@@ -933,8 +1094,12 @@ Tests prove:
 Static source checks confine `SecItemCopyMatching`, `SecItemUpdate`,
 `SecItemAdd`, and `SecItemDelete` to the live Security closure table. They also
 reject logging, `kSecAttrSynchronizableAny`, `kSecAttrAccessGroup`, biometric or
-prompt keys, file-based `SecKeychain` APIs, entitlements changes, and direct
-Feature consumption.
+prompt keys, file-based `SecKeychain` APIs, `@unchecked Sendable` in production
+Keychain source, any interpolated Keychain precondition message, entitlement
+or capability source changes, and direct Feature consumption. They require the
+six exact fixed precondition literals and the `kCFBooleanTrue!` /
+`kCFBooleanFalse!` helper construction. All focused and stress tests compile
+and run with Swift and Clang warnings treated as errors.
 
 ## File Map
 
@@ -1077,23 +1242,34 @@ an environment prerequisite, not a reason to weaken a gate.
 | 5 | Complete macOS scheme | Unit and UI behavior pass together; live service construction performs no Keychain access |
 | 6 | Complete UI-test bundle on iPhone 17 / iOS 26.5 | UI-test launch uses fresh in-memory Keychain only |
 | 7 | Complete UI-test bundle on iPad (A16) / iOS 26.5 | iPad UI-test launch uses fresh in-memory Keychain only |
-| 8 | Generic/ad-hoc macOS Release build | Security imports compile/link warning-free; available signature has no explicit sharing entitlements; no runtime Keychain claim or call |
+| 8 | Generic/ad-hoc macOS Release build | Security imports compile/link warning-free; any available identity/group entitlements satisfy the platform-key and absent-or-singleton-default rule; no runtime Keychain claim or call |
 | 9 | Unsigned generic iOS Release build with `CODE_SIGNING_ALLOWED=NO` | Security imports compile/link warning-free without capabilities, entitlements, project edits, or runtime claim |
 
 After the nine builds/tests, deterministic source and artifact checks require:
 
 - all live queries contain Data Protection Keychain true and synchronizable
   false;
+- all query Booleans are physically nonoptional `CFBoolean` values produced by
+  the required `kCFBooleanTrue!` / `kCFBooleanFalse!` helper;
 - every add/update establishes WhenUnlockedThisDeviceOnly;
 - access-group, synchronizable-any, biometric, prompt, persistent-reference,
   file-based Keychain, and logging APIs are absent;
 - all four global `SecItem` calls are confined to the live closure table;
+- all Security closure typealiases are `@Sendable`, production Keychain source
+  contains no `@unchecked Sendable`, and test recorders synchronize every
+  captured mutation;
 - ordinary tests do not invoke any closure from that live table;
 - no Feature or ViewModel references `IKeychainService`, `KeychainService`, or
   either key type;
-- no entitlements file, Keychain Sharing capability,
-  `keychain-access-groups`, or `com.apple.security.application-groups` was
-  added;
+- no entitlements file, Keychain Sharing or App Group capability, custom
+  `keychain-access-groups`, `com.apple.security.application-groups`, or
+  additional-group configuration was added to source or project files;
+- any inspected signed `keychain-access-groups` value is absent or an exact
+  singleton equal to `application-identifier` on iOS/iPadOS or
+  `com.apple.application-identifier` on macOS, and no additional group or App
+  Group is present;
+- production Keychain preconditions use only the six exact fixed messages and
+  contain no interpolation;
 - `REGISTER_APP_GROUPS = YES` is unchanged;
 - no `PrivacyInfo.xcprivacy` was added; and
 - release documentation names the separate signed/provisioned runtime gate
@@ -1105,9 +1281,11 @@ The automated matrix is necessary but insufficient for shipping Keychain.
 Using the final product identity, the adopter must additionally:
 
 1. Build and run a signed, provisioned app in a normal user context.
-2. Inspect final app and archive entitlements, confirming the expected
-   application identifier and the absence of explicit sharing groups for this
-   app-private mode.
+2. Inspect final app and archive entitlements using `application-identifier`
+   on iOS/iPadOS and `com.apple.application-identifier` on macOS. Confirm that
+   `keychain-access-groups` is absent or exactly a singleton containing that
+   identifier, and that no additional keychain group or
+   `com.apple.security.application-groups` value is present.
 3. Exercise missing, add, read, update, and Bool remove using an isolated test
    key on supported physical iPhone/iPad devices and the signed macOS app.
 4. Confirm locked-device and foreground availability match the product's real
@@ -1134,7 +1312,8 @@ Implementation is complete only when all of the following are true:
    failure.
 4. Public errors and every Security status follow the exact mapping in this
    design without leaking service, account, payload, codec details, or
-   underlying errors.
+   underlying errors; an impossible copy `.status(errSecSuccess)` maps exactly
+   to `.internalFailure`.
 5. Every operation targets generic-password Data Protection Keychain with
    synchronizable false and no explicit access group.
 6. Every successful add or update establishes
@@ -1147,24 +1326,40 @@ Implementation is complete only when all of the following are true:
    performs no post-success mutation check.
 9. The live executor keeps all CF dictionaries, pointers, and Any values
    synchronous and actor-local and returns only copied Data, invalid, or
-   status.
-10. No ordinary test calls a real `SecItem` function; exact dictionaries are
+   status; valid zero-length `CFData` returns empty Data before pointer
+   validation.
+10. `KeychainSecurityAPI` uses only explicitly `@Sendable` closure properties
+    and checked `Sendable` conformance, production Keychain source contains no
+    `@unchecked Sendable`, and every injected recorder synchronizes mutation.
+11. Every query Boolean is a nonoptional physical `CFBoolean` obtained from the
+    exact forced system constants and is verified with warnings as errors.
+12. No ordinary test calls a real `SecItem` function; exact dictionaries are
     verified through injected synchronous fake Security closures.
-11. Preview and UI-test graphs own fresh in-memory services, while live and
+13. Preview and UI-test graphs own fresh in-memory services, while live and
     test injection retain the exact supplied service without eager access.
-12. `AppDependencies` exposes the low-level service only at the app graph; no
+14. `AppDependencies` exposes the low-level service only at the app graph; no
     Feature consumes it until a semantic repository is independently designed.
-13. Codable schema migration is explicit, new-first, and old-remove-after-new-
+15. Codable schema migration is explicit, new-first, and old-remove-after-new-
     success; there is no startup scan or automatic destructive migration.
-14. No capability, entitlement, entitlements file, privacy manifest, package,
-    project setting, or project membership change is introduced.
-15. Ad-hoc and unsigned builds are described only as compile/link and
-    entitlement-absence evidence; signed/provisioned runtime validation remains
-    a mandatory adopter gate.
-16. Focused, full, cross-platform, compile-negative, source-guard, release, and
+16. The migration contract treats the platform application identifier, App ID
+    prefix, Team ID, bundle ID, and team transfer as identity-sensitive and
+    never promises transparent access after any of them changes.
+17. No capability, custom entitlement, entitlements file, privacy manifest,
+    package, project setting, or project membership change is introduced.
+18. A signed `keychain-access-groups` value is absent or exactly the singleton
+    default application identifier for its platform; source/project files add
+    no sharing or App Group configuration, and signed artifacts contain no
+    additional group.
+19. All Keychain component preconditions use the six exact fixed,
+    noninterpolating messages required by this design.
+20. Ad-hoc and unsigned builds are described only as compile/link and
+    source/project sharing-configuration evidence; any available signature is
+    evaluated with the absent-or-singleton-default rule, and signed/provisioned
+    runtime validation remains a mandatory adopter gate.
+21. Focused, full, cross-platform, compile-negative, source-guard, release, and
     UI verification passes with warnings as errors and no failed, skipped,
     expected-failure, or zero-test result accepted as green.
-17. The final diff contains only authorized Keychain implementation, tests,
+22. The final diff contains only authorized Keychain implementation, tests,
     plan, and documentation changes and preserves completed UserDefaults work.
 
 ## Primary Apple References
