@@ -732,10 +732,18 @@ xcodebuild test \
 isolation_status=$?
 set -e
 test "$isolation_status" -ne 0
-rg -ni \
-  'UserDefaultsAppStateStorage\.swift:.*error:.*(main actor-isolated.*data|data.*main actor-isolated)' \
+rg -n \
+  'UserDefaultsAppStateStorage\.swift:.*error: main actor-isolated default value in a nonisolated context' \
   "$isolation_root/xcodebuild.log"
+rg -n -A 1 \
+  'UserDefaultsAppStateStorage\.swift:.*error: main actor-isolated default value in a nonisolated context' \
+  "$isolation_root/xcodebuild.log" \
+| rg -F 'private static let appStateKey: UserDefaultsKey<Data> = .data("AppState")'
 ```
+
+Xcode 26.6 emits the isolation wording on the diagnostic line and the `.data("AppState")`
+source expression on the immediately following line. The two assertions deliberately prove both
+parts instead of assuming the member name is repeated inside the diagnostic text.
 
 Restore `nonisolated` on the Data extension and rerun the complete GREEN block at the start of this step from a new root.
 
