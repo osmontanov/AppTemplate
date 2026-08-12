@@ -6,6 +6,39 @@ import Testing
 
 struct LocalDatabaseStoreConfigurationTests {
     @Test
+    func testContainerSchemaEnforcesUniqueNumericBusinessID() throws {
+        let container = try makeGenericInMemoryLocalDatabaseContainer()
+        let firstContext = ModelContext(container)
+        firstContext.autosaveEnabled = false
+        firstContext.insert(
+            StoredTestLocalRecord(
+                businessID: 7,
+                score: 10,
+                title: "first"
+            )
+        )
+        try firstContext.save()
+
+        let secondContext = ModelContext(container)
+        secondContext.autosaveEnabled = false
+        secondContext.insert(
+            StoredTestLocalRecord(
+                businessID: 7,
+                score: 20,
+                title: "second"
+            )
+        )
+        try secondContext.save()
+
+        let verifier = ModelContext(container)
+        let rows = try verifier.fetch(FetchDescriptor<StoredTestLocalRecord>())
+        #expect(rows.count == 1)
+        #expect(rows.first?.businessID == 7)
+        #expect(rows.first?.score == 20)
+        #expect(rows.first?.title == "second")
+    }
+
+    @Test
     func liveResolverBuildsStableBundleScopedURLLazily() throws {
         let recorder = DirectoryCreationRecorder()
         let root = URL(filePath: "/tmp/AppTemplate-Resolver-Fixture", directoryHint: .isDirectory)

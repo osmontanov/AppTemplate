@@ -44,11 +44,6 @@ nonisolated final class StoredTestLocalRecord {
 }
 
 nonisolated
-enum GenericLocalDatabaseFixtureError: Error, Sendable {
-    case storageNotImplemented
-}
-
-nonisolated
 enum TestLocalRecordAdapter: LocalEntityAdapter {
     typealias Value = TestLocalRecord
     typealias Entity = StoredTestLocalRecord
@@ -74,14 +69,23 @@ enum TestLocalRecordAdapter: LocalEntityAdapter {
         id: TestLocalRecordID,
         in context: ModelContext
     ) throws -> StoredTestLocalRecord? {
-        throw GenericLocalDatabaseFixtureError.storageNotImplemented
+        let rawID = id.rawValue
+        var descriptor = FetchDescriptor<StoredTestLocalRecord>(
+            predicate: #Predicate { $0.businessID == rawID }
+        )
+        descriptor.fetchLimit = 2
+        return try uniqueEntity(from: context.fetch(descriptor))
     }
 
     static func fetchExisting(
         ids: [TestLocalRecordID],
         in context: ModelContext
     ) throws -> [StoredTestLocalRecord] {
-        throw GenericLocalDatabaseFixtureError.storageNotImplemented
+        let rawIDs = ids.map(\.rawValue)
+        let descriptor = FetchDescriptor<StoredTestLocalRecord>(
+            predicate: #Predicate { rawIDs.contains($0.businessID) }
+        )
+        return try context.fetch(descriptor)
     }
 
     static func fetch(
@@ -89,7 +93,27 @@ enum TestLocalRecordAdapter: LocalEntityAdapter {
         in context: ModelContext,
         progress: (_ examinedCount: Int) throws -> Void
     ) throws -> [StoredTestLocalRecord] {
-        throw GenericLocalDatabaseFixtureError.storageNotImplemented
+        var descriptor = FetchDescriptor<StoredTestLocalRecord>(
+            sortBy: [
+                SortDescriptor(\.score),
+                SortDescriptor(\.businessID)
+            ]
+        )
+        descriptor.includePendingChanges = false
+        let entities = try context.fetch(descriptor, batchSize: 128)
+        var result: [StoredTestLocalRecord] = []
+        var examined = 0
+        for entity in entities {
+            examined += 1
+            if query.minimumScore.map({ entity.score >= $0 }) ?? true {
+                result.append(entity)
+            }
+            if examined.isMultiple(of: 128) {
+                try progress(examined)
+            }
+            if result.count == query.limit { return result }
+        }
+        return result
     }
 
     static func attemptedRecordCount(for query: TestLocalQuery) -> Int {

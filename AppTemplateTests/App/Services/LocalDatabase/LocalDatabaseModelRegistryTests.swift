@@ -4,6 +4,16 @@ import Testing
 
 struct LocalDatabaseModelRegistryTests {
     @Test
+    func testRegistryAcceptsExampleAndTestRegistrationsAsBijection() throws {
+        let registry = makeGenericTestRegistry()
+        try registry.validateIntegrity()
+        #expect(registry.registrationCount == 2)
+        #expect(registry.contains(ExampleRecordAdapter.self))
+        #expect(registry.contains(TestLocalRecordAdapter.self))
+        #expect(registry.registeredEntityIdentifiers.count == 2)
+    }
+
+    @Test
     func productionRegistryContainsExactlyExampleRegistration() throws {
         let registry = LocalDatabaseModelRegistry.production
 
