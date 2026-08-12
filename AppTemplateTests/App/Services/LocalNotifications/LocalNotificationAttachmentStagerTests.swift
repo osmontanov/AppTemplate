@@ -268,12 +268,15 @@ struct LocalNotificationAttachmentStagerTests {
         let fixture = try AttachmentFileFixture()
         defer { fixture.cleanup() }
         let access = RecordingSecurityScopeAccessor(startSucceeds: true)
+        let sourceURL = fixture.sourceURL
+        let fileSystem = ControlledStagingFileSystem(
+            behavior: .afterSourceOpen {
+                #expect(access.isActive(sourceURL))
+            }
+        )
         let stager = fixture.makeStager(
             securityScopeAccessor: access,
-            copyItem: { fileManager, source, destination in
-                #expect(access.isActive(source))
-                try fileManager.copyItem(at: source, to: destination)
-            }
+            fileSystem: fileSystem
         )
         let attachment = try fixture.attachment(id: "scoped")
 
@@ -293,7 +296,7 @@ struct LocalNotificationAttachmentStagerTests {
         let identifier = try LocalNotificationAttachmentID("copy-failure")
         let stager = fixture.makeStager(
             securityScopeAccessor: access,
-            copyItem: { _, _, _ in throw PrivateCopyError.secretPath }
+            fileSystem: ControlledStagingFileSystem(behavior: .readFailure)
         )
         let attachment = LocalNotificationAttachment(id: identifier, fileURL: fixture.sourceURL)
 
@@ -312,13 +315,10 @@ struct LocalNotificationAttachmentStagerTests {
         defer { fixture.cleanup() }
         let secondSource = fixture.sourceDirectory.appendingPathComponent("second.png")
         try AttachmentFileFixture.onePixelPNG.write(to: secondSource)
-        let counter = LockedCounter()
-        let stager = fixture.makeStager(copyItem: { fileManager, source, destination in
-            if counter.increment() == 2 {
-                throw PrivateCopyError.secretPath
-            }
-            try fileManager.copyItem(at: source, to: destination)
-        })
+        let fileSystem = ControlledStagingFileSystem(
+            behavior: .partialWriteFailure(destinationOrdinal: 2)
+        )
+        let stager = fixture.makeStager(fileSystem: fileSystem)
         let first = try fixture.attachment(id: "first")
         let secondID = try LocalNotificationAttachmentID("second")
         let second = LocalNotificationAttachment(id: secondID, fileURL: secondSource)
@@ -327,7 +327,7 @@ struct LocalNotificationAttachmentStagerTests {
             _ = try stager.stage([first, second], requestID: .init("request"))
         }
 
-        #expect(counter.value == 2)
+        #expect(fileSystem.partialBytesWritten == 4)
         #expect(try fixture.stagedItems().isEmpty)
         #expect(try Data(contentsOf: fixture.sourceURL) == AttachmentFileFixture.onePixelPNG)
         #expect(try Data(contentsOf: secondSource) == AttachmentFileFixture.onePixelPNG)
@@ -336,17 +336,111 @@ struct LocalNotificationAttachmentStagerTests {
     }
 
     @Test
+    func cancellationAfterPartialDestinationWriteCleansTheOwnedOperation() throws {
+        let fixture = try AttachmentFileFixture()
+        defer { fixture.cleanup() }
+        let cancellation = CancellationFlag()
+        let fileSystem = ControlledStagingFileSystem(
+            behavior: .partialWriteCancellation(
+                destinationOrdinal: 1,
+                cancellation: cancellation
+            )
+        )
+        let stager = fixture.makeStager(
+            fileSystem: fileSystem,
+            checkCancellation: cancellation.check
+        )
+        let attachment = try fixture.attachment(id: "partial-cancel")
+
+        #expect(throws: CancellationError.self) {
+            _ = try stager.stage([attachment], requestID: .init("request"))
+        }
+
+        #expect(fileSystem.partialBytesWritten == 4)
+        #expect(try fixture.stagedItems().isEmpty)
+        #expect(try Data(contentsOf: fixture.sourceURL) == AttachmentFileFixture.onePixelPNG)
+    }
+
+    @Test
+    func openedSourceDescriptorCannotBeRedirectedByIntermediateReplacement() throws {
+        let fixture = try AttachmentFileFixture()
+        defer { fixture.cleanup() }
+        let sourceDirectory = fixture.sourceDirectory
+        let sourceURL = fixture.sourceURL
+        let movedSourceDirectory = fixture.root.appendingPathComponent(
+            "opened-source",
+            isDirectory: true
+        )
+        let replacementDirectory = fixture.root.appendingPathComponent(
+            "replacement-source",
+            isDirectory: true
+        )
+        let replacementBytes = Data("replacement bytes".utf8)
+        try FileManager.default.createDirectory(
+            at: replacementDirectory,
+            withIntermediateDirectories: false
+        )
+        try replacementBytes.write(
+            to: replacementDirectory.appendingPathComponent(sourceURL.lastPathComponent)
+        )
+        let fileSystem = ControlledStagingFileSystem(
+            behavior: .afterSourceOpen {
+                try FileManager.default.moveItem(at: sourceDirectory, to: movedSourceDirectory)
+                try FileManager.default.createSymbolicLink(
+                    at: sourceDirectory,
+                    withDestinationURL: replacementDirectory
+                )
+            }
+        )
+        let stager = fixture.makeStager(fileSystem: fileSystem)
+        let attachment = try fixture.attachment(id: "stable-source")
+
+        let staged = try stager.stage([attachment], requestID: .init("request"))
+        defer { stager.cleanup(staged) }
+        let descriptor = try #require(staged.first)
+
+        #expect(try Data(contentsOf: descriptor.url) == AttachmentFileFixture.onePixelPNG)
+        #expect(try Data(contentsOf: sourceURL) == replacementBytes)
+        #expect(
+            try Data(contentsOf: movedSourceDirectory.appendingPathComponent(sourceURL.lastPathComponent)) ==
+                AttachmentFileFixture.onePixelPNG
+        )
+    }
+
+    @Test
+    func failedExclusiveCreateNeverClaimsOrDeletesTheForeignDirectory() throws {
+        let fixture = try AttachmentFileFixture()
+        defer { fixture.cleanup() }
+        let fileSystem = ControlledStagingFileSystem(behavior: .foreignDirectoryWins)
+        let stager = fixture.makeStager(fileSystem: fileSystem)
+        let attachment = try fixture.attachment(id: "foreign-create")
+
+        #expect(throws: LocalNotificationServiceError.invalidAttachment(attachment.id, .stagingFailed)) {
+            _ = try stager.stage([attachment], requestID: .init("request"))
+        }
+
+        let foreignDirectory = try #require(fixture.stagedItems().first)
+        #expect(try fixture.stagedItems().count == 1)
+        #expect(
+            try Data(contentsOf: foreignDirectory.appendingPathComponent("foreign-sentinel")) ==
+                Data("foreign".utf8)
+        )
+    }
+
+    @Test
     func cancellationBetweenFilesRemovesPartialCopiesAndPreservesEverySource() throws {
         let fixture = try AttachmentFileFixture()
         defer { fixture.cleanup() }
         let secondSource = fixture.sourceDirectory.appendingPathComponent("second.png")
         try AttachmentFileFixture.onePixelPNG.write(to: secondSource)
-        let copyCounter = LockedCounter()
-        let cancellation = ScriptedCancellationCheck(failAt: 4)
-        let stager = fixture.makeStager(copyItem: { fileManager, source, destination in
-            try fileManager.copyItem(at: source, to: destination)
-            _ = copyCounter.increment()
-        }, checkCancellation: cancellation.call)
+        let cancellation = CancellationFlag()
+        let fileSystem = ControlledStagingFileSystem(
+            behavior: .cancelAfterSourceEOF(sourceOrdinal: 1, cancellation: cancellation)
+        )
+        let stager = fixture.makeStager(
+            fileSystem: fileSystem,
+            checkCancellation: cancellation.check
+        )
         let first = try fixture.attachment(id: "first")
         let second = LocalNotificationAttachment(
             id: try .init("second"),
@@ -357,7 +451,6 @@ struct LocalNotificationAttachmentStagerTests {
             _ = try stager.stage([first, second], requestID: .init("request"))
         }
 
-        #expect(copyCounter.value == 1)
         #expect(try fixture.stagedItems().isEmpty)
         #expect(try Data(contentsOf: fixture.sourceURL) == AttachmentFileFixture.onePixelPNG)
         #expect(try Data(contentsOf: secondSource) == AttachmentFileFixture.onePixelPNG)
@@ -367,10 +460,14 @@ struct LocalNotificationAttachmentStagerTests {
     func cancellationAfterTheLastCopyAndBeforeReturnRemovesTheStagedDirectory() throws {
         let fixture = try AttachmentFileFixture()
         defer { fixture.cleanup() }
-        let cancellation = ScriptedCancellationCheck(failAt: 4)
-        let stager = fixture.makeStager(copyItem: { fileManager, source, destination in
-            try fileManager.copyItem(at: source, to: destination)
-        }, checkCancellation: cancellation.call)
+        let cancellation = CancellationFlag()
+        let fileSystem = ControlledStagingFileSystem(
+            behavior: .cancelAfterSourceEOF(sourceOrdinal: 1, cancellation: cancellation)
+        )
+        let stager = fixture.makeStager(
+            fileSystem: fileSystem,
+            checkCancellation: cancellation.check
+        )
         let attachment = try fixture.attachment(id: "only")
 
         #expect(throws: CancellationError.self) {
@@ -393,12 +490,104 @@ struct LocalNotificationAttachmentStagerTests {
         let requestDirectory = try #require(staged.first?.url.deletingLastPathComponent())
 
         #expect(FileManager.default.fileExists(atPath: requestDirectory.path))
-        stager.cleanup(staged)
-        stager.cleanup(staged)
+        #expect(stager.cleanup(staged) == [.removed])
+        #expect(stager.cleanup(staged) == [.alreadyCleaned])
 
         #expect(!FileManager.default.fileExists(atPath: requestDirectory.path))
         #expect(FileManager.default.fileExists(atPath: unrelated.path))
         #expect(FileManager.default.fileExists(atPath: fixture.stagingRoot.path))
+    }
+
+    @Test
+    func rootPathReplacementCannotRedirectDescriptorAnchoredCleanup() throws {
+        let fixture = try AttachmentFileFixture()
+        defer { fixture.cleanup() }
+        let stager = fixture.makeStager()
+        let attachment = try fixture.attachment(id: "root-replacement")
+        let staged = try stager.stage([attachment], requestID: .init("request"))
+        let descriptor = try #require(staged.first)
+        let operationName = descriptor.url.deletingLastPathComponent().lastPathComponent
+        let movedOwnedRoot = fixture.root.appendingPathComponent("owned-root", isDirectory: true)
+        let replacementSentinel = fixture.stagingRoot.appendingPathComponent("replacement-sentinel")
+
+        try FileManager.default.moveItem(at: fixture.stagingRoot, to: movedOwnedRoot)
+        try FileManager.default.createDirectory(
+            at: fixture.stagingRoot,
+            withIntermediateDirectories: false
+        )
+        try Data("replacement".utf8).write(to: replacementSentinel)
+
+        #expect(stager.cleanup(staged) == [.removed])
+        #expect(
+            !FileManager.default.fileExists(
+                atPath: movedOwnedRoot.appendingPathComponent(operationName).path
+            )
+        )
+        #expect(try Data(contentsOf: replacementSentinel) == Data("replacement".utf8))
+    }
+
+    @Test
+    func operationSymlinkReplacementIsNeverFollowedAndOwnedContentsAreUnlinked() throws {
+        let fixture = try AttachmentFileFixture()
+        defer { fixture.cleanup() }
+        let stager = fixture.makeStager()
+        let attachment = try fixture.attachment(id: "operation-replacement")
+        let staged = try stager.stage([attachment], requestID: .init("request"))
+        let descriptor = try #require(staged.first)
+        let operationDirectory = descriptor.url.deletingLastPathComponent()
+        let movedOwnedDirectory = fixture.root.appendingPathComponent("moved-owned", isDirectory: true)
+        let targetDirectory = fixture.root.appendingPathComponent("symlink-target", isDirectory: true)
+        let targetSentinel = targetDirectory.appendingPathComponent("target-sentinel")
+        try FileManager.default.createDirectory(at: targetDirectory, withIntermediateDirectories: false)
+        try Data("target".utf8).write(to: targetSentinel)
+        try FileManager.default.moveItem(at: operationDirectory, to: movedOwnedDirectory)
+        try FileManager.default.createSymbolicLink(
+            at: operationDirectory,
+            withDestinationURL: targetDirectory
+        )
+
+        #expect(stager.cleanup(staged) == [.replacementDetected])
+        #expect(FileManager.default.fileExists(atPath: operationDirectory.path))
+        #expect(try Data(contentsOf: targetSentinel) == Data("target".utf8))
+        #expect(
+            !FileManager.default.fileExists(
+                atPath: movedOwnedDirectory.appendingPathComponent(descriptor.url.lastPathComponent).path
+            )
+        )
+        #expect(FileManager.default.fileExists(atPath: movedOwnedDirectory.path))
+    }
+
+    @Test
+    func operationReplacementDuringCleanupPreservesTheUnrelatedDirectory() throws {
+        let fixture = try AttachmentFileFixture()
+        defer { fixture.cleanup() }
+        let fileSystem = ControlledStagingFileSystem(behavior: .cleanupIdentityHook)
+        let stager = fixture.makeStager(fileSystem: fileSystem)
+        let attachment = try fixture.attachment(id: "during-cleanup")
+        let staged = try stager.stage([attachment], requestID: .init("request"))
+        let descriptor = try #require(staged.first)
+        let operationDirectory = descriptor.url.deletingLastPathComponent()
+        let movedOwnedDirectory = fixture.root.appendingPathComponent(
+            "moved-during-cleanup",
+            isDirectory: true
+        )
+        let replacementSentinel = operationDirectory.appendingPathComponent("unrelated-sentinel")
+        fileSystem.armCleanupHook {
+            try FileManager.default.moveItem(at: operationDirectory, to: movedOwnedDirectory)
+            try FileManager.default.createDirectory(
+                at: operationDirectory,
+                withIntermediateDirectories: false
+            )
+            try Data("unrelated".utf8).write(to: replacementSentinel)
+        }
+
+        #expect(stager.cleanup(staged) == [.replacementDetected])
+        #expect(try Data(contentsOf: replacementSentinel) == Data("unrelated".utf8))
+        #expect(
+            !FileManager.default.fileExists(
+                atPath: movedOwnedDirectory.appendingPathComponent(descriptor.url.lastPathComponent).path
+            )
+        )
     }
 
     @Test
@@ -510,9 +699,7 @@ private nonisolated final class AttachmentFileFixture {
     func makeStager(
         mediaResolver: any LocalNotificationMediaTypeResolving = UniformTypeIdentifiersLocalNotificationMediaResolver(),
         securityScopeAccessor: any LocalNotificationSecurityScopeAccessing = FixedSecurityScopeAccessor(startSucceeds: false),
-        copyItem: @escaping LocalNotificationAttachmentStager.CopyItem = { fileManager, source, destination in
-            try fileManager.copyItem(at: source, to: destination)
-        },
+        fileSystem: any LocalNotificationStagingFileSystem = POSIXLocalNotificationStagingFileSystem(),
         checkCancellation: @escaping LocalNotificationAttachmentStager.CheckCancellation = {
             try Task.checkCancellation()
         }
@@ -522,7 +709,7 @@ private nonisolated final class AttachmentFileFixture {
             temporaryRootFactory: { [stagingRoot] _ in stagingRoot },
             mediaTypeResolver: mediaResolver,
             securityScopeAccessor: securityScopeAccessor,
-            copyItem: copyItem,
+            fileSystem: fileSystem,
             checkCancellation: checkCancellation
         )
     }
@@ -611,37 +798,224 @@ private nonisolated final class RecordingSecurityScopeAccessor: LocalNotificatio
     }
 }
 
-private nonisolated final class LockedCounter: Sendable {
-    private let count = Mutex(0)
+private nonisolated final class CancellationFlag: Sendable {
+    private let cancelled = Mutex(false)
 
-    var value: Int {
-        count.withLock { $0 }
+    func cancel() {
+        cancelled.withLock { $0 = true }
     }
 
-    func increment() -> Int {
-        count.withLock {
-            $0 += 1
-            return $0
+    func check() throws {
+        if cancelled.withLock({ $0 }) {
+            throw CancellationError()
         }
     }
 }
 
-private nonisolated final class ScriptedCancellationCheck: Sendable {
-    private let failAt: Int
-    private let calls = Mutex(0)
-
-    init(failAt: Int) {
-        self.failAt = failAt
+private nonisolated final class ControlledStagingFileSystem: LocalNotificationStagingFileSystem, Sendable {
+    enum Behavior: Sendable {
+        case afterSourceOpen(@Sendable () throws -> Void)
+        case readFailure
+        case partialWriteFailure(destinationOrdinal: Int)
+        case partialWriteCancellation(
+            destinationOrdinal: Int,
+            cancellation: CancellationFlag
+        )
+        case cancelAfterSourceEOF(
+            sourceOrdinal: Int,
+            cancellation: CancellationFlag
+        )
+        case foreignDirectoryWins
+        case cleanupIdentityHook
     }
 
-    func call() throws {
-        let currentCall = calls.withLock {
-            $0 += 1
-            return $0
+    private struct State: Sendable {
+        var sourceOrdinal = 0
+        var destinationOrdinal = 0
+        var cancellationSource: LocalNotificationStagingFileDescriptor?
+        var partialDestination: LocalNotificationStagingFileDescriptor?
+        var didWritePartialBytes = false
+        var partialBytesWritten = 0
+        var cleanupHook: (@Sendable () throws -> Void)?
+    }
+
+    private let behavior: Behavior
+    private let base = POSIXLocalNotificationStagingFileSystem()
+    private let state = Mutex(State())
+
+    init(behavior: Behavior) {
+        self.behavior = behavior
+    }
+
+    var partialBytesWritten: Int {
+        state.withLock(\.partialBytesWritten)
+    }
+
+    func armCleanupHook(_ hook: @escaping @Sendable () throws -> Void) {
+        state.withLock { $0.cleanupHook = hook }
+    }
+
+    func openDirectory(at url: URL) throws -> LocalNotificationStagingFileDescriptor {
+        try base.openDirectory(at: url)
+    }
+
+    func createDirectory(
+        named name: String,
+        in parent: LocalNotificationStagingFileDescriptor
+    ) throws {
+        guard case .foreignDirectoryWins = behavior else {
+            try base.createDirectory(named: name, in: parent)
+            return
         }
-        if currentCall == failAt {
-            throw CancellationError()
+
+        try base.createDirectory(named: name, in: parent)
+        let directory = try base.openDirectory(named: name, in: parent)
+        defer { base.close(directory) }
+        let sentinel = try base.createFile(named: "foreign-sentinel", in: directory)
+        defer { base.close(sentinel) }
+        let bytes = Data("foreign".utf8)
+        var offset = 0
+        while offset < bytes.count {
+            offset += try base.write(bytes, fromOffset: offset, to: sentinel)
         }
+        try base.createDirectory(named: name, in: parent)
+    }
+
+    func openDirectory(
+        named name: String,
+        in parent: LocalNotificationStagingFileDescriptor
+    ) throws -> LocalNotificationStagingFileDescriptor {
+        try base.openDirectory(named: name, in: parent)
+    }
+
+    func openSourceFile(at url: URL) throws -> LocalNotificationStagingFileDescriptor {
+        let descriptor = try base.openSourceFile(at: url)
+        do {
+            let ordinal = state.withLock {
+                $0.sourceOrdinal += 1
+                return $0.sourceOrdinal
+            }
+            switch behavior {
+            case let .afterSourceOpen(action):
+                try action()
+            case let .cancelAfterSourceEOF(sourceOrdinal, _):
+                if ordinal == sourceOrdinal {
+                    state.withLock { $0.cancellationSource = descriptor }
+                }
+            default:
+                break
+            }
+            return descriptor
+        } catch {
+            base.close(descriptor)
+            throw error
+        }
+    }
+
+    func createFile(
+        named name: String,
+        in directory: LocalNotificationStagingFileDescriptor
+    ) throws -> LocalNotificationStagingFileDescriptor {
+        let descriptor = try base.createFile(named: name, in: directory)
+        let ordinal = state.withLock {
+            $0.destinationOrdinal += 1
+            return $0.destinationOrdinal
+        }
+        switch behavior {
+        case let .partialWriteFailure(destinationOrdinal),
+             let .partialWriteCancellation(destinationOrdinal, _):
+            if ordinal == destinationOrdinal {
+                state.withLock { $0.partialDestination = descriptor }
+            }
+        default:
+            break
+        }
+        return descriptor
+    }
+
+    func identity(
+        of descriptor: LocalNotificationStagingFileDescriptor
+    ) throws -> LocalNotificationFileIdentity {
+        try base.identity(of: descriptor)
+    }
+
+    func identity(
+        ofEntryNamed name: String,
+        in parent: LocalNotificationStagingFileDescriptor
+    ) throws -> LocalNotificationFileIdentity? {
+        if case .cleanupIdentityHook = behavior {
+            let hook = state.withLock { state -> (@Sendable () throws -> Void)? in
+                defer { state.cleanupHook = nil }
+                return state.cleanupHook
+            }
+            try hook?()
+        }
+        return try base.identity(ofEntryNamed: name, in: parent)
+    }
+
+    func read(
+        from descriptor: LocalNotificationStagingFileDescriptor,
+        maximumCount: Int
+    ) throws -> Data {
+        if case .readFailure = behavior {
+            throw PrivateCopyError.secretPath
+        }
+        let data = try base.read(from: descriptor, maximumCount: maximumCount)
+        if case let .cancelAfterSourceEOF(_, cancellation) = behavior,
+           data.isEmpty,
+           state.withLock({ $0.cancellationSource == descriptor }) {
+            cancellation.cancel()
+        }
+        return data
+    }
+
+    func write(
+        _ data: Data,
+        fromOffset offset: Int,
+        to descriptor: LocalNotificationStagingFileDescriptor
+    ) throws -> Int {
+        let isPartialDestination = state.withLock { $0.partialDestination == descriptor }
+        guard isPartialDestination else {
+            return try base.write(data, fromOffset: offset, to: descriptor)
+        }
+
+        let didWritePartialBytes = state.withLock(\.didWritePartialBytes)
+        if didWritePartialBytes {
+            if case .partialWriteFailure = behavior {
+                throw PrivateCopyError.secretPath
+            }
+            return try base.write(data, fromOffset: offset, to: descriptor)
+        }
+
+        let end = min(offset + 4, data.count)
+        let partialData = data.subdata(in: offset..<end)
+        let written = try base.write(partialData, fromOffset: 0, to: descriptor)
+        state.withLock {
+            $0.didWritePartialBytes = true
+            $0.partialBytesWritten += written
+        }
+        if case let .partialWriteCancellation(_, cancellation) = behavior {
+            cancellation.cancel()
+        }
+        return written
+    }
+
+    func unlinkFile(
+        named name: String,
+        in directory: LocalNotificationStagingFileDescriptor
+    ) throws {
+        try base.unlinkFile(named: name, in: directory)
+    }
+
+    func unlinkDirectory(
+        named name: String,
+        in parent: LocalNotificationStagingFileDescriptor
+    ) throws {
+        try base.unlinkDirectory(named: name, in: parent)
+    }
+
+    func close(_ descriptor: LocalNotificationStagingFileDescriptor) {
+        base.close(descriptor)
     }
 }
 
