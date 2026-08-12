@@ -7,18 +7,17 @@ struct AppDependencies: Sendable {
 
     static func live(
         localDatabaseStoreLocationResolver:
-            LocalDatabaseStoreLocationResolver = .live()
+            LocalDatabaseStoreLocationResolver = .live(),
+        userDefaultsService: any IUserDefaultsService = UserDefaultsService(
+            namespace: "AppTemplate"
+        )
     ) -> AppDependencies {
         AppDependencies(
             localDatabase: LocalDatabaseService(
-                configuration: .live(
-                    locationResolver: localDatabaseStoreLocationResolver
-                )
+                configuration: .live(locationResolver: localDatabaseStoreLocationResolver)
             ),
             remote: RemoteService(),
-            appStateStorage: UserDefaultsAppStateStorage(
-                userDefaults: UserDefaultsService(namespace: "AppTemplate")
-            ),
+            appStateStorage: UserDefaultsAppStateStorage(userDefaults: userDefaultsService),
             settings: SettingsDependencies(appInfo: AppInfoService())
         )
     }

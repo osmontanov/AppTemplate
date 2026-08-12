@@ -14,6 +14,24 @@ struct AppDependenciesTests {
         #expect(dependencies.settings.appInfo is AppInfoService)
     }
 
+    @Test func liveGraphConsumesInjectedUserDefaultsServiceThroughAppStateAdapter() throws {
+        let spy = UserDefaultsServiceSpy(value: Data([0x01, 0x02]))
+        let dependencies = AppDependencies.live(userDefaultsService: spy)
+        let storage = dependencies.appStateStorage
+
+        #expect(try storage.load() == .data(Data([0x01, 0x02])))
+        try storage.save(Data([0x03]))
+        try storage.remove()
+        let expectedKey = UserDefaultsServiceSpy.KeyRecord(
+            logicalName: "AppState",
+            physicalKind: .data
+        )
+        #expect(spy.requestedValueKeys == [expectedKey])
+        #expect(spy.requestedSetKeys == [expectedKey])
+        #expect(spy.savedValues == [Data([0x03])])
+        #expect(spy.requestedRemoveKeys == [expectedKey])
+    }
+
     @Test
     func liveGraphDefersResolverUntilFirstValidRegisteredOperation() async {
         let calls = Mutex(0)
