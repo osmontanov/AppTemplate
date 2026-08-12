@@ -136,8 +136,38 @@ do not switch factories for a shipped logical key.
 Keys are compile-time constants, never values derived from user input, account
 IDs, routes, remote configuration, or other arbitrary data. UserDefaults is
 for nonsensitive app-private settings only; passwords, credentials, tokens,
-private keys, and other secrets require a separately designed
-`KeychainService` and product data policy.
+private keys, and other secrets use the app-private Keychain boundary below.
+
+### App-private Keychain secrets
+
+The Keychain service namespace and every account name are stable, opaque,
+fixed metadata. Do not derive either from a secret, user ID, email, server
+response, localized text, or bundle metadata. The template's live namespace is
+`AppTemplate`; change it before the first product release, then treat a change
+to either service or account spelling as an explicit storage migration.
+
+Choose one representation for each fixed account:
+
+- Raw `Data` is the canonical boundary for opaque bytes.
+- `String` keys use exact UTF-8 bytes for their entire shipped lifetime.
+- `KeychainCodableKey<Value>` stores direct JSON for one `Codable & Sendable`
+  value type and one positive, monotonically increasing schema version; the
+  version is part of the physical account name.
+
+Do not switch a shipped account's representation as a fallback. For an
+incompatible Codable change, declare the new schema version, read the new key
+first, then read and map the old value only when needed. Write and await the
+new value before removing the old one. A failed new write leaves the old item
+intact; a failed cleanup can leave both, with the new key remaining
+authoritative.
+
+Wrap this low-level service in a semantic repository before giving a feature
+access to credentials or sessions. It is not a feature API, token lifecycle,
+or general data store. Shared groups, Keychain synchronization, biometrics or
+other user-presence policy, access while locked in the background, and changes
+to team, App ID prefix, bundle identity, or platform application identity each
+change the authorization or storage model and require a separate design,
+migration strategy, tests, and release validation.
 
 ### Remote service
 

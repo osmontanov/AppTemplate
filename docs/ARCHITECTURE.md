@@ -67,6 +67,42 @@ results mean the synchronous storage boundary accepted the mutation before
 in-memory policy changed. Secrets remain outside this path and require a
 separate Keychain boundary.
 
+### App-private Keychain storage
+
+The Keychain path is deliberately narrow:
+
+```text
+IKeychainService
+  -> KeychainService
+  -> KeychainSecItemExecuting
+  -> SecurityKeychainSecItemExecutor
+```
+
+`IKeychainService` is Data-first: its raw async contract reads, sets, and
+Bool-removes `Data`; protocol conveniences add exact UTF-8 `String` handling
+and direct-JSON, versioned `Codable & Sendable` values with fresh codecs.
+`KeychainService` is one actor that owns cancellation, public status mapping,
+and the bounded `update -> add -> update -> add` convergence sequence. It
+makes at most four calls and treats a duplicate from the second add as a
+concurrent mutation rather than retrying again. The separate
+`SecurityKeychainSecItemExecutor` actor owns the synchronous Security
+dictionary construction and call, keeping Core Foundation state local to that
+actor.
+
+Every item is a generic password in the Data Protection Keychain with
+`kSecAttrSynchronizable = false`,
+`kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, and no explicit access-group
+query field. This remains app-private only while the signed process has no
+additional authorized Keychain group. The low-level boundary has no Feature or
+ViewModel consumer: a product feature must receive a semantic repository
+instead.
+
+`AppDependencies.live()` owns the live boundary without reading or seeding a
+secret. Preview and UI-test graphs each receive a fresh
+`InMemoryKeychainService`; tests can inject a supplied service explicitly.
+The in-memory actor is deterministic storage for graph isolation, not an
+emulation of Security, signing, lock state, or persistence.
+
 Screen actions do not choose roots directly. `IAuthenticationActions`,
 `IOnboardingActions`, and `IMaintenanceActions` expose narrow semantic
 commands. `AppFlowCoordinator` saves the proposed state, asks the policy for

@@ -18,6 +18,33 @@ Complete this checklist for the adopted product, not for the untouched sample.
 - [ ] Validate universal links, custom URL schemes, associated domains, and
   other registered identifiers used by the product.
 
+## Mandatory Keychain adopter gate
+
+> **RELEASE BLOCKER:** The local ad-hoc macOS Release build is compile/link
+> evidence only; unsigned iOS builds, simulator runs, unit tests, and
+> command-line probes are too. They cannot show that the Data Protection
+> Keychain works at runtime and cannot clear this signed-and-provisioned gate.
+
+- [ ] Build and run the final team and final bundle identity with signing and
+  provisioning in a normal user context, on supported physical iPhone/iPad
+  hardware and as the signed macOS app.
+- [ ] Inspect final app and archive entitlements. On iOS/iPadOS use
+  `application-identifier`; on macOS use
+  `com.apple.application-identifier`. `keychain-access-groups` must be absent,
+  or it must be exactly one entry equal to that platform application
+  identifier. Reject any additional, wildcard, legacy, or shared group.
+- [ ] Confirm `com.apple.security.application-groups` is absent from source,
+  project configuration, and signed artifacts unless a separately designed and
+  validated App Group policy is being adopted.
+- [ ] With an isolated fixed test service/account, exercise missing, add,
+  read, update, Bool-remove, and explicit cleanup on the signed app. Record
+  the tested build, profile, identity, platforms, and results.
+- [ ] Validate the unlocked and locked-device behavior against the product's
+  actual foreground execution model. This policy is not for background access
+  while locked without a separate security design.
+- [ ] Review logout, retention, device-transfer, backup, account recovery, and
+  incident-response behavior with product and security owners before release.
+
 ## Product assets and localization
 
 - [ ] Replace and visually inspect every required iOS, iPadOS, and macOS app

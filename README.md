@@ -53,8 +53,10 @@ registry; do not encode unrelated domain data into `payload` merely to reuse
 
 `AppStateStore` remains separate from SwiftData and now uses a synchronous,
 typed app-private UserDefaults boundary for its launch-policy record. This
-boundary is for nonsensitive settings only; secrets still belong in a separate
-future `KeychainService`.
+boundary is for nonsensitive settings only. Small secrets belong in the
+implemented app-private Data Protection Keychain boundary; it stores no sample
+credential. Features should depend on semantic repositories over domain values
+rather than on the low-level `KeychainService`.
 
 ## Documentation
 
