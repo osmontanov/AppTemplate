@@ -11,7 +11,21 @@ struct AppDependenciesTests {
         #expect(dependencies.localDatabase is LocalDatabaseService)
         #expect(dependencies.remote is RemoteService)
         #expect(dependencies.appStateStorage is UserDefaultsAppStateStorage)
+        #expect(dependencies.keychain is KeychainService)
         #expect(dependencies.settings.appInfo is AppInfoService)
+    }
+
+    @Test
+    func liveGraphRetainsInjectedKeychainExactlyWithoutEagerAccess() async throws {
+        let injected = KeychainServiceSpy()
+        let dependencies = AppDependencies.live(keychainService: injected)
+        let resolved = try #require(dependencies.keychain as? KeychainServiceSpy)
+
+        #expect(resolved === injected)
+        let counts = await injected.callCounts()
+        #expect(counts.reads == 0)
+        #expect(counts.writes == 0)
+        #expect(counts.removals == 0)
     }
 
     @Test func liveGraphConsumesInjectedUserDefaultsServiceThroughAppStateAdapter() throws {
@@ -97,6 +111,27 @@ struct AppDependenciesTests {
     }
 
     @Test
+    func previewAndUITestingGraphsUseFreshInMemoryKeychains() async throws {
+        let settings = SettingsDependencies(
+            appInfo: AppInfoService(displayName: "Preview", version: "1")
+        )
+        let preview1 = AppDependencies.preview(settings: settings)
+        let preview2 = AppDependencies.preview(settings: settings)
+        try await preview1.keychain.set(Data([1]), for: .data("Isolation"))
+        #expect(try await preview2.keychain.data(for: .data("Isolation")) == nil)
+
+        let state = AppState(
+            isAuthenticated: false,
+            hasCompletedOnboarding: false,
+            isMaintenanceEnabled: false
+        )
+        let ui1 = AppDependencies.uiTesting(initialState: state)
+        let ui2 = AppDependencies.uiTesting(initialState: state)
+        try await ui1.keychain.set(Data([1]), for: .data("Isolation"))
+        #expect(try await ui2.keychain.data(for: .data("Isolation")) == nil)
+    }
+
+    @Test
     func previewAndUITestingGraphsRejectTestOnlyModel() async {
         let settings = SettingsDependencies(
             appInfo: AppInfoService(displayName: "Preview", version: "1")
@@ -160,6 +195,7 @@ struct AppDependenciesTests {
         let localDatabaseService = InjectedLocalDatabaseService()
         let remoteService = InjectedRemoteService()
         let appStateStorage = InjectedAppStateStorage()
+        let keychainService = KeychainServiceSpy()
         let settings = SettingsDependencies(
             appInfo: AppInfoService(
                 displayName: "Preview App",
@@ -170,7 +206,8 @@ struct AppDependenciesTests {
             settings: settings,
             appStateStorage: appStateStorage,
             localDatabaseService: localDatabaseService,
-            remoteService: remoteService
+            remoteService: remoteService,
+            keychainService: keychainService
         )
         let resolvedLocalDatabaseService = try #require(
             dependencies.localDatabase as? InjectedLocalDatabaseService
@@ -181,10 +218,14 @@ struct AppDependenciesTests {
         let resolvedAppStateStorage = try #require(
             dependencies.appStateStorage as? InjectedAppStateStorage
         )
+        let resolvedKeychainService = try #require(
+            dependencies.keychain as? KeychainServiceSpy
+        )
 
         #expect(resolvedLocalDatabaseService === localDatabaseService)
         #expect(resolvedRemoteService === remoteService)
         #expect(resolvedAppStateStorage === appStateStorage)
+        #expect(resolvedKeychainService === keychainService)
         #expect(dependencies.settings.appInfo.displayName == "Preview App")
         #expect(dependencies.settings.appInfo.version == "9.8.7")
     }
@@ -194,6 +235,7 @@ struct AppDependenciesTests {
         let localDatabaseService = InjectedLocalDatabaseService()
         let remoteService = InjectedRemoteService()
         let appStateStorage = InjectedAppStateStorage()
+        let keychainService = KeychainServiceSpy()
         let settings = SettingsDependencies(
             appInfo: AppInfoService(
                 displayName: "Test App",
@@ -204,6 +246,7 @@ struct AppDependenciesTests {
             localDatabaseService: localDatabaseService,
             remoteService: remoteService,
             appStateStorage: appStateStorage,
+            keychainService: keychainService,
             settings: settings
         )
         let resolvedLocalDatabaseService = try #require(
@@ -215,10 +258,14 @@ struct AppDependenciesTests {
         let resolvedAppStateStorage = try #require(
             dependencies.appStateStorage as? InjectedAppStateStorage
         )
+        let resolvedKeychainService = try #require(
+            dependencies.keychain as? KeychainServiceSpy
+        )
 
         #expect(resolvedLocalDatabaseService === localDatabaseService)
         #expect(resolvedRemoteService === remoteService)
         #expect(resolvedAppStateStorage === appStateStorage)
+        #expect(resolvedKeychainService === keychainService)
         #expect(dependencies.settings.appInfo.displayName == "Test App")
         #expect(dependencies.settings.appInfo.version == "3.2.1")
     }
