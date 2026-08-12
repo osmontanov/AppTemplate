@@ -1036,7 +1036,9 @@ struct SecurityKeychainSecItemExecutorTests {
                     return api.copyMatching(query as CFDictionary, &object)
                 }
             }
-            return await group.reduce(into: []) { $0.append($1) }
+            var results: [OSStatus] = []
+            for await status in group { results.append(status) }
+            return results
         }
         #expect(statuses.allSatisfy { $0 == errSecSuccess })
         #expect(recorder.callKinds().count == 200)
@@ -1045,6 +1047,12 @@ struct SecurityKeychainSecItemExecutorTests {
 
 nonisolated private func requireSendable<T: Sendable>(_ value: T) {}
 ```
+
+Swift 6.3.3 diagnoses `group.reduce(into:)` here because its concurrent
+reducing closure sends the inout accumulator and TaskGroup across concurrency
+domains. Collecting through the task-group scope's serial `for await` loop
+preserves the same 200 completion statuses and their order of delivery without
+the sending/inout higher-order reduction.
 
 Add this complete synchronized test seam in the same file. Every fake closure normalizes its `CFDictionary` arguments into owned Sendable snapshots before locking or returning. A missing, foreign, or extra key records a normalization failure and returns `errSecParam`; it is never silently ignored.
 
