@@ -294,7 +294,28 @@ rg -n "cannot convert value of type 'String' to expected argument type 'Bool'|co
 
 - [ ] **Step 5: Mutation review and commit**
 
-Temporarily remove explicit `nonisolated` from the `.data` extension and confirm the focused build fails with an actor-isolation diagnostic; restore it. Temporarily loosen the mismatch fixture to `UserDefaultsKey<String>` and confirm the negative build succeeds. Restore the mismatch, rerun the complete compile-negative block from Step 4 from a fresh root, require the exact `String`/`Bool` diagnostic again, and finally rerun GREEN.
+The Task 1 test target is a separately compiled consumer of `AppTemplate`. With the pinned Swift toolchain, default MainActor isolation introduced by removing `nonisolated` from a constrained extension is not serialized for that imported extension method, so this cross-module build cannot prove the annotation. Keep the explicit declaration requirement with this exact source guard; Task 3 supplies the same-module compiler mutation after `UserDefaultsAppStateStorage` exists:
+
+```bash
+set -euo pipefail
+key_file='AppTemplate/App/Services/UserDefaults/UserDefaultsKey.swift'
+test -f "$key_file"
+test "$(rg -c '^nonisolated extension UserDefaultsKey where ' "$key_file")" -eq 8
+for constraint in \
+  'where Value == Bool' \
+  'where Value == Int' \
+  'where Value == Float' \
+  'where Value == Double' \
+  'where Value == String' \
+  'where Value == Data' \
+  'where Value == Date' \
+  'where Value: Codable'
+do
+  rg -F -x "nonisolated extension UserDefaultsKey $constraint {" "$key_file" >/dev/null
+done
+```
+
+Temporarily loosen the mismatch fixture to `UserDefaultsKey<String>` and confirm the negative build succeeds. Restore the mismatch, rerun the complete compile-negative block from Step 4 from a fresh root, require the exact `String`/`Bool` diagnostic again, and finally rerun GREEN.
 
 ```bash
 set -euo pipefail
@@ -691,6 +712,32 @@ done
 ```
 
 Temporarily catch every `UserDefaultsServiceError` as `.invalidValue`; confirm `encodingFailurePropagatesUnchanged` or `decodingFailurePropagatesUnchanged` fails. Restore and rerun GREEN.
+
+Temporarily remove `nonisolated` only from `nonisolated extension UserDefaultsKey where Value == Data`. Run this fresh same-module compiler mutation and require the actor-isolation error at `UserDefaultsAppStateStorage.appStateKey`:
+
+```bash
+set -euo pipefail
+isolation_root="$(mktemp -d /tmp/AppTemplate-UserDefaults-Task3-ISOLATION.XXXXXX)"
+test -d "$isolation_root"
+set +e
+xcodebuild test \
+  -project AppTemplate.xcodeproj -scheme AppTemplate \
+  -configuration Debug -destination 'platform=macOS' \
+  -only-testing:AppTemplateTests/UserDefaultsAppStateStorageTests \
+  -only-testing:AppTemplateTests/AppStateStoreTests \
+  -derivedDataPath "$isolation_root/DerivedData" \
+  -resultBundlePath "$isolation_root/Tests.xcresult" \
+  SWIFT_TREAT_WARNINGS_AS_ERRORS=YES GCC_TREAT_WARNINGS_AS_ERRORS=YES \
+  >"$isolation_root/xcodebuild.log" 2>&1
+isolation_status=$?
+set -e
+test "$isolation_status" -ne 0
+rg -ni \
+  'UserDefaultsAppStateStorage\.swift:.*error:.*(main actor-isolated.*data|data.*main actor-isolated)' \
+  "$isolation_root/xcodebuild.log"
+```
+
+Restore `nonisolated` on the Data extension and rerun the complete GREEN block at the start of this step from a new root.
 
 - [ ] **Step 5: Verify immutable boundaries and commit**
 
