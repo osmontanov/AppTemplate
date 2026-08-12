@@ -2600,11 +2600,15 @@ Add these exact tests to `AppDependenciesTests`:
     #expect(dependencies.keychain is KeychainService)
 }
 
-@Test func liveGraphRetainsInjectedKeychainExactly() throws {
+@Test func liveGraphRetainsInjectedKeychainExactlyWithoutEagerAccess() async throws {
     let injected = KeychainServiceSpy()
     let dependencies = AppDependencies.live(keychainService: injected)
     let resolved = try #require(dependencies.keychain as? KeychainServiceSpy)
     #expect(resolved === injected)
+    let counts = await injected.callCounts()
+    #expect(counts.reads == 0)
+    #expect(counts.writes == 0)
+    #expect(counts.removals == 0)
 }
 
 @Test func previewGraphRetainsInjectedKeychainExactly() throws {
@@ -2740,7 +2744,45 @@ xcrun xcresulttool get build-results --path "$green_root/Tests.xcresult" --compa
 
 1. Reuse one static in-memory actor for preview/UI testing; the fresh-graph test must fail.
 2. Ignore an injected live or preview service and construct another; the corresponding identity test must fail.
-3. Read any key while constructing `live`; inject a spy and add an assertion that its call counts are all zero immediately after graph creation. Retain the zero-count assertion, restore lazy composition, rerun GREEN.
+3. Retain `liveGraphRetainsInjectedKeychainExactlyWithoutEagerAccess()` and
+   its zero-call-count assertions as direct behavior evidence for the real
+   synchronous graph. Do not claim that an unstructured-task mutation is a
+   deterministic test failure: `live` cannot await the actor operation, so
+   its immediate post-return snapshot races task scheduling. Instead, run
+   this exact composition source oracle, then require an in-memory textual
+   mutation containing both a raw read and a task bridge to fail the same
+   oracle. This mutation is source-oracle evidence only; do not compile it or
+   claim a test result:
+
+```bash
+set -euo pipefail
+composition_file='AppTemplate/App/AppDependencies/AppDependencies.swift'
+composition_operation_pattern='(?s)\.(?:data|string|value)\s*\(\s*for\s*:|\.(?:set|remove)\s*\('
+composition_bridge_pattern='(?s)\b(?:Task|DispatchQueue|DispatchGroup|DispatchSemaphore|OperationQueue|NSCondition|NSLock|RunLoop)\b|with(?:Checked|Unsafe)(?:Throwing)?Continuation\s*\('
+
+test -z "$(rg -nU --pcre2 "$composition_operation_pattern" \
+  "$composition_file")"
+test -z "$(rg -nU --pcre2 "$composition_bridge_pattern" \
+  "$composition_file")"
+
+composition_source="$(<"$composition_file")"
+mutated_source="${composition_source}"$'\n''_ = Task { _ = try? await keychainService.data(for: .data("CompositionProbe")) }'
+set +e
+test -z "$(rg -nU --pcre2 "$composition_operation_pattern" \
+  <<<"$mutated_source")"
+operation_guard_exit=$?
+test -z "$(rg -nU --pcre2 "$composition_bridge_pattern" \
+  <<<"$mutated_source")"
+bridge_guard_exit=$?
+set -e
+test "$operation_guard_exit" -ne 0
+test "$bridge_guard_exit" -ne 0
+test -z "$(rg -nU --pcre2 "$composition_operation_pattern" \
+  "$composition_file")"
+test -z "$(rg -nU --pcre2 "$composition_bridge_pattern" \
+  "$composition_file")"
+```
+
 4. Verify no Feature consumption: `test -z "$(rg -n 'IKeychainService|KeychainService|KeychainKey|KeychainCodableKey' AppTemplate/Features)"`.
 
 - [ ] **Step 5: Commit Task 5**
