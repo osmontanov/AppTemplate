@@ -52,8 +52,8 @@ Complete this checklist for the adopted product, not for the untouched sample.
 - [ ] Confirm local database privacy, retention, backup, sync, and
   cross-process decisions; the template enables no CloudKit sync or App Group
   sharing by default.
-- [ ] Run unit-test bundles locally on macOS, iPhone 17 / iOS 26.5, and iPad
-  (A16) / iOS 26.5 with Swift and Clang warnings treated as errors.
+- [ ] Run unit-test bundles locally on macOS, iPhone 17 / iOS 26.5, and
+  iPad (A16) / iOS 26.5 with Swift and Clang warnings treated as errors.
 - [ ] Run the complete macOS scheme and the full UI-test bundle on both listed
   iOS simulator destinations with zero failures, skips, or expected failures.
 - [ ] Build Release for generic macOS and unsigned generic iOS with warnings
