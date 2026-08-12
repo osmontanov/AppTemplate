@@ -981,10 +981,20 @@ expected_raw_files="$(printf '%s\n' \
   | LC_ALL=C sort)"
 test "$actual_raw_files" = "$expected_raw_files"
 
+keychain_spec='docs/superpowers/specs/2026-08-12-keychain-service-design.md'
+for documentation_commit in \
+  96205b098e9084db96745b3d7259ab6c4275903b \
+  a83574042cd38ee6a53eb2f74bc7f59e2196e7ac; do
+  test "$(git diff-tree --no-commit-id --name-only -r "$documentation_commit")" = \
+    "$keychain_spec"
+done
+test "$(git rev-parse "HEAD:$keychain_spec")" = \
+  "$(git rev-parse "a83574042cd38ee6a53eb2f74bc7f59e2196e7ac:$keychain_spec")"
+
 changed_paths="$({
   git diff 31e79d156dd042b97b1f436152f17a7d4d669d12 --name-only
   git ls-files --others --exclude-standard
-} | LC_ALL=C sort -u)"
+} | LC_ALL=C sort -u | awk -v excluded="$keychain_spec" '$0 != excluded')"
 while IFS= read -r path; do
   test -n "$path" || continue
   case "$path" in
@@ -1259,10 +1269,20 @@ test "$(shasum -a 256 AppTemplate.xcodeproj/project.pbxproj | awk '{print $1}')"
 rg -q 'NSPrivacyAccessedAPICategoryUserDefaults' docs/RELEASE_CHECKLIST.md
 rg -q 'CA92\.1' docs/RELEASE_CHECKLIST.md
 
+keychain_spec='docs/superpowers/specs/2026-08-12-keychain-service-design.md'
+for documentation_commit in \
+  96205b098e9084db96745b3d7259ab6c4275903b \
+  a83574042cd38ee6a53eb2f74bc7f59e2196e7ac; do
+  test "$(git diff-tree --no-commit-id --name-only -r "$documentation_commit")" = \
+    "$keychain_spec"
+done
+test "$(git rev-parse "HEAD:$keychain_spec")" = \
+  "$(git rev-parse "a83574042cd38ee6a53eb2f74bc7f59e2196e7ac:$keychain_spec")"
+
 changed_paths="$({
   git diff 31e79d156dd042b97b1f436152f17a7d4d669d12 --name-only
   git ls-files --others --exclude-standard
-} | LC_ALL=C sort -u)"
+} | LC_ALL=C sort -u | awk -v excluded="$keychain_spec" '$0 != excluded')"
 while IFS= read -r path; do
   test -n "$path" || continue
   case "$path" in
