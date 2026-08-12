@@ -1634,6 +1634,7 @@ xcrun xcresulttool get build-results --path "$green_root/Tests.xcresult" --compa
 live_security_file='AppTemplate/App/Services/Keychain/Internal/KeychainSecurityAPI.swift'
 test "$(rg -l '\bSecItem(CopyMatching|Update|Add|Delete)\s*\(' \
   AppTemplate --glob '*.swift')" = "$live_security_file"
+rg -qF 'nonisolated struct KeychainSecurityAPI: Sendable {' AppTemplate/App/Services/Keychain/Internal/KeychainSecurityAPI.swift
 test -z "$(rg -n '\bSecItem(CopyMatching|Update|Add|Delete)\s*\(' \
   AppTemplateTests AppTemplateUITests --glob '*.swift')"
 test -z "$(rg -n '@unchecked Sendable|unsafeBitCast' AppTemplate/App/Services/Keychain)"
@@ -1671,9 +1672,15 @@ Perform and restore these mutations, using a fresh bundle for every expected fai
 5. Remove `Task.checkCancellation()` from each of copy, update, add, and delete one at a time; the corresponding argument of `preCancelledExecutorMethodsInvokeNoSecurityClosure` must fail.
 6. Remove the executor-entry cancellation check from update, then run `cancellationWhileExecutorIsOccupiedPreventsQueuedSecurityClosure`; the queued update must reach the fake Security closure and fail the exact `[.copy]` assertion. Restore immediately.
 7. Replace the returned update, add, or delete closure status with `errSecSuccess` one at a time; `mutationMethodsReturnExactNonSuccessSecurityStatus` must fail for that operation.
-8. Remove `Sendable` from `KeychainSecurityAPI` or `@Sendable` from one stored closure alias; `closureTableIsCheckedSendableAndRecorderHandlesConcurrentDirectCalls` must fail to compile at `requireSendable` or the checked conformance. Restore immediately.
+8. Remove `@Sendable` from `CopyMatching`, `Update`, `Add`, and `Delete` one at a time. Each mutation must fail the warnings-as-errors compile, naming the corresponding stored function property as non-Sendable and the missing `@Sendable` requirement; restore after each failure. Separately remove explicit `: Sendable` from `KeychainSecurityAPI`; require the new exact source oracle to fail, while allowing the compile to remain GREEN because Swift structurally infers `Sendable` from the four `@Sendable` stored closure properties. Restore immediately.
 9. Return `Data(referencing:)`/`Data(bytesNoCopy:)` or otherwise remove the exact `Data(bytes: bytes, count: count)` owned-copy constructor. The owned-copy source oracle must fail deterministically; for a no-copy mutation, the behavioral source-mutation assertion must fail as well.
 10. Replace `unsafeDowncast` with `unsafeBitCast`; the source boundary check must fail even if tests happen to pass. Restore and rerun the complete GREEN command.
+
+`KeychainSecurityAPI` can receive an implicit structural `Sendable` conformance
+when every stored closure is `@Sendable`, so removing its explicit conformance
+is a source-policy probe rather than a reliable compile-failure oracle. The
+per-alias mutations instead prove the stored closure guarantees that make the
+table safely transferable.
 
 - [ ] **Step 6: Commit Task 2**
 
