@@ -993,7 +993,7 @@ struct SecurityKeychainSecItemExecutorTests {
         let queuedStart = QueuedExecutorCallStart()
         let queued = Task {
             queuedStart.markStarted()
-            try await executor.update(service: "S", account: "Queued", data: Data())
+            _ = try await executor.update(service: "S", account: "Queued", data: Data())
         }
         let queuedStarted = await queuedStart.waitUntilStarted()
         #expect(queuedStarted)
