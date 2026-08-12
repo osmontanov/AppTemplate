@@ -3179,7 +3179,7 @@ model_boundary_violations="$(
 test -z "$model_boundary_violations"
 
 test "$(
-  rg -l '@Model' AppTemplate --glob '*.swift' | LC_ALL=C sort
+  rg -l '@Model\b' AppTemplate --glob '*.swift' | LC_ALL=C sort
 )" = 'AppTemplate/App/Services/LocalDatabase/LocalDatabaseSchema.swift'
 
 if rg -n \
