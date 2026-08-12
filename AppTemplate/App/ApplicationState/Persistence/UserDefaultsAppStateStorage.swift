@@ -1,33 +1,30 @@
 import Foundation
 
-nonisolated
-struct UserDefaultsAppStateStorage:
-    IAppStateStorage,
-    @unchecked Sendable
-{
-    static let key = "AppTemplate.AppState"
+nonisolated struct UserDefaultsAppStateStorage: IAppStateStorage, Sendable {
+    private static let appStateKey: UserDefaultsKey<Data> = .data("AppState")
 
-    private let userDefaults: UserDefaults
+    private let userDefaults: any IUserDefaultsService
 
-    init(userDefaults: UserDefaults = .standard) {
+    init(userDefaults: any IUserDefaultsService) {
         self.userDefaults = userDefaults
     }
 
     func load() throws -> AppStateStorageLoadResult {
-        guard let value = userDefaults.object(forKey: Self.key) else {
-            return .missing
-        }
-        guard let data = value as? Data else {
+        do {
+            guard let data = try userDefaults.value(for: Self.appStateKey) else {
+                return .missing
+            }
+            return .data(data)
+        } catch UserDefaultsServiceError.invalidStoredValue {
             return .invalidValue
         }
-        return .data(data)
     }
 
     func save(_ data: Data) throws {
-        userDefaults.set(data, forKey: Self.key)
+        try userDefaults.set(data, for: Self.appStateKey)
     }
 
     func remove() throws {
-        userDefaults.removeObject(forKey: Self.key)
+        userDefaults.remove(Self.appStateKey)
     }
 }

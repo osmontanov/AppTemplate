@@ -16,7 +16,9 @@ struct AppDependencies: Sendable {
                 )
             ),
             remote: RemoteService(),
-            appStateStorage: UserDefaultsAppStateStorage(),
+            appStateStorage: UserDefaultsAppStateStorage(
+                userDefaults: UserDefaultsService(namespace: "AppTemplate")
+            ),
             settings: SettingsDependencies(appInfo: AppInfoService())
         )
     }
