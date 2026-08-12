@@ -196,3 +196,13 @@ func makeGenericTestConfiguration() -> LocalDatabaseStoreConfiguration {
         modelRegistry: makeGenericTestRegistry()
     )
 }
+
+nonisolated
+func makeGenericDatabase(
+    hooks: LocalDatabaseStoreHooks = .production
+) -> any ILocalDatabaseService {
+    LocalDatabaseService(
+        configuration: makeGenericTestConfiguration(),
+        hooks: hooks
+    )
+}

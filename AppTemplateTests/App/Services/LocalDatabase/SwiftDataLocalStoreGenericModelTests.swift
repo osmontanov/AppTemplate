@@ -2,12 +2,13 @@ import Foundation
 import Testing
 @testable import AppTemplate
 
+@Suite(.serialized)
 struct SwiftDataLocalStoreGenericModelTests {
     @Test
     func oneGenericStoreRoundTripsExampleAndDistinctIDTestValues()
         async throws
     {
-        let store = try makeGenericLocalStore()
+        let database: any ILocalDatabaseService = makeGenericDatabase()
         let example = ExampleRecord(id: "example", payload: "value")
         let test = TestLocalRecord(
             id: TestLocalRecordID(rawValue: 41),
@@ -15,15 +16,16 @@ struct SwiftDataLocalStoreGenericModelTests {
             title: "distinct"
         )
 
-        try await store.upsert(example)
-        try await store.upsert(test)
+        try await database.upsert(example)
+        try await database.upsert(test)
 
         #expect(
-            try await store.fetch(ExampleRecord.self, id: example.id)
+            try await database.fetch(ExampleRecord.self, id: example.id)
                 == example
         )
         #expect(
-            try await store.fetch(TestLocalRecord.self, id: test.id) == test
+            try await database.fetch(TestLocalRecord.self, id: test.id)
+                == test
         )
     }
 
@@ -31,9 +33,7 @@ struct SwiftDataLocalStoreGenericModelTests {
     func genericServiceExistentialRoundTripsBothRegisteredModels()
         async throws
     {
-        let database: any ILocalDatabaseService = LocalDatabaseService(
-            configuration: makeGenericTestConfiguration()
-        )
+        let database: any ILocalDatabaseService = makeGenericDatabase()
         let example = ExampleRecord(id: "example", payload: "payload")
         let test = TestLocalRecord(
             id: TestLocalRecordID(rawValue: 73),
@@ -58,9 +58,7 @@ struct SwiftDataLocalStoreGenericModelTests {
     func testModelFetchAndDeleteHandleMissingAndPresentDistinctIDs()
         async throws
     {
-        let database: any ILocalDatabaseService = LocalDatabaseService(
-            configuration: makeGenericTestConfiguration()
-        )
+        let database: any ILocalDatabaseService = makeGenericDatabase()
         let example = ExampleRecord(id: "survivor", payload: "example")
         let test = TestLocalRecord(
             id: TestLocalRecordID(rawValue: 5),
@@ -94,9 +92,7 @@ struct SwiftDataLocalStoreGenericModelTests {
 
     @Test
     func testAdapterRejectsOutOfRangeQueryLimits() async throws {
-        let database: any ILocalDatabaseService = LocalDatabaseService(
-            configuration: makeGenericTestConfiguration()
-        )
+        let database: any ILocalDatabaseService = makeGenericDatabase()
 
         for invalidLimit in [0, 201] {
             do {
@@ -133,21 +129,23 @@ struct SwiftDataLocalStoreGenericModelTests {
     @Test
     func testModelBatchMixesInsertAndUpdate() async throws {
         let recorder = LocalDatabaseHookRecorder()
-        let store = try makeGenericLocalStore(hooks: recorder.hooks())
-        try await store.upsert([
+        let database: any ILocalDatabaseService = makeGenericDatabase(
+            hooks: recorder.hooks()
+        )
+        try await database.upsert([
             testRecord(id: 1, score: 10, title: "one"),
             testRecord(id: 2, score: 20, title: "two")
         ])
         let saveCountBeforeMutation = recorder.saves.count
 
-        try await store.upsert([
+        try await database.upsert([
             testRecord(id: 1, score: 100, title: "updated"),
             testRecord(id: 3, score: 30, title: "three")
         ])
 
         #expect(recorder.saves.count - saveCountBeforeMutation == 1)
         #expect(
-            try await store.fetch(
+            try await database.fetch(
                 TestLocalRecord.self,
                 matching: TestLocalQuery(limit: 200)
             ) == [
@@ -176,21 +174,21 @@ struct SwiftDataLocalStoreGenericModelTests {
 
     @Test
     func deleteAllIsScopedToRequestedModel() async throws {
-        let store = try makeGenericLocalStore()
+        let database: any ILocalDatabaseService = makeGenericDatabase()
         let example = ExampleRecord(id: "survivor", payload: "example")
-        try await store.upsert(example)
-        try await store.upsert([
+        try await database.upsert(example)
+        try await database.upsert([
             testRecord(id: 1, score: 10, title: "one"),
             testRecord(id: 2, score: 20, title: "two")
         ])
 
-        #expect(try await store.deleteAll(TestLocalRecord.self) == 2)
+        #expect(try await database.deleteAll(TestLocalRecord.self) == 2)
         #expect(
-            try await store.fetch(ExampleRecord.self, id: example.id)
+            try await database.fetch(ExampleRecord.self, id: example.id)
                 == example
         )
         #expect(
-            try await store.fetch(
+            try await database.fetch(
                 TestLocalRecord.self,
                 matching: TestLocalQuery(limit: 200)
             ).isEmpty
@@ -202,11 +200,13 @@ struct SwiftDataLocalStoreGenericModelTests {
         let recorder = LocalDatabaseHookRecorder(
             failingCheckpoint: .beforeSave(.upsertOne)
         )
-        let store = try makeGenericLocalStore(hooks: recorder.hooks())
+        let database: any ILocalDatabaseService = makeGenericDatabase(
+            hooks: recorder.hooks()
+        )
         let record = testRecord(id: 8, score: 80, title: "rollback")
 
         do {
-            try await store.upsert(record)
+            try await database.upsert(record)
             Issue.record("Expected TestLocalRecord write failure")
         } catch let error as LocalDatabaseError {
             guard case let .write(model, operation, underlying) = error else {
@@ -221,7 +221,8 @@ struct SwiftDataLocalStoreGenericModelTests {
         }
 
         #expect(
-            try await store.fetch(TestLocalRecord.self, id: record.id) == nil
+            try await database.fetch(TestLocalRecord.self, id: record.id)
+                == nil
         )
     }
 
@@ -229,22 +230,22 @@ struct SwiftDataLocalStoreGenericModelTests {
     func testQueryFiltersMinimumScoreSortsByScoreThenIDAndHonorsLimit()
         async throws
     {
-        let store = try makeGenericLocalStore()
-        try await store.upsert(
+        let database: any ILocalDatabaseService = makeGenericDatabase()
+        try await database.upsert(
             testRecord(id: 9, score: 10, title: "below")
         )
-        try await store.upsert(
+        try await database.upsert(
             testRecord(id: 4, score: 20, title: "tie-high-id")
         )
-        try await store.upsert(
+        try await database.upsert(
             testRecord(id: 2, score: 20, title: "tie-low-id")
         )
-        try await store.upsert(
+        try await database.upsert(
             testRecord(id: 1, score: 30, title: "highest")
         )
 
         #expect(
-            try await store.fetch(
+            try await database.fetch(
                 TestLocalRecord.self,
                 matching: TestLocalQuery(minimumScore: 20, limit: 3)
             ) == [
@@ -257,14 +258,14 @@ struct SwiftDataLocalStoreGenericModelTests {
 
     @Test
     func testQueryReturnsEmptyWhenNothingQualifies() async throws {
-        let store = try makeGenericLocalStore()
-        try await store.upsert([
+        let database: any ILocalDatabaseService = makeGenericDatabase()
+        try await database.upsert([
             testRecord(id: 1, score: 10, title: "one"),
             testRecord(id: 2, score: 20, title: "two")
         ])
 
         #expect(
-            try await store.fetch(
+            try await database.fetch(
                 TestLocalRecord.self,
                 matching: TestLocalQuery(minimumScore: 21, limit: 200)
             ).isEmpty
@@ -274,11 +275,13 @@ struct SwiftDataLocalStoreGenericModelTests {
     @Test
     func testQueryDoesNotReportProgressBefore128Examined() async throws {
         let recorder = LocalDatabaseHookRecorder()
-        let store = try makeGenericLocalStore(hooks: recorder.hooks())
-        try await store.upsert(testRecords(in: 0..<127))
+        let database: any ILocalDatabaseService = makeGenericDatabase(
+            hooks: recorder.hooks()
+        )
+        try await database.upsert(testRecords(in: 0..<127))
 
         #expect(
-            try await store.fetch(
+            try await database.fetch(
                 TestLocalRecord.self,
                 matching: TestLocalQuery(
                     minimumScore: 1_000,
@@ -294,11 +297,13 @@ struct SwiftDataLocalStoreGenericModelTests {
     @Test
     func testQueryReportsProgressAtExactly128Examined() async throws {
         let recorder = LocalDatabaseHookRecorder()
-        let store = try makeGenericLocalStore(hooks: recorder.hooks())
-        try await store.upsert(testRecords(in: 0..<128))
+        let database: any ILocalDatabaseService = makeGenericDatabase(
+            hooks: recorder.hooks()
+        )
+        try await database.upsert(testRecords(in: 0..<128))
 
         #expect(
-            try await store.fetch(
+            try await database.fetch(
                 TestLocalRecord.self,
                 matching: TestLocalQuery(
                     minimumScore: 1_000,
@@ -316,11 +321,13 @@ struct SwiftDataLocalStoreGenericModelTests {
     @Test
     func testQueryStopsBeforeUnneededProgressCheckpoint() async throws {
         let recorder = LocalDatabaseHookRecorder()
-        let store = try makeGenericLocalStore(hooks: recorder.hooks())
-        try await store.upsert(testRecords(in: 0..<130))
+        let database: any ILocalDatabaseService = makeGenericDatabase(
+            hooks: recorder.hooks()
+        )
+        try await database.upsert(testRecords(in: 0..<130))
 
         #expect(
-            try await store.fetch(
+            try await database.fetch(
                 TestLocalRecord.self,
                 matching: TestLocalQuery(limit: 1)
             ) == [testRecord(id: 0, score: 0, title: "record-0")]
@@ -335,12 +342,14 @@ struct SwiftDataLocalStoreGenericModelTests {
         let recorder = LocalDatabaseHookRecorder(
             cancellingCheckpoint: .readProgress(.fetchMany)
         )
-        let store = try makeGenericLocalStore(hooks: recorder.hooks())
-        try await store.upsert(testRecords(in: 0..<128))
+        let database: any ILocalDatabaseService = makeGenericDatabase(
+            hooks: recorder.hooks()
+        )
+        try await database.upsert(testRecords(in: 0..<128))
 
         let result: Result<[TestLocalRecord], any Error> =
             await resultOfChildTask {
-                try await store.fetch(
+                try await database.fetch(
                     TestLocalRecord.self,
                     matching: TestLocalQuery(
                         minimumScore: 127,
@@ -361,12 +370,14 @@ struct SwiftDataLocalStoreGenericModelTests {
         let recorder = LocalDatabaseHookRecorder(
             cancellingCheckpoint: .readProgress(.fetchMany)
         )
-        let store = try makeGenericLocalStore(hooks: recorder.hooks())
-        try await store.upsert(testRecords(in: 0..<128))
+        let database: any ILocalDatabaseService = makeGenericDatabase(
+            hooks: recorder.hooks()
+        )
+        try await database.upsert(testRecords(in: 0..<128))
 
         let result: Result<[TestLocalRecord], any Error> =
             await resultOfChildTask {
-                try await store.fetch(
+                try await database.fetch(
                     TestLocalRecord.self,
                     matching: TestLocalQuery(
                         minimumScore: 1_000,
@@ -381,7 +392,7 @@ struct SwiftDataLocalStoreGenericModelTests {
         }
         #expect(error is CancellationError)
         #expect(
-            try await store.fetch(
+            try await database.fetch(
                 TestLocalRecord.self,
                 id: TestLocalRecordID(rawValue: 64)
             ) == testRecord(id: 64, score: 64, title: "record-64")
