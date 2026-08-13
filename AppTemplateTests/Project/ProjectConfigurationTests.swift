@@ -50,7 +50,8 @@ struct ProjectConfigurationTests {
         )
         _ = AppSceneView(
             appFlowCoordinator: appFlowCoordinator,
-            settings: settings
+            settings: settings,
+            localNotifications: .inMemory()
         )
         _ = AppRootView(
             appFlowRouter: appFlowRouter,

@@ -50,6 +50,7 @@ struct AppTemplateApp: App {
             AppSceneView(
                 appFlowCoordinator: appFlowCoordinator,
                 settings: dependencies.settings,
+                localNotifications: dependencies.localNotifications,
                 navigationPersistencePolicy: sceneNavigationPersistencePolicy
             )
         }

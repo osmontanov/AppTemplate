@@ -16,7 +16,7 @@ struct DeepLinkParser: Sendable {
         return section
     }
 
-    func parse(_ url: URL) -> Result<NavigationIntent, DeepLinkError> {
+    nonisolated func parse(_ url: URL) -> Result<NavigationIntent, DeepLinkError> {
         guard url.scheme?.lowercased() == scheme else {
             return .failure(.unsupportedScheme)
         }

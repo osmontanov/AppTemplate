@@ -5,7 +5,9 @@ struct AppDependencies: Sendable {
     let appStateStorage: any IAppStateStorage
     let keychain: any IKeychainService
     let settings: SettingsDependencies
+    let localNotifications: LocalNotificationDependencies
 
+    @MainActor
     static func live(
         localDatabaseStoreLocationResolver:
             LocalDatabaseStoreLocationResolver = .live(),
@@ -14,7 +16,10 @@ struct AppDependencies: Sendable {
         ),
         keychainService: any IKeychainService = KeychainService(
             service: "AppTemplate"
-        )
+        ),
+        localNotifications: LocalNotificationDependencies? = nil,
+        localNotificationRuntimeResolver: @MainActor () -> UserNotificationCenterRuntime =
+            UserNotificationCenterRuntimeFactory.live
     ) -> AppDependencies {
         AppDependencies(
             localDatabase: LocalDatabaseService(
@@ -23,11 +28,18 @@ struct AppDependencies: Sendable {
             remote: RemoteService(),
             appStateStorage: UserDefaultsAppStateStorage(userDefaults: userDefaultsService),
             keychain: keychainService,
-            settings: SettingsDependencies(appInfo: AppInfoService())
+            settings: SettingsDependencies(appInfo: AppInfoService()),
+            localNotifications: localNotifications ?? .live(
+                runtimeResolver: localNotificationRuntimeResolver
+            )
         )
     }
 
-    static func uiTesting(initialState: AppState) -> AppDependencies {
+    @MainActor
+    static func uiTesting(
+        initialState: AppState,
+        localNotifications: LocalNotificationDependencies? = nil
+    ) -> AppDependencies {
         AppDependencies(
             localDatabase: LocalDatabaseService(
                 configuration: .inMemory()
@@ -40,10 +52,12 @@ struct AppDependencies: Sendable {
                     displayName: "AppTemplate UI Tests",
                     version: "1.0"
                 )
-            )
+            ),
+            localNotifications: localNotifications ?? .inMemory()
         )
     }
 
+    @MainActor
     static func preview(
         settings: SettingsDependencies,
         appStateStorage: any IAppStateStorage = InMemoryAppStateStorage(),
@@ -51,30 +65,35 @@ struct AppDependencies: Sendable {
             configuration: .inMemory()
         ),
         remoteService: any IRemoteService = RemoteService(),
-        keychainService: any IKeychainService = InMemoryKeychainService()
+        keychainService: any IKeychainService = InMemoryKeychainService(),
+        localNotifications: LocalNotificationDependencies? = nil
     ) -> AppDependencies {
         AppDependencies(
             localDatabase: localDatabaseService,
             remote: remoteService,
             appStateStorage: appStateStorage,
             keychain: keychainService,
-            settings: settings
+            settings: settings,
+            localNotifications: localNotifications ?? .inMemory()
         )
     }
 
+    @MainActor
     static func test(
         localDatabaseService: any ILocalDatabaseService,
         remoteService: any IRemoteService,
         appStateStorage: any IAppStateStorage,
         keychainService: any IKeychainService,
-        settings: SettingsDependencies
+        settings: SettingsDependencies,
+        localNotifications: LocalNotificationDependencies
     ) -> AppDependencies {
         AppDependencies(
             localDatabase: localDatabaseService,
             remote: remoteService,
             appStateStorage: appStateStorage,
             keychain: keychainService,
-            settings: settings
+            settings: settings,
+            localNotifications: localNotifications
         )
     }
 }
