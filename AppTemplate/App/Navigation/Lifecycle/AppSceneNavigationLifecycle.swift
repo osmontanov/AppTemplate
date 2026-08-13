@@ -127,3 +127,9 @@ final class AppSceneNavigationLifecycle {
         }
     }
 }
+
+extension AppSceneNavigationLifecycle: LocalNotificationSceneReceiving {
+    func receiveLocalNotificationURL(_ url: URL) {
+        _ = receive(url)
+    }
+}

@@ -582,6 +582,71 @@ struct AppSceneNavigationLifecycleTests {
     }
 
     @Test
+    func localNotificationReceivingSeamPreservesPreRestorationQueue() throws {
+        let router = makeRouter()
+        let lifecycle = AppSceneNavigationLifecycle(router: router)
+        let receiver: any LocalNotificationSceneReceiving = lifecycle
+
+        receiver.receiveLocalNotificationURL(
+            try #require(
+                URL(string: "apptemplate://browse/item/swiftui")
+            )
+        )
+        #expect(router.selectedSection == .home)
+        #expect(router.browse.path.isEmpty)
+
+        let snapshotToPersist = lifecycle.restore(from: nil)
+
+        #expect(router.selectedSection == .browse)
+        #expect(router.browse.path.count == 1)
+        #expect(snapshotToPersist == lifecycle.snapshot)
+    }
+
+    @Test
+    func localNotificationReceivingSeamPreservesAuthenticationAndMaintenanceDeferral()
+        throws {
+        let state = AppState(
+            isAuthenticated: false,
+            hasCompletedOnboarding: true,
+            isMaintenanceEnabled: true
+        )
+        let coordinator = makeTestAppFlowCoordinator(state: state)
+        let appFlowRouter = coordinator.appFlowRouter
+        let lifecycle = AppSceneNavigationLifecycle(
+            appFlowRouter: appFlowRouter,
+            appFlowCoordinator: coordinator
+        )
+        let receiver: any LocalNotificationSceneReceiving = lifecycle
+
+        receiver.receiveLocalNotificationURL(
+            try #require(
+                URL(
+                    string: "apptemplate://projects/project/project-1/task/task-1"
+                )
+            )
+        )
+        _ = lifecycle.restore(from: nil)
+
+        #expect(
+            lifecycle.router.pendingIntent
+                == .projectTask(projectID: "project-1", taskID: "task-1")
+        )
+        coordinator.signIn()
+        _ = lifecycle.apply(appFlowRouter.transition)
+        #expect(appFlowRouter.flow == .maintenance)
+        #expect(
+            lifecycle.router.pendingIntent
+                == .projectTask(projectID: "project-1", taskID: "task-1")
+        )
+
+        coordinator.setMaintenanceEnabled(false)
+        #expect(lifecycle.apply(appFlowRouter.transition) == .applied)
+        #expect(lifecycle.router.pendingIntent == nil)
+        #expect(lifecycle.router.selectedSection == .projects)
+        #expect(lifecycle.router.projects.path.count == 2)
+    }
+
+    @Test
     func effectiveSignOutDiscardsURLWhenAuthenticationIsAlreadyVisible()
         throws {
         let state = AppState(
