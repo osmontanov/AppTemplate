@@ -29,7 +29,8 @@ struct AppTemplateApp: App {
             dependencies = AppDependencies.uiTesting(
                 initialState: initialState,
                 remoteService: FailClosedRemoteService(),
-                diagnostics: diagnostics
+                diagnostics: diagnostics,
+                imageLoader: FailClosedImageLoader()
             )
         }
 

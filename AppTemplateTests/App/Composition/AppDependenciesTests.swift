@@ -7,6 +7,58 @@ import UserNotifications
 
 @MainActor
 struct AppDependenciesTests {
+    @Test
+    func appDependencyFactoriesKeepExactInjectedImageLoaderWithoutLoading() throws {
+        let imageLoader = InjectedImageLoader()
+        let preview = AppDependencies.preview(
+            settings: SettingsDependencies(
+                appInfo: AppInfoService(displayName: "Preview", version: "1")
+            ),
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: imageLoader
+        )
+        let live = AppDependencies.live(
+            imageLoader: imageLoader,
+            localNotifications: .inMemory()
+        )
+
+        let resolvedPreview = try #require(preview.imageLoader as? InjectedImageLoader)
+        let resolvedLive = try #require(live.imageLoader as? InjectedImageLoader)
+        #expect(resolvedPreview === imageLoader)
+        #expect(resolvedLive === imageLoader)
+        #expect(imageLoader.loadCount == 0)
+    }
+
+    @Test
+    func nonLiveFactoriesRequireAndKeepFreshImageLoaders() throws {
+        let state = AppState(
+            isAuthenticated: false,
+            hasCompletedOnboarding: false,
+            isMaintenanceEnabled: false
+        )
+        let firstLoader = InjectedImageLoader()
+        let secondLoader = InjectedImageLoader()
+        let first = AppDependencies.uiTesting(
+            initialState: state,
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: firstLoader
+        )
+        let second = AppDependencies.uiTesting(
+            initialState: state,
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: secondLoader
+        )
+
+        #expect(first.imageLoader as AnyObject === firstLoader)
+        #expect(second.imageLoader as AnyObject === secondLoader)
+        #expect(first.imageLoader as AnyObject !== second.imageLoader as AnyObject)
+        #expect(firstLoader.loadCount == 0)
+        #expect(secondLoader.loadCount == 0)
+    }
+
     @MainActor
     @Test
     func previewGraphsUseFreshInMemoryNotifications() async throws {
@@ -16,12 +68,14 @@ struct AppDependenciesTests {
         let first = AppDependencies.preview(
             settings: settings,
             remoteService: InjectedRemoteService(),
-            diagnostics: NetworkDiagnosticRecorder()
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: InjectedImageLoader()
         )
         let second = AppDependencies.preview(
             settings: settings,
             remoteService: InjectedRemoteService(),
-            diagnostics: NetworkDiagnosticRecorder()
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: InjectedImageLoader()
         )
 
         try await first.localNotifications.service.schedule(
@@ -124,12 +178,14 @@ struct AppDependenciesTests {
         let preview = AppDependencies.preview(
             settings: settings,
             remoteService: InjectedRemoteService(),
-            diagnostics: NetworkDiagnosticRecorder()
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: InjectedImageLoader()
         )
         let uiTest = AppDependencies.uiTesting(
             initialState: state,
             remoteService: InjectedRemoteService(),
-            diagnostics: NetworkDiagnosticRecorder()
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: InjectedImageLoader()
         )
         let direct = LocalNotificationDependencies.inMemory()
 
@@ -171,6 +227,7 @@ struct AppDependenciesTests {
             settings: settings,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: InjectedImageLoader(),
             localNotifications: notifications
         )
 
@@ -334,6 +391,7 @@ struct AppDependenciesTests {
         #expect(dependencies.appStateStorage is UserDefaultsAppStateStorage)
         #expect(dependencies.keychain is KeychainService)
         #expect(dependencies.settings.appInfo is AppInfoService)
+        #expect(dependencies.imageLoader is ProductImageLoader)
     }
 
     @Test
@@ -410,12 +468,14 @@ struct AppDependenciesTests {
         let firstPreview = AppDependencies.preview(
             settings: settings,
             remoteService: InjectedRemoteService(),
-            diagnostics: NetworkDiagnosticRecorder()
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: InjectedImageLoader()
         )
         let secondPreview = AppDependencies.preview(
             settings: settings,
             remoteService: InjectedRemoteService(),
-            diagnostics: NetworkDiagnosticRecorder()
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: InjectedImageLoader()
         )
         try await firstPreview.localDatabase.upsert(
             ExampleRecord(id: "preview", payload: "first")
@@ -436,12 +496,14 @@ struct AppDependenciesTests {
         let firstUI = AppDependencies.uiTesting(
             initialState: state,
             remoteService: InjectedRemoteService(),
-            diagnostics: NetworkDiagnosticRecorder()
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: InjectedImageLoader()
         )
         let secondUI = AppDependencies.uiTesting(
             initialState: state,
             remoteService: InjectedRemoteService(),
-            diagnostics: NetworkDiagnosticRecorder()
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: InjectedImageLoader()
         )
         try await firstUI.localDatabase.upsert(
             ExampleRecord(id: "ui", payload: "first")
@@ -462,12 +524,14 @@ struct AppDependenciesTests {
         let preview1 = AppDependencies.preview(
             settings: settings,
             remoteService: InjectedRemoteService(),
-            diagnostics: NetworkDiagnosticRecorder()
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: InjectedImageLoader()
         )
         let preview2 = AppDependencies.preview(
             settings: settings,
             remoteService: InjectedRemoteService(),
-            diagnostics: NetworkDiagnosticRecorder()
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: InjectedImageLoader()
         )
         try await preview1.keychain.set(Data([1]), for: .data("Isolation"))
         #expect(try await preview2.keychain.data(for: .data("Isolation")) == nil)
@@ -480,12 +544,14 @@ struct AppDependenciesTests {
         let ui1 = AppDependencies.uiTesting(
             initialState: state,
             remoteService: InjectedRemoteService(),
-            diagnostics: NetworkDiagnosticRecorder()
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: InjectedImageLoader()
         )
         let ui2 = AppDependencies.uiTesting(
             initialState: state,
             remoteService: InjectedRemoteService(),
-            diagnostics: NetworkDiagnosticRecorder()
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: InjectedImageLoader()
         )
         try await ui1.keychain.set(Data([1]), for: .data("Isolation"))
         #expect(try await ui2.keychain.data(for: .data("Isolation")) == nil)
@@ -499,7 +565,8 @@ struct AppDependenciesTests {
         let preview = AppDependencies.preview(
             settings: settings,
             remoteService: InjectedRemoteService(),
-            diagnostics: NetworkDiagnosticRecorder()
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: InjectedImageLoader()
         )
         let uiTesting = AppDependencies.uiTesting(
             initialState: AppState(
@@ -508,7 +575,8 @@ struct AppDependenciesTests {
                 isMaintenanceEnabled: false
             ),
             remoteService: InjectedRemoteService(),
-            diagnostics: NetworkDiagnosticRecorder()
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: InjectedImageLoader()
         )
 
         await expectUnregisteredTestModel(preview.localDatabase)
@@ -525,7 +593,8 @@ struct AppDependenciesTests {
                 )
             ),
             remoteService: InjectedRemoteService(),
-            diagnostics: NetworkDiagnosticRecorder()
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: InjectedImageLoader()
         )
 
         #expect(dependencies.appStateStorage is InMemoryAppStateStorage)
@@ -541,12 +610,14 @@ struct AppDependenciesTests {
         let firstDependencies = AppDependencies.uiTesting(
             initialState: initialState,
             remoteService: InjectedRemoteService(),
-            diagnostics: NetworkDiagnosticRecorder()
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: InjectedImageLoader()
         )
         let secondDependencies = AppDependencies.uiTesting(
             initialState: initialState,
             remoteService: InjectedRemoteService(),
-            diagnostics: NetworkDiagnosticRecorder()
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: InjectedImageLoader()
         )
         let firstStorage = try #require(
             firstDependencies.appStateStorage as? InMemoryAppStateStorage
@@ -572,6 +643,7 @@ struct AppDependenciesTests {
         let remoteService = InjectedRemoteService()
         let appStateStorage = InjectedAppStateStorage()
         let keychainService = KeychainServiceSpy()
+        let imageLoader = InjectedImageLoader()
         let diagnostics = NetworkDiagnosticRecorder()
         let settings = SettingsDependencies(
             appInfo: AppInfoService(
@@ -583,6 +655,7 @@ struct AppDependenciesTests {
             settings: settings,
             remoteService: remoteService,
             diagnostics: diagnostics,
+            imageLoader: imageLoader,
             appStateStorage: appStateStorage,
             localDatabaseService: localDatabaseService,
             keychainService: keychainService
@@ -604,6 +677,7 @@ struct AppDependenciesTests {
         #expect(resolvedRemoteService === remoteService)
         #expect(resolvedAppStateStorage === appStateStorage)
         #expect(resolvedKeychainService === keychainService)
+        #expect(dependencies.imageLoader as AnyObject === imageLoader)
         #expect(dependencies.diagnostics === diagnostics)
         #expect(dependencies.settings.appInfo.displayName == "Preview App")
         #expect(dependencies.settings.appInfo.version == "9.8.7")
@@ -615,6 +689,7 @@ struct AppDependenciesTests {
         let remoteService = InjectedRemoteService()
         let appStateStorage = InjectedAppStateStorage()
         let keychainService = KeychainServiceSpy()
+        let imageLoader = InjectedImageLoader()
         let diagnostics = NetworkDiagnosticRecorder()
         let settings = SettingsDependencies(
             appInfo: AppInfoService(
@@ -626,6 +701,7 @@ struct AppDependenciesTests {
             localDatabaseService: localDatabaseService,
             remoteService: remoteService,
             diagnostics: diagnostics,
+            imageLoader: imageLoader,
             appStateStorage: appStateStorage,
             keychainService: keychainService,
             settings: settings,
@@ -648,6 +724,7 @@ struct AppDependenciesTests {
         #expect(resolvedRemoteService === remoteService)
         #expect(resolvedAppStateStorage === appStateStorage)
         #expect(resolvedKeychainService === keychainService)
+        #expect(dependencies.imageLoader as AnyObject === imageLoader)
         #expect(dependencies.diagnostics === diagnostics)
         #expect(dependencies.settings.appInfo.displayName == "Test App")
         #expect(dependencies.settings.appInfo.version == "3.2.1")
@@ -755,6 +832,21 @@ private actor InjectedRemoteService: IRemoteService {
     ) async throws -> HTTPDiagnosticDTO {
         _ = request
         throw RemoteServiceError.invalidResponse
+    }
+}
+
+nonisolated
+private final class InjectedImageLoader: IImageLoader, @unchecked Sendable {
+    private let lock = NSLock()
+    private var storedLoadCount = 0
+
+    var loadCount: Int { lock.withLock { storedLoadCount } }
+
+    func load(_ url: URL, policy: ImageLoadPolicy) async throws -> LoadedImage {
+        _ = url
+        _ = policy
+        lock.withLock { storedLoadCount += 1 }
+        throw ImageLoaderError.transport
     }
 }
 

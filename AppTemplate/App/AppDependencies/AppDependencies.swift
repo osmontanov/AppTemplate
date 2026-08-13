@@ -1,3 +1,5 @@
+import Foundation
+
 nonisolated
 struct AppDependencies: Sendable {
     let localDatabase: any ILocalDatabaseService
@@ -7,6 +9,7 @@ struct AppDependencies: Sendable {
     let settings: SettingsDependencies
     let localNotifications: LocalNotificationDependencies
     let diagnostics: NetworkDiagnosticRecorder
+    let imageLoader: any IImageLoader
 
     @MainActor
     static func live(
@@ -18,6 +21,7 @@ struct AppDependencies: Sendable {
         keychainService: any IKeychainService = KeychainService(
             service: "AppTemplate"
         ),
+        imageLoader: any IImageLoader = ProductImageLoader(),
         localNotifications: LocalNotificationDependencies? = nil,
         localNotificationRuntimeResolver: @MainActor () -> UserNotificationCenterRuntime =
             UserNotificationCenterRuntimeFactory.live
@@ -34,7 +38,8 @@ struct AppDependencies: Sendable {
             localNotifications: localNotifications ?? .live(
                 runtimeResolver: localNotificationRuntimeResolver
             ),
-            diagnostics: diagnostics
+            diagnostics: diagnostics,
+            imageLoader: imageLoader
         )
     }
 
@@ -43,6 +48,7 @@ struct AppDependencies: Sendable {
         initialState: AppState,
         remoteService: any IRemoteService,
         diagnostics: NetworkDiagnosticRecorder,
+        imageLoader: any IImageLoader,
         localNotifications: LocalNotificationDependencies? = nil
     ) -> AppDependencies {
         AppDependencies(
@@ -59,7 +65,8 @@ struct AppDependencies: Sendable {
                 )
             ),
             localNotifications: localNotifications ?? .inMemory(),
-            diagnostics: diagnostics
+            diagnostics: diagnostics,
+            imageLoader: imageLoader
         )
     }
 
@@ -68,6 +75,7 @@ struct AppDependencies: Sendable {
         settings: SettingsDependencies,
         remoteService: any IRemoteService,
         diagnostics: NetworkDiagnosticRecorder,
+        imageLoader: any IImageLoader,
         appStateStorage: any IAppStateStorage = InMemoryAppStateStorage(),
         localDatabaseService: any ILocalDatabaseService = LocalDatabaseService(
             configuration: .inMemory()
@@ -82,7 +90,8 @@ struct AppDependencies: Sendable {
             keychain: keychainService,
             settings: settings,
             localNotifications: localNotifications ?? .inMemory(),
-            diagnostics: diagnostics
+            diagnostics: diagnostics,
+            imageLoader: imageLoader
         )
     }
 
@@ -91,6 +100,7 @@ struct AppDependencies: Sendable {
         localDatabaseService: any ILocalDatabaseService,
         remoteService: any IRemoteService,
         diagnostics: NetworkDiagnosticRecorder,
+        imageLoader: any IImageLoader,
         appStateStorage: any IAppStateStorage,
         keychainService: any IKeychainService,
         settings: SettingsDependencies,
@@ -103,8 +113,18 @@ struct AppDependencies: Sendable {
             keychain: keychainService,
             settings: settings,
             localNotifications: localNotifications,
-            diagnostics: diagnostics
+            diagnostics: diagnostics,
+            imageLoader: imageLoader
         )
+    }
+}
+
+nonisolated
+struct FailClosedImageLoader: IImageLoader {
+    func load(_ url: URL, policy: ImageLoadPolicy) async throws -> LoadedImage {
+        _ = url
+        _ = policy
+        throw ImageLoaderError.transport
     }
 }
 
