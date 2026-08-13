@@ -18,6 +18,7 @@ struct NetworkRequestBuilder: Sendable {
         let method = target.method
         let task = target.task
         let headers = target.headers
+        let shouldHandleCookies = target.shouldHandleCookies
 
         let urlWithPath = path.isEmpty ? baseURL : baseURL.appending(path: path)
         guard
@@ -52,6 +53,7 @@ struct NetworkRequestBuilder: Sendable {
 
         var request = URLRequest(url: url)
         request.httpMethod = method.rawValue
+        request.httpShouldHandleCookies = shouldHandleCookies
 
         if let body = task.body {
             try apply(body, to: &request)

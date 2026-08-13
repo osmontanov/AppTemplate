@@ -7,7 +7,7 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
     private let monitors: [any NetworkEventMonitor]
     private let requestBuilder: NetworkRequestBuilder
     private let stubBehavior: @Sendable (Target) -> StubBehavior
-    private let sleep: @Sendable (Duration) async throws -> Void
+    private let clock: AppClock
 
     init(
         transport: any NetworkTransport = URLSessionTransport(),
@@ -19,10 +19,7 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
         stubBehavior: @escaping @Sendable (Target) -> StubBehavior = { _ in
             .never
         },
-        sleep: @escaping @Sendable (Duration) async throws -> Void = {
-            duration in
-            try await Task.sleep(for: duration)
-        }
+        clock: AppClock = .live
     ) {
         self.transport = transport
         self.adapters = adapters
@@ -31,7 +28,7 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
             jsonEncoderFactory: jsonEncoderFactory
         )
         self.stubBehavior = stubBehavior
-        self.sleep = sleep
+        self.clock = clock
     }
 
     @concurrent
@@ -44,6 +41,10 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
             }
         } catch {
             throw adaptationError(from: error)
+        }
+
+        if !target.shouldHandleCookies {
+            request = CredentialRedirectPolicy().prepare(request)
         }
 
         let context = NetworkRequestContext(id: UUID(), request: request)
@@ -86,7 +87,7 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
             response = stubResponse(for: request, target: target)
         case let .delayed(duration):
             do {
-                try await sleep(duration)
+                try await clock.sleep(duration)
             } catch {
                 return .failure(executionError(from: error))
             }

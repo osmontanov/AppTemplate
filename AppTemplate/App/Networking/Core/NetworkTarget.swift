@@ -7,6 +7,7 @@ protocol NetworkTarget: Sendable {
     var method: HTTPMethod { get }
     var task: NetworkTask { get }
     var headers: HTTPHeaders { get }
+    var shouldHandleCookies: Bool { get }
     var validation: StatusCodeValidation { get }
     var sampleResponse: StubResponse { get }
 }
@@ -15,6 +16,7 @@ nonisolated
 extension NetworkTarget {
     var task: NetworkTask { .plain }
     var headers: HTTPHeaders { [:] }
+    var shouldHandleCookies: Bool { true }
     var validation: StatusCodeValidation { .successful }
     var sampleResponse: StubResponse { StubResponse() }
 }

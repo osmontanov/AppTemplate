@@ -62,15 +62,19 @@ struct NetworkProviderStubTests {
     }
 
     @Test
-    func delayedStubUsesInjectedSleepWithoutWallClockWaiting() async throws {
+    func delayedStubUsesClockWithoutWallClockWaiting() async throws {
         let sleepRecorder = SleepRecorder()
         let transport = unexpectedTransport()
         let provider = NetworkProvider<StubTarget>(
             transport: transport,
             stubBehavior: { _ in .delayed(.seconds(2)) },
-            sleep: { duration in
-                await sleepRecorder.record(duration)
-            }
+            clock: AppClock(
+                now: { Date(timeIntervalSince1970: 42) },
+                monotonicNow: { ContinuousClock().now },
+                sleep: { duration in
+                    await sleepRecorder.record(duration)
+                }
+            )
         )
 
         let response = try await provider.request(StubTarget())
@@ -91,7 +95,11 @@ struct NetworkProviderStubTests {
                 RecordingNetworkEventMonitor(name: "observer", recorder: recorder)
             ],
             stubBehavior: { _ in .delayed(.seconds(10)) },
-            sleep: { _ in throw CancellationError() }
+            clock: AppClock(
+                now: Date.init,
+                monotonicNow: { ContinuousClock().now },
+                sleep: { _ in throw CancellationError() }
+            )
         )
 
         do {
@@ -140,11 +148,15 @@ struct NetworkProviderStubTests {
                 RecordingNetworkEventMonitor(name: "observer", recorder: recorder)
             ],
             stubBehavior: { _ in .delayed(.seconds(1)) },
-            sleep: { _ in
-                throw NetworkError.requestAdaptation(
-                    underlying: StubFixtureError.mismatchedPhase
-                )
-            }
+            clock: AppClock(
+                now: Date.init,
+                monotonicNow: { ContinuousClock().now },
+                sleep: { _ in
+                    throw NetworkError.requestAdaptation(
+                        underlying: StubFixtureError.mismatchedPhase
+                    )
+                }
+            )
         )
 
         do {
@@ -221,7 +233,11 @@ struct NetworkProviderStubTests {
             transport: unexpectedTransport(),
             monitors: [RecordingNetworkEventMonitor(name: "observer", recorder: recorder)],
             stubBehavior: { _ in .delayed(.seconds(1)) },
-            sleep: { _ in await sleepCalls.record() }
+            clock: AppClock(
+                now: Date.init,
+                monotonicNow: { ContinuousClock().now },
+                sleep: { _ in await sleepCalls.record() }
+            )
         )
         let start = ControlledRequestStart()
         let child = controlledRequest(provider: provider, target: StubTarget(), start: start)
@@ -252,7 +268,13 @@ struct NetworkProviderStubTests {
             transport: unexpectedTransport(),
             monitors: [RecordingNetworkEventMonitor(name: "observer", recorder: recorder)],
             stubBehavior: { _ in .delayed(.seconds(1)) },
-            sleep: { _ in await sleepStart.markStartedAndWaitForPermission() }
+            clock: AppClock(
+                now: Date.init,
+                monotonicNow: { ContinuousClock().now },
+                sleep: { _ in
+                    await sleepStart.markStartedAndWaitForPermission()
+                }
+            )
         )
 
         let child = Task { () -> Result<NetworkResponse, any Error> in
@@ -277,6 +299,22 @@ struct NetworkProviderStubTests {
             .didComplete(monitor: "observer", outcome: .cancelled)
         ])
     }
+
+    @Test
+    func cookieFreeTargetCannotBeWeakenedByAdapter() async throws {
+        let provider = NetworkProvider<StubTarget>(
+            transport: unexpectedTransport(),
+            adapters: [CookieEnablingAdapter()],
+            stubBehavior: { _ in .immediate }
+        )
+
+        let response = try await provider.request(
+            StubTarget(shouldHandleCookies: false)
+        )
+
+        #expect(response.request.httpShouldHandleCookies == false)
+        #expect(response.request.value(forHTTPHeaderField: "Cookie") == nil)
+    }
 }
 
 nonisolated
@@ -285,9 +323,27 @@ private struct StubTarget: NetworkTarget {
     let path = "/stubbed"
     let method = HTTPMethod.get
     let sampleResponse: StubResponse
+    let shouldHandleCookies: Bool
 
-    init(sampleResponse: StubResponse = StubResponse()) {
+    init(
+        sampleResponse: StubResponse = StubResponse(),
+        shouldHandleCookies: Bool = true
+    ) {
         self.sampleResponse = sampleResponse
+        self.shouldHandleCookies = shouldHandleCookies
+    }
+}
+
+nonisolated
+private struct CookieEnablingAdapter: RequestAdapter {
+    func adapt(
+        _ request: URLRequest,
+        target: any NetworkTarget
+    ) async throws -> URLRequest {
+        var request = request
+        request.httpShouldHandleCookies = true
+        request.setValue("session=adapter", forHTTPHeaderField: "Cookie")
+        return request
     }
 }
 

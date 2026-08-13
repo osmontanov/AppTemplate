@@ -45,6 +45,15 @@ struct NetworkRequestBuilderTests {
         #expect(request.value(forHTTPHeaderField: "Content-Type") == nil)
     }
 
+    @Test(arguments: [true, false])
+    func appliesTargetCookieHandlingPolicy(_ shouldHandleCookies: Bool) throws {
+        let request = try NetworkRequestBuilder().build(
+            RequestBuilderTarget(shouldHandleCookies: shouldHandleCookies)
+        )
+
+        #expect(request.httpShouldHandleCookies == shouldHandleCookies)
+    }
+
     @Test
     func preservesBaseQueryWhenAppendingTargetQuery() throws {
         let target = RequestBuilderTarget(
@@ -99,7 +108,16 @@ struct NetworkRequestBuilderTests {
             ComputedSnapshotTarget(recorder: recorder)
         )
 
-        #expect(recorder.reads == .init(baseURL: 1, path: 1, method: 1, task: 1, headers: 1))
+        #expect(
+            recorder.reads == .init(
+                baseURL: 1,
+                path: 1,
+                method: 1,
+                task: 1,
+                headers: 1,
+                shouldHandleCookies: 1
+            )
+        )
         #expect(request.url?.query == "snapshot=1")
     }
 
@@ -203,19 +221,22 @@ private struct RequestBuilderTarget: NetworkTarget {
     let method: HTTPMethod
     let task: NetworkTask
     let headers: HTTPHeaders
+    let shouldHandleCookies: Bool
 
     init(
         baseURL: URL = URL(string: "https://api.example.test")!,
         path: String = "/resource",
         method: HTTPMethod = .get,
         task: NetworkTask = .plain,
-        headers: HTTPHeaders = [:]
+        headers: HTTPHeaders = [:],
+        shouldHandleCookies: Bool = true
     ) {
         self.baseURL = baseURL
         self.path = path
         self.method = method
         self.task = task
         self.headers = headers
+        self.shouldHandleCookies = shouldHandleCookies
     }
 }
 
@@ -226,6 +247,7 @@ private struct SnapshotReadCounts: Equatable, Sendable {
     var method = 0
     var task = 0
     var headers = 0
+    var shouldHandleCookies = 0
 }
 
 nonisolated
@@ -271,6 +293,13 @@ private final class SnapshotRecorder: @unchecked Sendable {
             return ["X-Snapshot": String(counts.headers)]
         }
     }
+
+    func nextShouldHandleCookies() -> Bool {
+        lock.withLock {
+            counts.shouldHandleCookies += 1
+            return false
+        }
+    }
 }
 
 nonisolated
@@ -282,6 +311,7 @@ private struct ComputedSnapshotTarget: NetworkTarget {
     var method: HTTPMethod { recorder.nextMethod() }
     var task: NetworkTask { recorder.nextTask() }
     var headers: HTTPHeaders { recorder.nextHeaders() }
+    var shouldHandleCookies: Bool { recorder.nextShouldHandleCookies() }
 }
 
 nonisolated
