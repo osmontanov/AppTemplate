@@ -61,9 +61,31 @@ enum ExampleRecordAdapter: LocalEntityAdapter {
         in context: ModelContext,
         progress: (_ examinedCount: Int) throws -> Void
     ) throws -> [Entity] {
-        var descriptor = FetchDescriptor<Entity>(
-            sortBy: [SortDescriptor(\Entity.id)]
-        )
+        var descriptor: FetchDescriptor<
+            LocalDatabaseSchemaV2.StoredExampleRecord
+        >
+        if let afterID = query.afterID {
+            descriptor = FetchDescriptor<
+                LocalDatabaseSchemaV2.StoredExampleRecord
+            >(
+                predicate: #Predicate { $0.id > afterID },
+                sortBy: [
+                    SortDescriptor(
+                        \LocalDatabaseSchemaV2.StoredExampleRecord.id
+                    )
+                ]
+            )
+        } else {
+            descriptor = FetchDescriptor<
+                LocalDatabaseSchemaV2.StoredExampleRecord
+            >(
+                sortBy: [
+                    SortDescriptor(
+                        \LocalDatabaseSchemaV2.StoredExampleRecord.id
+                    )
+                ]
+            )
+        }
         guard let normalizedSearch = normalizedSearch(query.searchText) else {
             descriptor.fetchLimit = query.limit
             return try context.fetch(descriptor)

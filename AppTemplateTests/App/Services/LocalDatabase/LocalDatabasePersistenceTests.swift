@@ -6,6 +6,87 @@ import Testing
 @Suite(.serialized)
 struct LocalDatabasePersistenceTests {
     @Test
+    func cursorOrderAndLegacyFacadeMutationsRemainStableAcrossReopen()
+        async throws
+    {
+        let url = try uniqueLocalDatabaseStoreURL(label: "cursor-reopen")
+        let seeded = [
+            ExampleRecord(id: "ascii", payload: "ASCII"),
+            ExampleRecord(id: " Legacy-ID ", payload: "spaced"),
+            ExampleRecord(id: "MiXeD", payload: "mixed"),
+            ExampleRecord(id: "жаз", payload: "Unicode 🌏")
+        ]
+        var firstService: LocalDatabaseService? = LocalDatabaseService(
+            configuration: .disk(url: url)
+        )
+        weak let releasedService = firstService
+        try await firstService?.upsert(seeded)
+        let before = try #require(
+            try await firstService?.fetch(
+                ExampleRecord.self,
+                matching: ExampleQuery(limit: 200)
+            )
+        )
+        var firstRepository = firstService.map(
+            LocalDatabaseExampleRepository.init(database:)
+        )
+        let firstPage = try await firstRepository?.page(
+            searchText: nil,
+            afterID: nil,
+            pageSize: 2
+        )
+        let secondPage = try await firstRepository?.page(
+            searchText: nil,
+            afterID: firstPage?.nextCursor,
+            pageSize: 2
+        )
+
+        firstRepository = nil
+        firstService = nil
+        #expect(releasedService == nil)
+
+        let reopenedService: any ILocalDatabaseService = LocalDatabaseService(
+            configuration: .disk(url: url)
+        )
+        let reopenedRepository = LocalDatabaseExampleRepository(
+            database: reopenedService
+        )
+        let after = try await reopenedService.fetch(
+            ExampleRecord.self,
+            matching: ExampleQuery(limit: 200)
+        )
+        let reopenedFirstPage = try await reopenedRepository.page(
+            searchText: nil,
+            afterID: nil,
+            pageSize: 2
+        )
+        let reopenedSecondPage = try await reopenedRepository.page(
+            searchText: nil,
+            afterID: reopenedFirstPage.nextCursor,
+            pageSize: 2
+        )
+
+        #expect(after == before)
+        #expect(reopenedFirstPage.values == firstPage?.values)
+        #expect(reopenedFirstPage.nextCursor == firstPage?.nextCursor)
+        #expect(reopenedSecondPage.values == secondPage?.values)
+
+        #expect(
+            try await reopenedRepository.fetch(id: " Legacy-ID ")
+                == ExampleRecord(id: " Legacy-ID ", payload: "spaced")
+        )
+        try await reopenedRepository.update(
+            id: "MiXeD",
+            payload: "changed"
+        )
+        #expect(
+            try await reopenedRepository.fetch(id: "MiXeD")?.payload
+                == "changed"
+        )
+        #expect(try await reopenedRepository.delete(id: "жаз"))
+    }
+
+    @Test
     func genericServiceReopeningDiskStoreRetainsMutations() async throws {
         let url = try uniqueLocalDatabaseStoreURL(label: "reopen")
         var firstService: LocalDatabaseService? = LocalDatabaseService(

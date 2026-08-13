@@ -4,6 +4,83 @@ import Testing
 
 struct SwiftDataLocalStoreQueryTests {
     @Test
+    func unfilteredCursorUsesStrictStoreGreaterThanAndAscendingOrder() async throws {
+        let store = try makeInMemoryLocalStore()
+        try await store.upsert([
+            ExampleRecord(id: "d", payload: "four"),
+            ExampleRecord(id: "b", payload: "two"),
+            ExampleRecord(id: "a", payload: "one"),
+            ExampleRecord(id: "c", payload: "three")
+        ])
+
+        let records = try await store.fetch(
+            ExampleRecord.self,
+            matching: ExampleQuery(afterID: "b", limit: 2)
+        )
+
+        #expect(records.map(\.id) == ["c", "d"])
+    }
+
+    @Test
+    func filteredCursorStartsSparseSearchAfterCursor() async throws {
+        let store = try makeInMemoryLocalStore()
+        try await store.upsert(
+            (0..<180).map { index in
+                ExampleRecord(
+                    id: String(format: "item-%03d", index),
+                    payload: index == 20 || index == 179
+                        ? "needle"
+                        : "haystack"
+                )
+            }
+        )
+
+        let records = try await store.fetch(
+            ExampleRecord.self,
+            matching: ExampleQuery(
+                searchText: " needle ",
+                afterID: "item-050",
+                limit: 1
+            )
+        )
+
+        #expect(records.map(\.id) == ["item-179"])
+    }
+
+    @Test
+    func cursorRemainsKeysetBasedAcrossInsertionAndDeletion() async throws {
+        let store = try makeInMemoryLocalStore()
+        try await store.upsert([
+            ExampleRecord(id: "a", payload: "value"),
+            ExampleRecord(id: "c", payload: "value"),
+            ExampleRecord(id: "e", payload: "value")
+        ])
+        let first = try await store.fetch(
+            ExampleRecord.self,
+            matching: ExampleQuery(limit: 2)
+        )
+        #expect(first.map(\.id) == ["a", "c"])
+
+        try await store.upsert([
+            ExampleRecord(id: "b", payload: "inserted before"),
+            ExampleRecord(id: "d", payload: "inserted after")
+        ])
+        #expect(try await store.delete(ExampleRecord.self, id: "a"))
+
+        let continuation = try await store.fetch(
+            ExampleRecord.self,
+            matching: ExampleQuery(afterID: "c", limit: 50)
+        )
+        let refresh = try await store.fetch(
+            ExampleRecord.self,
+            matching: ExampleQuery(afterID: nil, limit: 50)
+        )
+
+        #expect(continuation.map(\.id) == ["d", "e"])
+        #expect(refresh.map(\.id) == ["b", "c", "d", "e"])
+    }
+
+    @Test
     func unfilteredResultsUseStoreIDOrderAndLimit() async throws {
         let store = try makeInMemoryLocalStore()
         try await store.upsert([

@@ -3,6 +3,27 @@ import Testing
 @testable import AppTemplate
 
 struct ExampleRecordAdapterTests {
+    @Test
+    func exampleQueryCarriesOpaqueCursorAndKeepsDefaultedCallShapes() {
+        let legacyShape = ExampleQuery(searchText: "term", limit: 37)
+        let cursorShape = ExampleQuery(
+            searchText: "term",
+            afterID: " Legacy-Ж ",
+            limit: 37
+        )
+
+        #expect(legacyShape.afterID == nil)
+        #expect(cursorShape.afterID == " Legacy-Ж ")
+        #expect(legacyShape != cursorShape)
+    }
+
+    @Test(arguments: [" cursor ", "MiXeD", "Ж", "🌏"])
+    func acceptsOpaqueLegacyCursor(cursor: String) throws {
+        try ExampleRecordAdapter.validate(
+            query: ExampleQuery(afterID: cursor, limit: 51)
+        )
+    }
+
     @Test(arguments: ["", " ", "\n\t"])
     func rejectsBlankExampleIDs(id: String) {
         expectExampleValidation(.emptyID) {
@@ -42,8 +63,8 @@ struct ExampleRecordAdapterTests {
     func attemptedExampleQueryCountUsesValidatedLimit() {
         #expect(
             ExampleRecordAdapter.attemptedRecordCount(
-                for: ExampleQuery(limit: 37)
-            ) == 37
+                for: ExampleQuery(afterID: "opaque", limit: 51)
+            ) == 51
         )
     }
 
