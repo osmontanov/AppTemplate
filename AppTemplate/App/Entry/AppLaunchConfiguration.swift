@@ -1,75 +1,86 @@
-nonisolated
-enum UITestRoot: String, Equatable, Sendable {
-    case onboarding
-    case authentication
-    case main
-    case maintenance
+import Foundation
 
-    var initialState: AppState {
-        switch self {
-        case .onboarding:
-            .initial
-        case .authentication:
-            AppState(
-                isAuthenticated: false,
-                hasCompletedOnboarding: true,
-                isMaintenanceEnabled: false
-            )
-        case .main:
-            AppState(
-                isAuthenticated: true,
-                hasCompletedOnboarding: true,
-                isMaintenanceEnabled: false
-            )
-        case .maintenance:
-            AppState(
-                isAuthenticated: true,
-                hasCompletedOnboarding: true,
-                isMaintenanceEnabled: true
-            )
-        }
-    }
+nonisolated enum UITestConfigurationError: Error, Equatable, Sendable {
+    case missingScenario
+    case duplicateOption(String)
+    case unknownOption(String)
+    case unknownScenario(String)
+    case malformedValue(option: String)
 }
 
-nonisolated
-enum AppLaunchConfiguration: Equatable, Sendable {
+nonisolated enum AppLaunchConfiguration: Equatable, Sendable {
     case live
-    case uiTesting(initialState: AppState)
+    case uiTesting(UITestScenario)
+    case invalidUITesting(UITestConfigurationError)
 
     var sceneNavigationPersistencePolicy: AppSceneNavigationPersistencePolicy {
         switch self {
-        case .live:
-            .restored
-        case .uiTesting:
-            .ephemeral
+        case .live: .restored
+        case .uiTesting, .invalidUITesting: .ephemeral
         }
     }
 
     init(arguments: [String]) {
-        let uiTestingMarker = "--ui-testing"
-        let uiTestRootOption = "--ui-test-root"
-        var uiTestingArguments = Array(arguments.dropFirst())
+        let marker = "--ui-testing"
+        let scenarioOption = "--ui-test-scenario"
+        var values = Array(arguments.dropFirst())
 
         #if os(macOS)
-        let persistenceIsolationArguments = [
-            "-ApplePersistenceIgnoreState",
-            "YES"
-        ]
-        if uiTestingArguments.count == 5,
-           Array(uiTestingArguments.prefix(2)) == persistenceIsolationArguments {
-            uiTestingArguments.removeFirst(2)
+        if values.starts(with: ["-ApplePersistenceIgnoreState", "YES"]) {
+            values.removeFirst(2)
+        }
+        if values.contains("-ApplePersistenceIgnoreState") {
+            self = .invalidUITesting(
+                .unknownOption("-ApplePersistenceIgnoreState")
+            )
+            return
         }
         #endif
 
-        guard uiTestingArguments.count == 3,
-              uiTestingArguments[0] == uiTestingMarker,
-              uiTestingArguments[1] == uiTestRootOption,
-              let root = UITestRoot(rawValue: uiTestingArguments[2])
-        else {
+        let containsUIIntent = values.contains(marker)
+            || values.contains(scenarioOption)
+            || values.contains(where: { $0.hasPrefix("--ui-") })
+        guard containsUIIntent else {
             self = .live
             return
         }
 
-        self = .uiTesting(initialState: root.initialState)
+        let markers = values.filter { $0 == marker }.count
+        if markers > 1 {
+            self = .invalidUITesting(.duplicateOption(marker))
+            return
+        }
+        let optionIndices = values.indices.filter { values[$0] == scenarioOption }
+        if optionIndices.count > 1 {
+            self = .invalidUITesting(.duplicateOption(scenarioOption))
+            return
+        }
+        if let unknown = values.first(where: {
+            $0.hasPrefix("--ui-") && $0 != marker && $0 != scenarioOption
+        }) {
+            self = .invalidUITesting(.unknownOption(unknown))
+            return
+        }
+        guard markers == 1, let optionIndex = optionIndices.first else {
+            self = .invalidUITesting(.missingScenario)
+            return
+        }
+        let valueIndex = values.index(after: optionIndex)
+        guard valueIndex < values.endIndex,
+              !values[valueIndex].hasPrefix("-"),
+              !values[valueIndex].trimmingCharacters(
+                in: .whitespacesAndNewlines
+              ).isEmpty
+        else {
+            self = .invalidUITesting(.malformedValue(option: scenarioOption))
+            return
+        }
+        do {
+            self = .uiTesting(try UITestScenario.named(values[valueIndex]))
+        } catch let error as UITestConfigurationError {
+            self = .invalidUITesting(error)
+        } catch {
+            self = .invalidUITesting(.malformedValue(option: scenarioOption))
+        }
     }
 }

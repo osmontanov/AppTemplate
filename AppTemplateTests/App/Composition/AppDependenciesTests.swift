@@ -8,6 +8,32 @@ import UserNotifications
 @MainActor
 struct AppDependenciesTests {
     @Test
+    func scenarioGraphsAreFreshAndTheirEmptyTransportsFailClosed() async throws {
+        let scenario = try UITestScenario.named("services-basic")
+        let first = AppDependencies.uiTesting(scenario: scenario)
+        let second = AppDependencies.uiTesting(scenario: scenario)
+
+        #expect(first.remote as AnyObject !== second.remote as AnyObject)
+        #expect(first.imageLoader as AnyObject !== second.imageLoader as AnyObject)
+        #expect(first.appStateStorage as AnyObject !== second.appStateStorage as AnyObject)
+        #expect(first.keychain as AnyObject !== second.keychain as AnyObject)
+        #expect(first.localDatabase as AnyObject !== second.localDatabase as AnyObject)
+        #expect(first.diagnostics !== second.diagnostics)
+        #expect(first.uiTestScriptTracker !== second.uiTestScriptTracker)
+        #expect(first.imageLoader is ScriptedImageLoader)
+
+        await #expect(throws: ScriptedImageLoaderError.unexpectedURL) {
+            _ = try await first.imageLoader.load(
+                URL(string: "https://cdn.dummyjson.com/unplanned.png")!,
+                policy: .product
+            )
+        }
+        await #expect(throws: RemoteServiceError.self) {
+            _ = try await first.remote.categories()
+        }
+    }
+
+    @Test
     func appDependencyFactoriesKeepExactInjectedImageLoaderWithoutLoading() throws {
         let imageLoader = InjectedImageLoader()
         let preview = AppDependencies.preview(

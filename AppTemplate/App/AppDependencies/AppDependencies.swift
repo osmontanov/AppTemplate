@@ -10,6 +10,8 @@ struct AppDependencies: Sendable {
     let localNotifications: LocalNotificationDependencies
     let diagnostics: NetworkDiagnosticRecorder
     let imageLoader: any IImageLoader
+    let uiTestScriptTracker: UITestScriptConsumptionTracker?
+    let bootstrap: @Sendable () async throws -> Void
 
     @MainActor
     static func live(
@@ -39,7 +41,96 @@ struct AppDependencies: Sendable {
                 runtimeResolver: localNotificationRuntimeResolver
             ),
             diagnostics: diagnostics,
-            imageLoader: imageLoader
+            imageLoader: imageLoader,
+            uiTestScriptTracker: nil,
+            bootstrap: {}
+        )
+    }
+
+    @MainActor
+    static func uiTesting(
+        scenario: UITestScenario
+    ) -> AppDependencies {
+        let diagnostics = NetworkDiagnosticRecorder()
+        let tracker = UITestScriptConsumptionTracker(
+            networkSteps: scenario.remoteSteps.count,
+            imageSteps: scenario.imageSeed.steps.count
+        )
+        let transport = ScriptedNetworkTransport(
+            steps: scenario.remoteSteps,
+            tracker: tracker
+        )
+        let fixedInstant = ContinuousClock().now
+        let fixedClock = AppClock(
+            now: { Date(timeIntervalSince1970: 0) },
+            monotonicNow: { fixedInstant },
+            sleep: { _ in try Task.checkCancellation() }
+        )
+        let exampleProvider = NetworkProvider<ExampleTarget>(
+            transport: transport,
+            clock: fixedClock,
+            diagnosticRecorder: diagnostics
+        )
+        let publicProvider = NetworkProvider<DummyJSONTarget>(
+            transport: transport,
+            clock: fixedClock,
+            diagnosticRecorder: diagnostics
+        )
+        let authenticationProvider = NetworkProvider<DummyJSONTarget>(
+            transport: transport,
+            clock: fixedClock,
+            diagnosticRecorder: diagnostics
+        )
+        let remote = RemoteService(
+            provider: exampleProvider,
+            dummyJSONProvider: publicProvider,
+            authenticationProvider: authenticationProvider,
+            diagnosticRecorder: diagnostics
+        )
+        let imageLoader = ScriptedImageLoader(
+            steps: scenario.imageSeed.steps,
+            tracker: tracker
+        )
+        let database = LocalDatabaseService(configuration: .inMemory())
+        let keychain = InMemoryKeychainService()
+        let notifications = LocalNotificationDependencies.inMemory(
+            settings: LocalNotificationSettings(
+                authorizationStatus: scenario.notificationSeed.authorizationStatus,
+                alertSetting: .disabled,
+                soundSetting: .disabled,
+                badgeSetting: .disabled,
+                notificationCenterSetting: .disabled,
+                lockScreenSetting: .disabled,
+                alertStyle: .none,
+                previewSetting: .never
+            ),
+            authorizationResult: [.authorized, .provisional, .ephemeral]
+                .contains(scenario.notificationSeed.authorizationStatus)
+        )
+        return AppDependencies(
+            localDatabase: database,
+            remote: remote,
+            appStateStorage: InMemoryAppStateStorage(initialState: scenario.appState),
+            keychain: keychain,
+            settings: SettingsDependencies(
+                appInfo: AppInfoService(
+                    displayName: "AppTemplate UI Tests",
+                    version: "1.0"
+                )
+            ),
+            localNotifications: notifications,
+            diagnostics: diagnostics,
+            imageLoader: imageLoader,
+            uiTestScriptTracker: tracker,
+            bootstrap: {
+                if let data = scenario.sessionSeed.keychainData {
+                    try await keychain.set(data, for: .data("UITestSession"))
+                }
+                try await database.upsert(scenario.localDatabaseSeed.examples)
+                for request in scenario.notificationSeed.pendingRequests {
+                    try await notifications.service.schedule(request)
+                }
+            }
         )
     }
 
@@ -52,9 +143,7 @@ struct AppDependencies: Sendable {
         localNotifications: LocalNotificationDependencies? = nil
     ) -> AppDependencies {
         AppDependencies(
-            localDatabase: LocalDatabaseService(
-                configuration: .inMemory()
-            ),
+            localDatabase: LocalDatabaseService(configuration: .inMemory()),
             remote: remoteService,
             appStateStorage: InMemoryAppStateStorage(initialState: initialState),
             keychain: InMemoryKeychainService(),
@@ -66,7 +155,9 @@ struct AppDependencies: Sendable {
             ),
             localNotifications: localNotifications ?? .inMemory(),
             diagnostics: diagnostics,
-            imageLoader: imageLoader
+            imageLoader: imageLoader,
+            uiTestScriptTracker: nil,
+            bootstrap: {}
         )
     }
 
@@ -91,7 +182,9 @@ struct AppDependencies: Sendable {
             settings: settings,
             localNotifications: localNotifications ?? .inMemory(),
             diagnostics: diagnostics,
-            imageLoader: imageLoader
+            imageLoader: imageLoader,
+            uiTestScriptTracker: nil,
+            bootstrap: {}
         )
     }
 
@@ -114,7 +207,9 @@ struct AppDependencies: Sendable {
             settings: settings,
             localNotifications: localNotifications,
             diagnostics: diagnostics,
-            imageLoader: imageLoader
+            imageLoader: imageLoader,
+            uiTestScriptTracker: nil,
+            bootstrap: {}
         )
     }
 }

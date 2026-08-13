@@ -2,10 +2,15 @@ import XCTest
 
 nonisolated
 final class AppTemplateUITests: XCTestCase {
+    private enum Scenario: String {
+        case accessibilitySmoke = "accessibility-smoke"
+        case servicesBasic = "services-basic"
+    }
+
     @MainActor
     func testOnboardingRootIsVisible() throws {
         let app = try launch(
-            root: "onboarding",
+            scenario: .accessibilitySmoke,
             expectedRootIdentifier: "screen.onboarding"
         )
 
@@ -15,7 +20,7 @@ final class AppTemplateUITests: XCTestCase {
     @MainActor
     func testBrowseTabShowsBrowseScreen() throws {
         let app = try launch(
-            root: "main",
+            scenario: .servicesBasic,
             expectedRootIdentifier: "screen.home"
         )
 
@@ -36,7 +41,7 @@ final class AppTemplateUITests: XCTestCase {
             "tab.settings"
         ]
         let first = try launch(
-            root: "main",
+            scenario: .servicesBasic,
             expectedRootIdentifier: "screen.home"
         )
 
@@ -48,7 +53,7 @@ final class AppTemplateUITests: XCTestCase {
         first.terminate()
 
         let second = try launch(
-            root: "main",
+            scenario: .servicesBasic,
             expectedRootIdentifier: "screen.home"
         )
         try activateTab(
@@ -62,7 +67,7 @@ final class AppTemplateUITests: XCTestCase {
     @MainActor
     func testNavigationGuideCanBeOpened() throws {
         let app = try launch(
-            root: "main",
+            scenario: .servicesBasic,
             expectedRootIdentifier: "screen.home"
         )
 
@@ -82,7 +87,7 @@ final class AppTemplateUITests: XCTestCase {
     @MainActor
     func testBrowseOptionsCanBePresentedAndDismissed() throws {
         let app = try launch(
-            root: "main",
+            scenario: .servicesBasic,
             expectedRootIdentifier: "screen.home"
         )
 
@@ -110,7 +115,7 @@ final class AppTemplateUITests: XCTestCase {
     @MainActor
     func testSettingsWindowCanBeOpened() throws {
         let app = try launch(
-            root: "main",
+            scenario: .servicesBasic,
             expectedRootIdentifier: "screen.home"
         )
 
@@ -128,17 +133,19 @@ final class AppTemplateUITests: XCTestCase {
 
     @MainActor
     private func launch(
-        root: String,
+        scenario: Scenario,
         expectedRootIdentifier: String
     ) throws -> XCUIApplication {
         let app = XCUIApplication()
         #if os(macOS)
         app.launchArguments = [
             "-ApplePersistenceIgnoreState", "YES",
-            "--ui-testing", "--ui-test-root", root
+            "--ui-testing", "--ui-test-scenario", scenario.rawValue
         ]
         #else
-        app.launchArguments = ["--ui-testing", "--ui-test-root", root]
+        app.launchArguments = [
+            "--ui-testing", "--ui-test-scenario", scenario.rawValue
+        ]
         #endif
         app.launch()
         #if os(macOS)
@@ -179,6 +186,21 @@ final class AppTemplateUITests: XCTestCase {
         #endif
 
         _ = try requireExistence(expectedRoot)
+        let failedMarker = element(
+            in: app,
+            identifier: "ui-test.script-status.failed"
+        )
+        XCTAssertFalse(failedMarker.exists, "UI-test script failed before readiness")
+        let exhaustedMarker = element(
+            in: app,
+            identifier: "ui-test.script-status.exhausted"
+        )
+        XCTAssertTrue(
+            exhaustedMarker.waitForExistence(timeout: 5),
+            failedMarker.exists
+                ? "UI-test script entered failed state"
+                : "UI-test script remained pending"
+        )
         #if os(macOS)
         _ = try requireSingleElement(
             app.windows,
