@@ -239,9 +239,11 @@ struct AppRouterTests {
         let storage = AppStateStorageSpy()
         let store = AppStateStore(storage: storage)
         let appFlowRouter = AppFlowRouter(flow: .onboarding)
+        let legacyAuthentication = LegacyAuthenticationState()
         let coordinator = AppFlowCoordinator(
             store: store,
-            appFlowRouter: appFlowRouter
+            appFlowRouter: appFlowRouter,
+            legacyAuthentication: legacyAuthentication
         )
         let router = AppRouter(
             appFlowRouter: appFlowRouter,
@@ -263,7 +265,6 @@ struct AppRouterTests {
     @Test
     func deferredIntentSurvivesAuthenticationAndMaintenanceGates() throws {
         let state = AppState(
-            isAuthenticated: false,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: true
         )
@@ -272,9 +273,11 @@ struct AppRouterTests {
         )
         let store = AppStateStore(storage: storage)
         let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let legacyAuthentication = LegacyAuthenticationState()
         let coordinator = AppFlowCoordinator(
             store: store,
-            appFlowRouter: appFlowRouter
+            appFlowRouter: appFlowRouter,
+            legacyAuthentication: legacyAuthentication
         )
         let router = AppRouter(
             appFlowRouter: appFlowRouter,
@@ -305,7 +308,6 @@ struct AppRouterTests {
     @Test
     func sharedCoordinatorReplaysEachScenesOwnPendingIntent() throws {
         let state = AppState(
-            isAuthenticated: false,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: false
         )
@@ -314,9 +316,11 @@ struct AppRouterTests {
         )
         let store = AppStateStore(storage: storage)
         let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let legacyAuthentication = LegacyAuthenticationState()
         let coordinator = AppFlowCoordinator(
             store: store,
-            appFlowRouter: appFlowRouter
+            appFlowRouter: appFlowRouter,
+            legacyAuthentication: legacyAuthentication
         )
         let first = AppRouter(
             appFlowRouter: appFlowRouter,

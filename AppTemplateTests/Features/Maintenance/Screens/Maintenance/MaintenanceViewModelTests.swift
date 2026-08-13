@@ -8,10 +8,10 @@ struct MaintenanceViewModelTests {
     func returnToAppDisablesMaintenance() {
         let coordinator = makeTestAppFlowCoordinator(
             state: AppState(
-                isAuthenticated: true,
                 hasCompletedOnboarding: true,
                 isMaintenanceEnabled: true
-            )
+            ),
+            isAuthenticated: true
         )
         let viewModel = MaintenanceViewModel(
             maintenanceActions: coordinator

@@ -16,6 +16,9 @@ struct AppDependenciesTests {
         #expect(first.remote as AnyObject !== second.remote as AnyObject)
         #expect(first.imageLoader as AnyObject !== second.imageLoader as AnyObject)
         #expect(first.appStateStorage as AnyObject !== second.appStateStorage as AnyObject)
+        #expect(first.legacyAuthentication !== second.legacyAuthentication)
+        #expect(first.legacyAuthentication.isAuthenticated)
+        #expect(second.legacyAuthentication.isAuthenticated)
         #expect(first.keychain as AnyObject !== second.keychain as AnyObject)
         #expect(first.localDatabase as AnyObject !== second.localDatabase as AnyObject)
         #expect(first.diagnostics !== second.diagnostics)
@@ -59,7 +62,6 @@ struct AppDependenciesTests {
     @Test
     func nonLiveFactoriesRequireAndKeepFreshImageLoaders() throws {
         let state = AppState(
-            isAuthenticated: false,
             hasCompletedOnboarding: false,
             isMaintenanceEnabled: false
         )
@@ -197,7 +199,6 @@ struct AppDependenciesTests {
             appInfo: AppInfoService(displayName: "Preview", version: "1")
         )
         let state = AppState(
-            isAuthenticated: false,
             hasCompletedOnboarding: false,
             isMaintenanceEnabled: false
         )
@@ -515,7 +516,6 @@ struct AppDependenciesTests {
         )
 
         let state = AppState(
-            isAuthenticated: true,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: false
         )
@@ -563,7 +563,6 @@ struct AppDependenciesTests {
         #expect(try await preview2.keychain.data(for: .data("Isolation")) == nil)
 
         let state = AppState(
-            isAuthenticated: false,
             hasCompletedOnboarding: false,
             isMaintenanceEnabled: false
         )
@@ -596,7 +595,6 @@ struct AppDependenciesTests {
         )
         let uiTesting = AppDependencies.uiTesting(
             initialState: AppState(
-                isAuthenticated: false,
                 hasCompletedOnboarding: false,
                 isMaintenanceEnabled: false
             ),
@@ -629,7 +627,6 @@ struct AppDependenciesTests {
     @Test
     func uiTestingGraphUsesFreshInMemoryStateAndFixedAppInfo() throws {
         let initialState = AppState(
-            isAuthenticated: true,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: false
         )

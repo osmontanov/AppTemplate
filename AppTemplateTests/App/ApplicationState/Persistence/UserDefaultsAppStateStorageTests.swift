@@ -176,15 +176,15 @@ struct UserDefaultsAppStateStorageTests {
 
     @MainActor
     @Test
-    func currentAppStateRecordRestoresWithoutRewritingPhysicalBytes() throws {
-        let current = Data(
+    func schemaOneAppStateRecordMigratesToPolicyOnlyV2Once() throws {
+        let legacy = Data(
             #"{"schemaVersion":1,"isAuthenticated":true,"hasCompletedOnboarding":true,"isMaintenanceEnabled":false}"#.utf8
         )
         let fixture = try makeStableRecordFixture(label: "Current")
         defer {
             fixture.defaults.removePersistentDomain(forName: fixture.suiteName)
         }
-        fixture.defaults.seed(current, forKey: "AppTemplate.AppState")
+        fixture.defaults.seed(legacy, forKey: "AppTemplate.AppState")
         let storage = UserDefaultsAppStateStorage(
             userDefaults: UserDefaultsService(
                 namespace: "AppTemplate",
@@ -193,24 +193,30 @@ struct UserDefaultsAppStateStorageTests {
         )
 
         let store = AppStateStore(storage: storage)
+        let reloadedStore = AppStateStore(storage: storage)
 
         #expect(
             store.state == AppState(
-                isAuthenticated: true,
                 hasCompletedOnboarding: true,
                 isMaintenanceEnabled: false
             )
         )
         #expect(store.persistenceStatus == .writable)
-        expectOnlyStableRecord(in: fixture.defaults, bytes: current)
-        #expect(fixture.defaults.setCallCount == 0)
+        #expect(reloadedStore.state == store.state)
+        #expect(reloadedStore.persistenceStatus == .writable)
+        let migrated = try #require(
+            fixture.defaults.rawObject(forKey: "AppTemplate.AppState") as? Data
+        )
+        #expect(try JSONDecoder().decode(AppState.self, from: migrated) == store.state)
+        #expect(migrated != legacy)
+        #expect(fixture.defaults.setCallCount == 1)
         #expect(fixture.defaults.removeCallCount == 0)
     }
 
     @MainActor
     @Test
     func futureAppStateRecordRemainsByteForByteUntouched() throws {
-        let future = Data(#"{"schemaVersion":2,"future":"preserve-me"}"#.utf8)
+        let future = Data(#"{"schemaVersion":3,"future":"preserve-me"}"#.utf8)
         let fixture = try makeStableRecordFixture(label: "Future")
         defer {
             fixture.defaults.removePersistentDomain(forName: fixture.suiteName)
@@ -228,7 +234,7 @@ struct UserDefaultsAppStateStorageTests {
         #expect(store.state == .initial)
         #expect(
             store.persistenceStatus == .readOnly(
-                .unsupportedFutureSchema(2)
+                .unsupportedFutureSchema(3)
             )
         )
         expectOnlyStableRecord(in: fixture.defaults, bytes: future)

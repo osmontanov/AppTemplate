@@ -8,10 +8,10 @@ struct OnboardingViewModelTests {
     func finishAppliesOnboardingCompletion() {
         let coordinator = makeTestAppFlowCoordinator(
             state: AppState(
-                isAuthenticated: true,
                 hasCompletedOnboarding: false,
                 isMaintenanceEnabled: false
-            )
+            ),
+            isAuthenticated: true
         )
         let viewModel = OnboardingViewModel(
             onboardingActions: coordinator

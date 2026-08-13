@@ -12,7 +12,7 @@ struct AppFlowCoordinatorTests {
         sut.coordinator.completeOnboarding()
 
         #expect(sut.store.state.hasCompletedOnboarding)
-        #expect(!sut.store.state.isAuthenticated)
+        #expect(!sut.legacyAuthentication.isAuthenticated)
         #expect(!sut.store.state.isMaintenanceEnabled)
         #expect(sut.storage.savedData.count == 1)
         #expect(sut.router.flow == .authentication)
@@ -20,9 +20,8 @@ struct AppFlowCoordinatorTests {
     }
 
     @Test
-    func signInRoutesThroughMaintenanceAndPreservesPendingIntent() throws {
+    func signInRoutesThroughMaintenanceWithoutPersistingAuthentication() throws {
         let state = AppState(
-            isAuthenticated: false,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: true
         )
@@ -30,7 +29,8 @@ struct AppFlowCoordinatorTests {
 
         sut.coordinator.signIn()
 
-        #expect(sut.store.state.isAuthenticated)
+        #expect(sut.legacyAuthentication.isAuthenticated)
+        #expect(sut.storage.savedData.isEmpty)
         #expect(sut.router.flow == .maintenance)
         #expect(sut.router.transition.pendingIntentAction == .preserve)
     }
@@ -38,11 +38,10 @@ struct AppFlowCoordinatorTests {
     @Test
     func disablingMaintenanceEntersMainAndReplaysPendingIntent() throws {
         let state = AppState(
-            isAuthenticated: true,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: true
         )
-        let sut = try makeSUT(state: state)
+        let sut = try makeSUT(state: state, isAuthenticated: true)
 
         sut.coordinator.setMaintenanceEnabled(false)
 
@@ -54,7 +53,6 @@ struct AppFlowCoordinatorTests {
     @Test
     func changedLowerPriorityFlagWritesWithoutResettingVisibleFlow() throws {
         let state = AppState(
-            isAuthenticated: false,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: false
         )
@@ -79,11 +77,14 @@ struct AppFlowCoordinatorTests {
     func unchangedFlagReconcilesAnInconsistentTemporaryFlowWithoutWriting()
         throws {
         let state = AppState(
-            isAuthenticated: true,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: false
         )
-        let sut = try makeSUT(state: state, visibleFlow: .onboarding)
+        let sut = try makeSUT(
+            state: state,
+            isAuthenticated: true,
+            visibleFlow: .onboarding
+        )
 
         sut.coordinator.completeOnboarding()
 
@@ -93,13 +94,12 @@ struct AppFlowCoordinatorTests {
     }
 
     @Test
-    func repeatedConsistentCommandDoesNotWriteOrTransition() throws {
+    func repeatedConsistentSignInDoesNotWriteOrTransition() throws {
         let state = AppState(
-            isAuthenticated: true,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: false
         )
-        let sut = try makeSUT(state: state)
+        let sut = try makeSUT(state: state, isAuthenticated: true)
         let transition = sut.router.transition
 
         sut.coordinator.signIn()
@@ -109,40 +109,50 @@ struct AppFlowCoordinatorTests {
     }
 
     @Test
-    func rejectedSignInDoesNotChangeStateOrRootTransition() throws {
+    func signInStillWorksWhenPolicyPersistenceIsReadOnly() throws {
+        let state = AppState(
+            hasCompletedOnboarding: true,
+            isMaintenanceEnabled: false
+        )
         let sut = try makeSUT(
-            state: .initial,
+            state: state,
             saveError: StorageError.failed
         )
-        let transition = sut.router.transition
+        #expect(
+            sut.coordinator.setMaintenanceEnabled(true)
+                == .rejected(.saveFailed)
+        )
 
         let result = sut.coordinator.signIn()
 
-        #expect(result == .rejected(.saveFailed))
-        #expect(sut.store.state == .initial)
-        #expect(sut.router.transition == transition)
+        #expect(result == .applied(flow: .main, didTransition: true))
+        #expect(sut.legacyAuthentication.isAuthenticated)
+        #expect(sut.store.persistenceStatus == .readOnly(.saveFailed))
+        #expect(sut.storage.savedData.isEmpty)
     }
 
     @Test
     func unchangedPolicyActionReturnsUnchanged() throws {
         let state = AppState(
-            isAuthenticated: true,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: false
         )
-        let sut = try makeSUT(state: state)
+        let sut = try makeSUT(state: state, isAuthenticated: true)
 
         #expect(sut.coordinator.signIn() == .unchanged)
     }
 
     @Test
-    func unchangedStateCanReconcileInfrastructureFlowDrift() throws {
+    func unchangedAuthenticationCanReconcileInfrastructureFlowDrift() throws {
         let state = AppState(
-            isAuthenticated: true,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: false
         )
-        let sut = try makeSUT(state: state, visibleFlow: .onboarding)
+        let sut = try makeSUT(
+            state: state,
+            isAuthenticated: true,
+            visibleFlow: .onboarding
+        )
 
         #expect(
             sut.coordinator.signIn()
@@ -151,20 +161,24 @@ struct AppFlowCoordinatorTests {
     }
 
     @Test
-    func effectiveSignOutPreservesOtherFlagsAndForcesSameFlowDiscard() throws {
+    func effectiveSignOutPreservesPolicyAndForcesSameFlowDiscard() throws {
         let state = AppState(
-            isAuthenticated: true,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: true
         )
-        let sut = try makeSUT(state: state, visibleFlow: .authentication)
+        let sut = try makeSUT(
+            state: state,
+            isAuthenticated: true,
+            visibleFlow: .authentication
+        )
         let previousID = sut.router.transition.id
 
         sut.coordinator.signOut()
 
-        #expect(!sut.store.state.isAuthenticated)
+        #expect(!sut.legacyAuthentication.isAuthenticated)
         #expect(sut.store.state.hasCompletedOnboarding)
         #expect(sut.store.state.isMaintenanceEnabled)
+        #expect(sut.storage.savedData.isEmpty)
         #expect(sut.router.flow == .authentication)
         #expect(sut.router.transition.id != previousID)
         #expect(sut.router.transition.pendingIntentAction == .discard)
@@ -173,15 +187,14 @@ struct AppFlowCoordinatorTests {
     @Test
     func restartOnboardingChangesOnlyTheOnboardingFlag() throws {
         let state = AppState(
-            isAuthenticated: true,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: true
         )
-        let sut = try makeSUT(state: state)
+        let sut = try makeSUT(state: state, isAuthenticated: true)
 
         sut.coordinator.restartOnboarding()
 
-        #expect(sut.store.state.isAuthenticated)
+        #expect(sut.legacyAuthentication.isAuthenticated)
         #expect(!sut.store.state.hasCompletedOnboarding)
         #expect(sut.store.state.isMaintenanceEnabled)
         #expect(sut.router.flow == .onboarding)
@@ -190,15 +203,14 @@ struct AppFlowCoordinatorTests {
     @Test
     func enablingMaintenanceChangesOnlyTheMaintenanceFlag() throws {
         let state = AppState(
-            isAuthenticated: true,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: false
         )
-        let sut = try makeSUT(state: state)
+        let sut = try makeSUT(state: state, isAuthenticated: true)
 
         sut.coordinator.setMaintenanceEnabled(true)
 
-        #expect(sut.store.state.isAuthenticated)
+        #expect(sut.legacyAuthentication.isAuthenticated)
         #expect(sut.store.state.hasCompletedOnboarding)
         #expect(sut.store.state.isMaintenanceEnabled)
         #expect(sut.router.flow == .maintenance)
@@ -209,6 +221,7 @@ struct AppFlowCoordinatorTests {
 private struct CoordinatorSUT {
     let storage: AppStateStorageSpy
     let store: AppStateStore
+    let legacyAuthentication: LegacyAuthenticationState
     let router: AppFlowRouter
     let coordinator: AppFlowCoordinator
 }
@@ -216,6 +229,7 @@ private struct CoordinatorSUT {
 @MainActor
 private func makeSUT(
     state: AppState,
+    isAuthenticated: Bool = false,
     visibleFlow: AppFlow? = nil,
     saveError: (any Error)? = nil
 ) throws -> CoordinatorSUT {
@@ -224,16 +238,24 @@ private func makeSUT(
         saveError: saveError
     )
     let store = AppStateStore(storage: storage)
+    let legacyAuthentication = LegacyAuthenticationState(
+        isAuthenticated: isAuthenticated
+    )
     let router = AppFlowRouter(
-        flow: visibleFlow ?? AppFlowPolicy.resolve(state)
+        flow: visibleFlow ?? AppFlowPolicy.resolve(
+            state,
+            legacyAuthentication: legacyAuthentication
+        )
     )
     return CoordinatorSUT(
         storage: storage,
         store: store,
+        legacyAuthentication: legacyAuthentication,
         router: router,
         coordinator: AppFlowCoordinator(
             store: store,
-            appFlowRouter: router
+            appFlowRouter: router,
+            legacyAuthentication: legacyAuthentication
         )
     )
 }

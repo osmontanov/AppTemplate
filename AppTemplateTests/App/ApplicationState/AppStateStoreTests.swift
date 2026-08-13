@@ -8,7 +8,7 @@ struct AppStateStoreTests {
     func futureSchemaLoadsInitialReadOnlyWithoutChangingStoredBytes()
         throws {
         let future = Data(
-            #"{"schemaVersion":2,"future":"preserve-me"}"#.utf8
+            #"{"schemaVersion":3,"future":"preserve-me"}"#.utf8
         )
         let storage = AppStateStorageSpy(loadResult: .data(future))
 
@@ -17,7 +17,7 @@ struct AppStateStoreTests {
         #expect(store.state == .initial)
         #expect(
             store.persistenceStatus == .readOnly(
-                .unsupportedFutureSchema(2)
+                .unsupportedFutureSchema(3)
             )
         )
         #expect(storage.currentData == future)
@@ -30,7 +30,6 @@ struct AppStateStoreTests {
         let storage = AppStateStorageSpy(saveError: StorageError.failed)
         let store = AppStateStore(storage: storage)
         let proposed = AppState(
-            isAuthenticated: false,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: false
         )
@@ -57,7 +56,6 @@ struct AppStateStoreTests {
             throw EncodingErrorStub.failed
         })
         let proposed = AppState(
-            isAuthenticated: false,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: false
         )
@@ -88,7 +86,6 @@ struct AppStateStoreTests {
     @Test
     func validCurrentRecordRestoresWithoutWriting() throws {
         let state = AppState(
-            isAuthenticated: true,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: true
         )
@@ -104,7 +101,6 @@ struct AppStateStoreTests {
     @Test
     func validCurrentRecordLeavesRestoredStateWritable() throws {
         let storedState = AppState(
-            isAuthenticated: true,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: true
         )
@@ -187,7 +183,6 @@ struct AppStateStoreTests {
     func legacySchemaRepairsExactlyOnce() throws {
         let legacy = AppState(
             schemaVersion: 0,
-            isAuthenticated: true,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: true
         )
@@ -208,7 +203,6 @@ struct AppStateStoreTests {
         let storage = AppStateStorageSpy()
         let store = AppStateStore(storage: storage)
         let changed = AppState(
-            isAuthenticated: false,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: false
         )

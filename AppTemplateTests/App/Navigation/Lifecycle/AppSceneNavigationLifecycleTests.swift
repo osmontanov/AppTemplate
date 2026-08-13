@@ -546,7 +546,6 @@ struct AppSceneNavigationLifecycleTests {
     @Test
     func authenticationAndMaintenanceGatesPreserveThenReplayURL() throws {
         let state = AppState(
-            isAuthenticated: false,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: true
         )
@@ -606,7 +605,6 @@ struct AppSceneNavigationLifecycleTests {
     func localNotificationReceivingSeamPreservesAuthenticationAndMaintenanceDeferral()
         throws {
         let state = AppState(
-            isAuthenticated: false,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: true
         )
@@ -650,12 +648,12 @@ struct AppSceneNavigationLifecycleTests {
     func effectiveSignOutDiscardsURLWhenAuthenticationIsAlreadyVisible()
         throws {
         let state = AppState(
-            isAuthenticated: true,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: false
         )
         let coordinator = makeTestAppFlowCoordinator(
             state: state,
+            isAuthenticated: true,
             visibleFlow: .authentication
         )
         let appFlowRouter = coordinator.appFlowRouter

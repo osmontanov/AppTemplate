@@ -15,6 +15,7 @@ nonisolated struct UITestScenario: Equatable, Sendable {
 
     let id: Name
     let appState: AppState
+    let legacyAuthenticationIsAuthenticated: Bool
     let sessionSeed: UITestSessionSeed
     let localDatabaseSeed: UITestLocalDatabaseSeed
     let preferencesSeed: UITestPreferencesSeed
@@ -28,19 +29,22 @@ nonisolated struct UITestScenario: Equatable, Sendable {
             throw UITestConfigurationError.unknownScenario(id)
         }
         let state: AppState
+        let isAuthenticated: Bool
         switch name {
         case .accessibilitySmoke:
             state = .initial
+            isAuthenticated = false
         case .guestStore, .protectedFavorite, .productReminder, .servicesBasic:
             state = AppState(
-                isAuthenticated: true,
                 hasCompletedOnboarding: true,
                 isMaintenanceEnabled: false
             )
+            isAuthenticated = true
         }
         return UITestScenario(
             id: name,
             appState: state,
+            legacyAuthenticationIsAuthenticated: isAuthenticated,
             sessionSeed: UITestSessionSeed(keychainData: nil),
             localDatabaseSeed: UITestLocalDatabaseSeed(examples: []),
             preferencesSeed: UITestPreferencesSeed(encodedValues: [:]),

@@ -58,16 +58,24 @@ func makeTestFlowRouter() -> FlowRouter {
 @MainActor
 func makeTestAppFlowCoordinator(
     state: AppState = .initial,
+    isAuthenticated: Bool = false,
+    legacyAuthentication: LegacyAuthenticationState? = nil,
     visibleFlow: AppFlow? = nil
 ) -> AppFlowCoordinator {
+    let legacyAuthentication = legacyAuthentication
+        ?? LegacyAuthenticationState(isAuthenticated: isAuthenticated)
     let store = AppStateStore(storage: AppStateStorageSpy())
     _ = store.setState(state)
     let appFlowRouter = AppFlowRouter(
-        flow: visibleFlow ?? AppFlowPolicy.resolve(state)
+        flow: visibleFlow ?? AppFlowPolicy.resolve(
+            state,
+            legacyAuthentication: legacyAuthentication
+        )
     )
     return AppFlowCoordinator(
         store: store,
-        appFlowRouter: appFlowRouter
+        appFlowRouter: appFlowRouter,
+        legacyAuthentication: legacyAuthentication
     )
 }
 

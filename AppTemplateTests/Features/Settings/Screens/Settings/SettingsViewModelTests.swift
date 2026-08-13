@@ -29,10 +29,10 @@ struct SettingsViewModelTests {
     func signOutAppliesSemanticSignOut() {
         let coordinator = makeTestAppFlowCoordinator(
             state: AppState(
-                isAuthenticated: true,
                 hasCompletedOnboarding: true,
                 isMaintenanceEnabled: false
-            )
+            ),
+            isAuthenticated: true
         )
         let viewModel = SettingsViewModel(
             router: makeTestFlowRouter(),

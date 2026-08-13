@@ -2,9 +2,15 @@ import SwiftUI
 
 @MainActor
 enum PreviewFixtures {
-    static func appComposition(state: AppState) -> ContentView {
+    static func appComposition(
+        state: AppState,
+        isAuthenticated: Bool = false
+    ) -> ContentView {
         ContentView(
-            appFlowCoordinator: appFlowCoordinator(state: state),
+            appFlowCoordinator: appFlowCoordinator(
+                state: state,
+                isAuthenticated: isAuthenticated
+            ),
             settings: settingsDependencies()
         )
     }
@@ -12,7 +18,6 @@ enum PreviewFixtures {
     static func authenticationFlow() -> AuthenticationFlowView {
         let appFlowCoordinator = appFlowCoordinator(
             state: AppState(
-                isAuthenticated: false,
                 hasCompletedOnboarding: true,
                 isMaintenanceEnabled: false
             )
@@ -31,7 +36,6 @@ enum PreviewFixtures {
         OnboardingFlowView(
             router: flowRouter(
                 state: AppState(
-                    isAuthenticated: false,
                     hasCompletedOnboarding: false,
                     isMaintenanceEnabled: false
                 )
@@ -40,20 +44,26 @@ enum PreviewFixtures {
     }
 
     static func homeFlow() -> HomeFlowView {
-        HomeFlowView(router: flowRouter(state: mainState))
+        HomeFlowView(
+            router: flowRouter(state: mainState, isAuthenticated: true)
+        )
     }
 
     static func browseFlow() -> BrowseFlowView {
-        BrowseFlowView(router: flowRouter(state: mainState))
+        BrowseFlowView(
+            router: flowRouter(state: mainState, isAuthenticated: true)
+        )
     }
 
     static func projectsFlow() -> ProjectsFlowView {
-        ProjectsFlowView(router: flowRouter(state: mainState))
+        ProjectsFlowView(
+            router: flowRouter(state: mainState, isAuthenticated: true)
+        )
     }
 
     static func settingsFlow() -> SettingsFlowView {
         SettingsFlowView(
-            router: flowRouter(state: mainState),
+            router: flowRouter(state: mainState, isAuthenticated: true),
             dependencies: settingsDependencies()
         )
     }
@@ -62,17 +72,20 @@ enum PreviewFixtures {
         MaintenanceFlowView(
             router: flowRouter(
                 state: AppState(
-                    isAuthenticated: true,
                     hasCompletedOnboarding: true,
                     isMaintenanceEnabled: true
-                )
+                ),
+                isAuthenticated: true
             )
         )
     }
 
     static func createProjectFlow() -> CreateProjectFlowView {
         CreateProjectFlowView(
-            appFlowCoordinator: appFlowCoordinator(state: mainState)
+            appFlowCoordinator: appFlowCoordinator(
+                state: mainState,
+                isAuthenticated: true
+            )
         )
     }
 
@@ -85,29 +98,42 @@ enum PreviewFixtures {
         )
     }
 
-    static func flowRouter(state: AppState) -> FlowRouter {
+    static func flowRouter(
+        state: AppState,
+        isAuthenticated: Bool = false
+    ) -> FlowRouter {
         FlowRouter(
-            appFlowCoordinator: appFlowCoordinator(state: state)
+            appFlowCoordinator: appFlowCoordinator(
+                state: state,
+                isAuthenticated: isAuthenticated
+            )
         )
     }
 
     static func appFlowCoordinator(
-        state: AppState
+        state: AppState,
+        isAuthenticated: Bool = false
     ) -> AppFlowCoordinator {
+        let legacyAuthentication = LegacyAuthenticationState(
+            isAuthenticated: isAuthenticated
+        )
         let storage = InMemoryAppStateStorage(initialState: state)
         let store = AppStateStore(storage: storage)
         let appFlowRouter = AppFlowRouter(
-            flow: AppFlowPolicy.resolve(store.state)
+            flow: AppFlowPolicy.resolve(
+                store.state,
+                legacyAuthentication: legacyAuthentication
+            )
         )
         return AppFlowCoordinator(
             store: store,
-            appFlowRouter: appFlowRouter
+            appFlowRouter: appFlowRouter,
+            legacyAuthentication: legacyAuthentication
         )
     }
 
     private static var mainState: AppState {
         AppState(
-            isAuthenticated: true,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: false
         )

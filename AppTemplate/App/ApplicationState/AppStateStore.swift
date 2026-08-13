@@ -53,12 +53,33 @@ final class AppStateStore {
         switch Self.resolve(result) {
         case let .loaded(loadedState):
             state = loadedState
+        case let .migration(migratedState):
+            state = migratedState
+            persistMigration()
         case let .repair(reason):
             Self.logRecovery(reason)
             repairInitialState()
         case let .futureSchema(version):
             persistenceStatus = .readOnly(.unsupportedFutureSchema(version))
             Logger.appState.error("Unsupported future app state schema")
+        }
+    }
+
+    private func persistMigration() {
+        let data: Data
+        do {
+            data = try encode(state)
+        } catch {
+            persistenceStatus = .readOnly(.migrationSaveFailed)
+            Logger.appState.error("Failed to encode migrated app state")
+            return
+        }
+
+        do {
+            try storage.save(data)
+        } catch {
+            persistenceStatus = .readOnly(.migrationSaveFailed)
+            Logger.appState.error("Failed to save migrated app state")
         }
     }
 
@@ -116,16 +137,25 @@ final class AppStateStore {
             return .futureSchema(envelope.schemaVersion)
         }
 
-        guard envelope.schemaVersion == AppState.currentSchemaVersion else {
+        switch envelope.schemaVersion {
+        case 1:
+            do {
+                return .migration(
+                    try decoder.decode(AppStateV1.self, from: data).migrated
+                )
+            } catch {
+                return .repair(.corruptData)
+            }
+        case AppState.currentSchemaVersion:
+            do {
+                return .loaded(
+                    try decoder.decode(AppState.self, from: data)
+                )
+            } catch {
+                return .repair(.corruptData)
+            }
+        default:
             return .repair(.unsupportedSchema(envelope.schemaVersion))
-        }
-
-        do {
-            return .loaded(
-                try decoder.decode(AppState.self, from: data)
-            )
-        } catch {
-            return .repair(.corruptData)
         }
     }
 
@@ -149,6 +179,7 @@ final class AppStateStore {
 
 private enum AppStateLoadResolution {
     case loaded(AppState)
+    case migration(AppState)
     case repair(AppStateRecoveryReason)
     case futureSchema(Int)
 }
@@ -162,4 +193,19 @@ private enum AppStateRecoveryReason {
 nonisolated
 private struct AppStateSchemaEnvelope: Decodable {
     let schemaVersion: Int
+}
+
+nonisolated
+private struct AppStateV1: Decodable {
+    let schemaVersion: Int
+    let isAuthenticated: Bool
+    let hasCompletedOnboarding: Bool
+    let isMaintenanceEnabled: Bool
+
+    var migrated: AppState {
+        AppState(
+            hasCompletedOnboarding: hasCompletedOnboarding,
+            isMaintenanceEnabled: isMaintenanceEnabled
+        )
+    }
 }

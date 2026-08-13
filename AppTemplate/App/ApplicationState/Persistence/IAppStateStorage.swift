@@ -12,6 +12,7 @@ enum AppStatePersistenceFailure: Equatable, Sendable {
     case loadFailed
     case saveFailed
     case encodingFailed
+    case migrationSaveFailed
     case unsupportedFutureSchema(Int)
 }
 

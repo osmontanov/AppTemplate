@@ -5,6 +5,7 @@ struct AppDependencies: Sendable {
     let localDatabase: any ILocalDatabaseService
     let remote: any IRemoteService
     let appStateStorage: any IAppStateStorage
+    let legacyAuthentication: LegacyAuthenticationState
     let keychain: any IKeychainService
     let settings: SettingsDependencies
     let localNotifications: LocalNotificationDependencies
@@ -35,6 +36,7 @@ struct AppDependencies: Sendable {
             ),
             remote: RemoteService(diagnosticRecorder: diagnostics),
             appStateStorage: UserDefaultsAppStateStorage(userDefaults: userDefaultsService),
+            legacyAuthentication: LegacyAuthenticationState(),
             keychain: keychainService,
             settings: SettingsDependencies(appInfo: AppInfoService()),
             localNotifications: localNotifications ?? .live(
@@ -111,6 +113,9 @@ struct AppDependencies: Sendable {
             localDatabase: database,
             remote: remote,
             appStateStorage: InMemoryAppStateStorage(initialState: scenario.appState),
+            legacyAuthentication: LegacyAuthenticationState(
+                isAuthenticated: scenario.legacyAuthenticationIsAuthenticated
+            ),
             keychain: keychain,
             settings: SettingsDependencies(
                 appInfo: AppInfoService(
@@ -140,12 +145,14 @@ struct AppDependencies: Sendable {
         remoteService: any IRemoteService,
         diagnostics: NetworkDiagnosticRecorder,
         imageLoader: any IImageLoader,
+        legacyAuthentication: LegacyAuthenticationState = LegacyAuthenticationState(),
         localNotifications: LocalNotificationDependencies? = nil
     ) -> AppDependencies {
         AppDependencies(
             localDatabase: LocalDatabaseService(configuration: .inMemory()),
             remote: remoteService,
             appStateStorage: InMemoryAppStateStorage(initialState: initialState),
+            legacyAuthentication: legacyAuthentication,
             keychain: InMemoryKeychainService(),
             settings: SettingsDependencies(
                 appInfo: AppInfoService(
@@ -168,6 +175,7 @@ struct AppDependencies: Sendable {
         diagnostics: NetworkDiagnosticRecorder,
         imageLoader: any IImageLoader,
         appStateStorage: any IAppStateStorage = InMemoryAppStateStorage(),
+        legacyAuthentication: LegacyAuthenticationState = LegacyAuthenticationState(),
         localDatabaseService: any ILocalDatabaseService = LocalDatabaseService(
             configuration: .inMemory()
         ),
@@ -178,6 +186,7 @@ struct AppDependencies: Sendable {
             localDatabase: localDatabaseService,
             remote: remoteService,
             appStateStorage: appStateStorage,
+            legacyAuthentication: legacyAuthentication,
             keychain: keychainService,
             settings: settings,
             localNotifications: localNotifications ?? .inMemory(),
@@ -195,6 +204,7 @@ struct AppDependencies: Sendable {
         diagnostics: NetworkDiagnosticRecorder,
         imageLoader: any IImageLoader,
         appStateStorage: any IAppStateStorage,
+        legacyAuthentication: LegacyAuthenticationState = LegacyAuthenticationState(),
         keychainService: any IKeychainService,
         settings: SettingsDependencies,
         localNotifications: LocalNotificationDependencies
@@ -203,6 +213,7 @@ struct AppDependencies: Sendable {
             localDatabase: localDatabaseService,
             remote: remoteService,
             appStateStorage: appStateStorage,
+            legacyAuthentication: legacyAuthentication,
             keychain: keychainService,
             settings: settings,
             localNotifications: localNotifications,

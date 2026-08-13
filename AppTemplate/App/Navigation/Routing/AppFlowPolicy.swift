@@ -1,10 +1,14 @@
 nonisolated
 enum AppFlowPolicy {
-    static func resolve(_ state: AppState) -> AppFlow {
+    @MainActor
+    static func resolve(
+        _ state: AppState,
+        legacyAuthentication: LegacyAuthenticationState
+    ) -> AppFlow {
         if !state.hasCompletedOnboarding {
             return .onboarding
         }
-        if !state.isAuthenticated {
+        if !legacyAuthentication.isAuthenticated {
             return .authentication
         }
         if state.isMaintenanceEnabled {

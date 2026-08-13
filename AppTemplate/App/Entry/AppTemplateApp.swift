@@ -32,9 +32,18 @@ struct AppTemplateApp: App {
         sceneNavigationPersistencePolicy = configuration.sceneNavigationPersistencePolicy
         if let resolved {
             let store = AppStateStore(storage: resolved.appStateStorage)
-            let router = AppFlowRouter(flow: AppFlowPolicy.resolve(store.state))
+            let router = AppFlowRouter(
+                flow: AppFlowPolicy.resolve(
+                    store.state,
+                    legacyAuthentication: resolved.legacyAuthentication
+                )
+            )
             _appFlowCoordinator = State(
-                initialValue: AppFlowCoordinator(store: store, appFlowRouter: router)
+                initialValue: AppFlowCoordinator(
+                    store: store,
+                    appFlowRouter: router,
+                    legacyAuthentication: resolved.legacyAuthentication
+                )
             )
         } else {
             _appFlowCoordinator = State(initialValue: nil)

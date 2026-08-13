@@ -1,6 +1,7 @@
 import Testing
 @testable import AppTemplate
 
+@MainActor
 struct AppFlowPolicyTests {
     @Test(arguments: [
         FlowCase(false, false, false, .onboarding),
@@ -14,12 +15,19 @@ struct AppFlowPolicyTests {
     ])
     fileprivate func resolvesTheCompletePriorityTable(testCase: FlowCase) {
         let state = AppState(
-            isAuthenticated: testCase.isAuthenticated,
             hasCompletedOnboarding: testCase.hasCompletedOnboarding,
             isMaintenanceEnabled: testCase.isMaintenanceEnabled
         )
+        let legacyAuthentication = LegacyAuthenticationState(
+            isAuthenticated: testCase.isAuthenticated
+        )
 
-        #expect(AppFlowPolicy.resolve(state) == testCase.expectedFlow)
+        #expect(
+            AppFlowPolicy.resolve(
+                state,
+                legacyAuthentication: legacyAuthentication
+            ) == testCase.expectedFlow
+        )
     }
 }
 

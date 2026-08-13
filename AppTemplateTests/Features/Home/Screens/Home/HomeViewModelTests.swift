@@ -57,15 +57,16 @@ struct HomeViewModelTests {
     @Test
     func homeRootActionsApplyPersistentPolicyChanges() {
         let mainState = AppState(
-            isAuthenticated: true,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: false
         )
         let onboardingCoordinator = makeTestAppFlowCoordinator(
-            state: mainState
+            state: mainState,
+            isAuthenticated: true
         )
         let maintenanceCoordinator = makeTestAppFlowCoordinator(
-            state: mainState
+            state: mainState,
+            isAuthenticated: true
         )
         let viewModel = HomeViewModel(
             router: makeTestFlowRouter(),

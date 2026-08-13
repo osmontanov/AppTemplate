@@ -39,9 +39,9 @@ struct ContentView: View {
 #Preview {
     PreviewFixtures.appComposition(
         state: AppState(
-            isAuthenticated: true,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: false
-        )
+        ),
+        isAuthenticated: true
     )
 }

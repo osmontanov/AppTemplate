@@ -7,8 +7,7 @@ struct AppStateTests {
     func initialStateUsesCurrentSchemaAndSafeFlags() {
         let state = AppState.initial
 
-        #expect(state.schemaVersion == 1)
-        #expect(!state.isAuthenticated)
+        #expect(state.schemaVersion == 2)
         #expect(!state.hasCompletedOnboarding)
         #expect(!state.isMaintenanceEnabled)
     }
@@ -16,7 +15,6 @@ struct AppStateTests {
     @Test
     func codingRoundTripPreservesEveryFieldAndOnlyExpectedKeys() throws {
         let source = AppState(
-            isAuthenticated: true,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: true
         )
@@ -30,7 +28,6 @@ struct AppStateTests {
         #expect(
             Set(object.keys) == [
                 "schemaVersion",
-                "isAuthenticated",
                 "hasCompletedOnboarding",
                 "isMaintenanceEnabled"
             ]

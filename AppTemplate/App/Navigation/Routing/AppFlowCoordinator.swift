@@ -5,13 +5,16 @@ import Observation
 final class AppFlowCoordinator: IAppFlowCoordinator {
     let appFlowRouter: AppFlowRouter
     private let store: AppStateStore
+    private let legacyAuthentication: LegacyAuthenticationState
 
     init(
         store: AppStateStore,
-        appFlowRouter: AppFlowRouter
+        appFlowRouter: AppFlowRouter,
+        legacyAuthentication: LegacyAuthenticationState
     ) {
         self.store = store
         self.appFlowRouter = appFlowRouter
+        self.legacyAuthentication = legacyAuthentication
     }
 
     @discardableResult
@@ -30,17 +33,19 @@ final class AppFlowCoordinator: IAppFlowCoordinator {
 
     @discardableResult
     func signIn() -> AppFlowActionResult {
-        var state = store.state
-        state.isAuthenticated = true
-        return synchronize(with: state)
+        let didChangeAuthentication = !legacyAuthentication.isAuthenticated
+        legacyAuthentication.signIn()
+        return transitionForCurrentPolicy(
+            didChangeState: didChangeAuthentication
+        )
     }
 
     @discardableResult
     func signOut() -> AppFlowActionResult {
-        var state = store.state
-        state.isAuthenticated = false
-        return synchronize(
-            with: state,
+        let didChangeAuthentication = legacyAuthentication.isAuthenticated
+        legacyAuthentication.signOut()
+        return transitionForCurrentPolicy(
+            didChangeState: didChangeAuthentication,
             nonMainPendingIntentAction: .discard,
             forceTransitionWhenStateChanges: true
         )
@@ -68,7 +73,22 @@ final class AppFlowCoordinator: IAppFlowCoordinator {
             return .rejected(failure)
         }
 
-        let targetFlow = AppFlowPolicy.resolve(store.state)
+        return transitionForCurrentPolicy(
+            didChangeState: didChangeState,
+            nonMainPendingIntentAction: nonMainPendingIntentAction,
+            forceTransitionWhenStateChanges: forceTransitionWhenStateChanges
+        )
+    }
+
+    private func transitionForCurrentPolicy(
+        didChangeState: Bool,
+        nonMainPendingIntentAction: PendingIntentAction = .preserve,
+        forceTransitionWhenStateChanges: Bool = false
+    ) -> AppFlowActionResult {
+        let targetFlow = AppFlowPolicy.resolve(
+            store.state,
+            legacyAuthentication: legacyAuthentication
+        )
         let mustForceTransition =
             forceTransitionWhenStateChanges && didChangeState
         let didTransition = appFlowRouter.flow != targetFlow

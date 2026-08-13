@@ -44,7 +44,6 @@ struct InMemoryAppStateStorageTests {
     @Test
     func initialStateEncodesForDeterministicFixtures() throws {
         let state = AppState(
-            isAuthenticated: true,
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: false
         )
