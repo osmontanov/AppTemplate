@@ -179,7 +179,10 @@ enum LocalNotificationValidator {
         fallbackCalendar: Calendar,
         referenceDate: Date
     ) throws {
-        guard components.nanosecond == nil, components.isLeapMonth == nil else {
+        guard components.nanosecond == nil,
+              components.isLeapMonth == nil,
+              components.dayOfYear == nil,
+              components.isRepeatedDay == nil else {
             throw LocalNotificationServiceError.invalidTrigger(.unsupportedCalendarComponent)
         }
         let supported = components.era != nil || components.year != nil || components.month != nil ||

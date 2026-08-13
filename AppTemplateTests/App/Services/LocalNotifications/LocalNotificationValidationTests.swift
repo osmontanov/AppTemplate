@@ -97,6 +97,41 @@ struct LocalNotificationValidationTests {
     }
 
     @Test
+    func calendarRejectsEveryUnsupportedStoredComponentAloneAndBesideHour() throws {
+        var dayOfYear = DateComponents()
+        dayOfYear.dayOfYear = 42
+        var dayOfYearWithHour = dayOfYear
+        dayOfYearWithHour.hour = 10
+
+        var repeatedDay = DateComponents()
+        repeatedDay.isRepeatedDay = true
+        var repeatedDayWithHour = repeatedDay
+        repeatedDayWithHour.hour = 10
+
+        let cases = [
+            dayOfYear,
+            dayOfYearWithHour,
+            repeatedDay,
+            repeatedDayWithHour
+        ]
+        for components in cases {
+            let data = try JSONEncoder().encode(components)
+            let decoded = try JSONDecoder().decode(DateComponents.self, from: data)
+
+            #expect(decoded.dayOfYear == components.dayOfYear)
+            #expect(decoded.isRepeatedDay == components.isRepeatedDay)
+            #expect(decoded.hour == components.hour)
+            #expect(throws: LocalNotificationServiceError.invalidTrigger(
+                .unsupportedCalendarComponent
+            )) {
+                try LocalNotificationValidator.validate(
+                    trigger: .calendar(decoded, repeats: false)
+                )
+            }
+        }
+    }
+
+    @Test
     func attachmentOptionNumbersMustBeFiniteAndInRange() {
         let invalidRectangle = LocalNotificationAttachmentOptions(
             thumbnailClippingRect: CGRect(x: 0, y: 0, width: 1.1, height: 1)

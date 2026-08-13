@@ -264,6 +264,31 @@ struct LocalNotificationServiceTests {
     }
 
     @Test
+    func unsupportedStoredCalendarComponentsStopBeforeBootstrapAndAdd() async throws {
+        var dayOfYear = DateComponents(hour: 10)
+        dayOfYear.dayOfYear = 42
+        var repeatedDay = DateComponents(hour: 10)
+        repeatedDay.isRepeatedDay = true
+
+        for (index, components) in [dayOfYear, repeatedDay].enumerated() {
+            let client = ScriptedLocalNotificationCenterClient()
+            let service = LocalNotificationService.fixture(client: client)
+            let request = LocalNotificationRequest(
+                id: try LocalNotificationID("unsupported-calendar-\(index)"),
+                content: LocalNotificationContent(body: "Body"),
+                trigger: .calendar(components, repeats: false)
+            )
+
+            await #expect(throws: LocalNotificationServiceError.invalidTrigger(
+                .unsupportedCalendarComponent
+            )) {
+                try await service.schedule(request)
+            }
+            #expect(await client.operations().isEmpty)
+        }
+    }
+
+    @Test
     func invalidRequestDeepLinkAndAttachmentOptionsPreventBootstrapAndAdd() async throws {
         let client = ScriptedLocalNotificationCenterClient()
         let service = LocalNotificationService.fixture(client: client)

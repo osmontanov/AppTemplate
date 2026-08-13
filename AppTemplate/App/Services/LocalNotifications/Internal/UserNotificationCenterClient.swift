@@ -58,7 +58,7 @@ final class UserNotificationCenterClient: LocalNotificationCenterClient {
         prefix: String,
         categories: [LocalNotificationSystemCategory]
     ) async throws {
-        await replaceMappedCategories(prefix: prefix, categories: categories)
+        try await replaceMappedCategories(prefix: prefix, categories: categories)
     }
 
     nonisolated func add(_ request: LocalNotificationSystemRequest) async throws {
@@ -99,6 +99,7 @@ final class UserNotificationCenterClient: LocalNotificationCenterClient {
         _ options: LocalNotificationAuthorizationOptions
     ) async throws -> Bool {
         let mapped = LocalNotificationSystemMapper.authorizationOptions(options)
+        try Task.checkCancellation()
         if let api {
             return try await api.requestAuthorization(options: mapped)
         }
@@ -108,7 +109,7 @@ final class UserNotificationCenterClient: LocalNotificationCenterClient {
     private func replaceMappedCategories(
         prefix: String,
         categories: [LocalNotificationSystemCategory]
-    ) async {
+    ) async throws {
         let existing: Set<UNNotificationCategory>
         if let api {
             existing = await api.notificationCategories()
@@ -118,6 +119,7 @@ final class UserNotificationCenterClient: LocalNotificationCenterClient {
         let foreign = existing.filter { !$0.identifier.hasPrefix(prefix) }
         let managed = categories.map(LocalNotificationSystemMapper.notificationCategory)
         let replacement = Set(foreign).union(managed)
+        try Task.checkCancellation()
         if let api {
             await api.setNotificationCategories(replacement)
         } else {
@@ -174,6 +176,7 @@ final class UserNotificationCenterClient: LocalNotificationCenterClient {
     }
 
     private func setMappedBadgeCount(_ count: Int) async throws {
+        try Task.checkCancellation()
         if let api {
             try await api.setBadgeCount(count)
         } else {

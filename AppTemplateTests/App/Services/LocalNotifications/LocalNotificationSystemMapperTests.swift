@@ -468,6 +468,34 @@ struct LocalNotificationSystemMapperTests {
         #expect(api.lastCategories.contains { $0 === prefixAdjacent })
     }
 
+    @Test(.timeLimit(.minutes(1)))
+    @MainActor
+    func cancellationDuringCategoryFetchStopsBeforeTheSystemMutation() async throws {
+        let gate = UserNotificationCenterAPIGate()
+        let api = UserNotificationCenterAPISpy(categoryFetchGate: gate)
+        let client = UserNotificationCenterClient(api: api)
+        let task = Task {
+            try await client.replaceManagedCategories(
+                prefix: "AppTemplate.LocalNotification.category.",
+                categories: [
+                    .fixture(
+                        identifier: "AppTemplate.LocalNotification.category.bG9jYWw"
+                    )
+                ]
+            )
+        }
+
+        await gate.waitUntilArrived()
+        task.cancel()
+        await gate.release()
+
+        await #expect(throws: CancellationError.self) {
+            try await task.value
+        }
+        #expect(await api.categorySetCount() == 0)
+        #expect(api.lastCategories.isEmpty)
+    }
+
     @Test
     @MainActor
     func authorizationForwardsOptionsAndReturnsSystemResult() async throws {
@@ -494,6 +522,41 @@ struct LocalNotificationSystemMapperTests {
         await #expect(throws: CancellationError.self) {
             try await cancellationClient.requestAuthorization(.sound)
         }
+    }
+
+    @Test
+    @MainActor
+    func preCancelledAuthorizationStopsBeforeTheSystemMutation() async {
+        let api = UserNotificationCenterAPISpy()
+        let client = UserNotificationCenterClient(api: api)
+        let task = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            return try await client.requestAuthorization(.alert)
+        }
+
+        await #expect(throws: CancellationError.self) {
+            try await task.value
+        }
+        #expect(api.authorizationOptions == nil)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    @MainActor
+    func cancellationAfterAuthorizationBeginsReturnsTheSystemOutcome() async throws {
+        let gate = UserNotificationCenterAPIGate()
+        let api = UserNotificationCenterAPISpy(
+            authorizationResult: false,
+            authorizationGate: gate
+        )
+        let client = UserNotificationCenterClient(api: api)
+        let task = Task { try await client.requestAuthorization(.alert) }
+
+        await gate.waitUntilArrived()
+        task.cancel()
+        await gate.release()
+
+        #expect(try await task.value == false)
+        #expect(api.authorizationOptions == .alert)
     }
 
     @Test
@@ -674,6 +737,43 @@ struct LocalNotificationSystemMapperTests {
     }
 
     @Test
+    @MainActor
+    func preCancelledBadgeUpdateStopsBeforeTheSystemMutation() async {
+        let api = UserNotificationCenterAPISpy()
+        let client = UserNotificationCenterClient(api: api)
+        let task = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            try await client.setBadgeCount(7)
+        }
+
+        await #expect(throws: CancellationError.self) {
+            try await task.value
+        }
+        #expect(api.badgeCounts.isEmpty)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    @MainActor
+    func cancellationAfterBadgeUpdateBeginsPreservesTheSystemError() async {
+        let gate = UserNotificationCenterAPIGate()
+        let api = UserNotificationCenterAPISpy(
+            badgeError: AdapterTestError.badge,
+            badgeGate: gate
+        )
+        let client = UserNotificationCenterClient(api: api)
+        let task = Task { try await client.setBadgeCount(7) }
+
+        await gate.waitUntilArrived()
+        task.cancel()
+        await gate.release()
+
+        await #expect(throws: AdapterTestError.badge) {
+            try await task.value
+        }
+        #expect(api.badgeCounts == [7])
+    }
+
+    @Test
     func scriptedClientRecordsResultsAndExactOperationOrder() async throws {
         let settings = LocalNotificationSettings.fixture()
         let request = LocalNotificationSystemRequest.fixture(identifier: "request")
@@ -846,10 +946,13 @@ private final class UserNotificationCenterAPISpy: UserNotificationCenterAPI {
     private let categories: Set<UNNotificationCategory>
     private let authorizationResult: Bool
     private let authorizationError: (any Error)?
+    private let authorizationGate: UserNotificationCenterAPIGate?
+    private let categoryFetchGate: UserNotificationCenterAPIGate?
     private let addError: (any Error)?
     private let pendingRequests: [UNNotificationRequest]
     private let deliveredNotificationsResult: [UNNotification]
     private let badgeError: (any Error)?
+    private let badgeGate: UserNotificationCenterAPIGate?
 
     private(set) var authorizationOptions: UNAuthorizationOptions?
     private(set) var lastCategories: Set<UNNotificationCategory> = []
@@ -863,28 +966,38 @@ private final class UserNotificationCenterAPISpy: UserNotificationCenterAPI {
         categories: Set<UNNotificationCategory> = [],
         authorizationResult: Bool = true,
         authorizationError: (any Error)? = nil,
+        authorizationGate: UserNotificationCenterAPIGate? = nil,
+        categoryFetchGate: UserNotificationCenterAPIGate? = nil,
         addError: (any Error)? = nil,
         pendingRequests: [UNNotificationRequest] = [],
         deliveredNotifications: [UNNotification] = [],
-        badgeError: (any Error)? = nil
+        badgeError: (any Error)? = nil,
+        badgeGate: UserNotificationCenterAPIGate? = nil
     ) {
         self.categories = categories
         self.authorizationResult = authorizationResult
         self.authorizationError = authorizationError
+        self.authorizationGate = authorizationGate
+        self.categoryFetchGate = categoryFetchGate
         self.addError = addError
         self.pendingRequests = pendingRequests
         deliveredNotificationsResult = deliveredNotifications
         self.badgeError = badgeError
+        self.badgeGate = badgeGate
         storage = UserNotificationCenterAPISpyStorage()
     }
 
     func notificationSettings() async -> UNNotificationSettings { fatalError("unused") }
     func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool {
         authorizationOptions = options
+        if let authorizationGate { await authorizationGate.arriveAndWait() }
         if let authorizationError { throw authorizationError }
         return authorizationResult
     }
-    func notificationCategories() async -> Set<UNNotificationCategory> { categories }
+    func notificationCategories() async -> Set<UNNotificationCategory> {
+        if let categoryFetchGate { await categoryFetchGate.arriveAndWait() }
+        return categories
+    }
     func setNotificationCategories(_ categories: Set<UNNotificationCategory>) async {
         lastCategories = categories
         await storage.record(categories.map(\.identifier).sorted())
@@ -906,6 +1019,7 @@ private final class UserNotificationCenterAPISpy: UserNotificationCenterAPI {
     }
     func setBadgeCount(_ count: Int) async throws {
         badgeCounts.append(count)
+        if let badgeGate { await badgeGate.arriveAndWait() }
         if let badgeError { throw badgeError }
     }
 
@@ -919,6 +1033,38 @@ private actor UserNotificationCenterAPISpyStorage {
     func record(_ identifiers: [String]) { categorySets.append(identifiers) }
     func lastIdentifiers() -> [String] { categorySets.last ?? [] }
     func count() -> Int { categorySets.count }
+}
+
+private actor UserNotificationCenterAPIGate {
+    private var hasArrived = false
+    private var arrivalWaiters: [CheckedContinuation<Void, Never>] = []
+    private var releaseWaiters: [CheckedContinuation<Void, Never>] = []
+    private var isReleased = false
+
+    func arriveAndWait() async {
+        hasArrived = true
+        let waiters = arrivalWaiters
+        arrivalWaiters.removeAll()
+        for waiter in waiters { waiter.resume() }
+        guard !isReleased else { return }
+        await withCheckedContinuation { continuation in
+            releaseWaiters.append(continuation)
+        }
+    }
+
+    func waitUntilArrived() async {
+        guard !hasArrived else { return }
+        await withCheckedContinuation { continuation in
+            arrivalWaiters.append(continuation)
+        }
+    }
+
+    func release() {
+        isReleased = true
+        let waiters = releaseWaiters
+        releaseWaiters.removeAll()
+        for waiter in waiters { waiter.resume() }
+    }
 }
 
 private nonisolated enum AdapterTestError: Error, Equatable, Sendable {
