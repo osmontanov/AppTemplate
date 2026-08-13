@@ -20,8 +20,8 @@ final class UserNotificationCenterClient: LocalNotificationCenterClient {
     private let center: UNUserNotificationCenter?
     private let api: (any UserNotificationCenterAPI)?
 
-    init() {
-        center = UNUserNotificationCenter.current()
+    init(center: UNUserNotificationCenter) {
+        self.center = center
         api = nil
     }
 
@@ -164,5 +164,52 @@ final class UserNotificationCenterClient: LocalNotificationCenterClient {
         } else {
             try await center!.setBadgeCount(count)
         }
+    }
+}
+
+@MainActor
+struct UserNotificationCenterRuntime {
+    let client: UserNotificationCenterClient
+    private let delegateInstaller: (any UNUserNotificationCenterDelegate) -> Void
+
+    init(
+        client: UserNotificationCenterClient,
+        delegateInstaller: @escaping (
+            any UNUserNotificationCenterDelegate
+        ) -> Void
+    ) {
+        self.client = client
+        self.delegateInstaller = delegateInstaller
+    }
+
+    func installDelegate(
+        _ delegate: any UNUserNotificationCenterDelegate
+    ) {
+        delegateInstaller(delegate)
+    }
+}
+
+@MainActor
+enum UserNotificationCenterRuntimeFactory {
+    static func live() -> UserNotificationCenterRuntime {
+        let center = UNUserNotificationCenter.current()
+        return UserNotificationCenterRuntime(
+            client: UserNotificationCenterClient(center: center),
+            delegateInstaller: { delegate in
+                center.delegate = delegate
+            }
+        )
+    }
+
+    static func make(
+        makeClient: () -> UserNotificationCenterClient,
+        installDelegate: @escaping (
+            any UNUserNotificationCenterDelegate
+        ) -> Void
+    ) -> UserNotificationCenterRuntime {
+        UserNotificationCenterRuntime(
+            client: makeClient(),
+            delegateInstaller: installDelegate
+        )
     }
 }
