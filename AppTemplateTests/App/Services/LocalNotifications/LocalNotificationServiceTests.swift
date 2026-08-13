@@ -69,6 +69,70 @@ struct LocalNotificationServiceTests {
         #expect(cancellation is CancellationError)
     }
 
+    @Test
+    func authorizationPreservesBridgedAndNestedCancellationButBoundsNonCancellationChains() async {
+        let bridgedCancellation = NSError(domain: "Swift.CancellationError", code: 1)
+        let nestedCancellation = NSError(
+            domain: "OuterAuthorization",
+            code: 52,
+            userInfo: [NSUnderlyingErrorKey: bridgedCancellation]
+        )
+        let bridgedService = LocalNotificationService.fixture(
+            client: ScriptedLocalNotificationCenterClient(
+                authorizationResult: .failure(bridgedCancellation)
+            )
+        )
+        let nestedService = LocalNotificationService.fixture(
+            client: ScriptedLocalNotificationCenterClient(
+                authorizationResult: .failure(nestedCancellation)
+            )
+        )
+
+        #expect(await capturedError {
+            _ = try await bridgedService.requestAuthorization(.alert)
+        } is CancellationError)
+        #expect(await capturedError {
+            _ = try await nestedService.requestAuthorization(.alert)
+        } is CancellationError)
+
+        let deep = deepNSErrorChain(
+            depth: 40,
+            outerDomain: "OuterPrivateAuthorization",
+            outerCode: 91,
+            leaf: NSError(domain: "Swift.CancellationError", code: 1)
+        )
+        let deepService = LocalNotificationService.fixture(
+            client: ScriptedLocalNotificationCenterClient(
+                authorizationResult: .failure(deep)
+            )
+        )
+        await #expect(
+            throws: LocalNotificationServiceError.system(
+                operation: .authorization,
+                domain: "OuterPrivateAuthorization",
+                code: 91
+            )
+        ) {
+            _ = try await deepService.requestAuthorization(.alert)
+        }
+
+        let cyclic = CyclicTestNSError()
+        let cyclicService = LocalNotificationService.fixture(
+            client: ScriptedLocalNotificationCenterClient(
+                authorizationResult: .failure(cyclic)
+            )
+        )
+        await #expect(
+            throws: LocalNotificationServiceError.system(
+                operation: .authorization,
+                domain: "CyclicAuthorization",
+                code: 92
+            )
+        ) {
+            _ = try await cyclicService.requestAuthorization(.alert)
+        }
+    }
+
     @Test(.timeLimit(.minutes(1)))
     func authorizationReturnsTheStartedSystemOutcomeAfterTaskCancellation() async throws {
         let barrier = AsyncTestBarrier()
@@ -195,6 +259,48 @@ struct LocalNotificationServiceTests {
 
         await #expect(throws: LocalNotificationServiceError.invalidContent(.notObservable)) {
             try await service.schedule(invalid)
+        }
+        #expect(await client.operations().isEmpty)
+    }
+
+    @Test
+    func invalidRequestDeepLinkAndAttachmentOptionsPreventBootstrapAndAdd() async throws {
+        let client = ScriptedLocalNotificationCenterClient()
+        let service = LocalNotificationService.fixture(client: client)
+        let rejectedDeepLink = LocalNotificationRequest(
+            id: try LocalNotificationID("rejected-deep-link"),
+            content: LocalNotificationContent(
+                body: "Body",
+                deepLink: URL(string: "https://private.invalid/token")!
+            ),
+            trigger: .immediate
+        )
+        let invalidAttachmentID = try LocalNotificationAttachmentID("invalid-options")
+        let invalidOptions = LocalNotificationRequest(
+            id: try LocalNotificationID("invalid-attachment-options"),
+            content: LocalNotificationContent(
+                body: "Body",
+                attachments: [
+                    LocalNotificationAttachment(
+                        id: invalidAttachmentID,
+                        fileURL: URL(fileURLWithPath: "/private/source.png"),
+                        options: .init(thumbnailTime: -.infinity)
+                    )
+                ]
+            ),
+            trigger: .immediate
+        )
+
+        await #expect(throws: LocalNotificationServiceError.invalidDeepLink) {
+            try await service.schedule(rejectedDeepLink)
+        }
+        await #expect(
+            throws: LocalNotificationServiceError.invalidAttachment(
+                invalidAttachmentID,
+                .invalidOptions
+            )
+        ) {
+            try await service.schedule(invalidOptions)
         }
         #expect(await client.operations().isEmpty)
     }
@@ -407,7 +513,7 @@ struct LocalNotificationServiceTests {
         let systemURL = URL(fileURLWithPath: "/system-owned/attachment.png")
         let validEnvelope = LocalNotificationEnvelopeV1(
             requestID: validID,
-            categoryID: nil,
+            categoryID: try LocalNotificationCategoryID("envelope-category"),
             sound: .named(resourceName: "trusted.aiff"),
             metadata: ["origin": .string("envelope")],
             defaultDeepLink: URL(string: "apptemplate://home")!,
@@ -416,8 +522,20 @@ struct LocalNotificationServiceTests {
         )
         let valid = systemRequest(
             identifier: namespace.physicalRequestID(validID),
+            title: "system title",
+            subtitle: "system subtitle",
             body: "system body",
+            badge: 7,
             systemSound: .default,
+            categoryIdentifier: namespace.physicalCategoryID(
+                try LocalNotificationCategoryID("system-category")
+            ),
+            threadIdentifier: "system-thread",
+            targetContentIdentifier: "system-target",
+            summaryArgument: "system-summary",
+            summaryArgumentCount: 4,
+            relevanceScore: 0.75,
+            interruptionLevel: .passive,
             envelopeData: try LocalNotificationEnvelopeCodec.encode(validEnvelope),
             trigger: .timeInterval(seconds: 90, repeats: false),
             nextTriggerDate: earlier,
@@ -434,6 +552,22 @@ struct LocalNotificationServiceTests {
                     identifier: "foreign-attachment",
                     fileURL: URL(fileURLWithPath: "/private/source.png"),
                     typeIdentifier: "public.png"
+                ),
+                LocalNotificationSystemAttachment(
+                    identifier: namespace.physicalAttachmentID(
+                        request: try LocalNotificationID("wrong-request"),
+                        attachment: try LocalNotificationAttachmentID("wrong")
+                    ),
+                    fileURL: URL(fileURLWithPath: "/system-owned/wrong.png"),
+                    typeIdentifier: "public.png"
+                ),
+                LocalNotificationSystemAttachment(
+                    identifier: namespace.physicalAttachmentID(
+                        request: validID,
+                        attachment: try LocalNotificationAttachmentID("missing-type")
+                    ),
+                    fileURL: URL(fileURLWithPath: "/system-owned/missing-type"),
+                    typeIdentifier: nil
                 )
             ]
         )
@@ -478,8 +612,18 @@ struct LocalNotificationServiceTests {
                 LocalNotificationStoredRequest(
                     id: validID,
                     content: LocalNotificationStoredContent(
+                        title: "system title",
+                        subtitle: "system subtitle",
                         body: "system body",
+                        badge: 7,
                         sound: .named(resourceName: "trusted.aiff"),
+                        categoryID: try LocalNotificationCategoryID("system-category"),
+                        threadIdentifier: "system-thread",
+                        targetContentIdentifier: "system-target",
+                        summaryArgument: "system-summary",
+                        summaryArgumentCount: 4,
+                        relevanceScore: 0.75,
+                        interruptionLevel: .passive,
                         attachments: [
                             LocalNotificationStoredAttachment(
                                 id: try LocalNotificationAttachmentID("observed"),
@@ -499,6 +643,65 @@ struct LocalNotificationServiceTests {
             .unreadable(.unsupportedEnvelopeVersion),
             .unreadable(.identifierMismatch)
         ])
+    }
+
+    @Test
+    func nonemptyForeignOrNoncanonicalSystemCategoryIsIdentifierMismatch() async throws {
+        let namespace = try LocalNotificationNamespace()
+        let foreignID = try LocalNotificationID("foreign-category")
+        let noncanonicalID = try LocalNotificationID("noncanonical-category")
+        let foreignEnvelope = LocalNotificationEnvelopeV1.serviceFixture(requestID: foreignID)
+        let noncanonicalEnvelope = LocalNotificationEnvelopeV1.serviceFixture(requestID: noncanonicalID)
+        let foreign = systemRequest(
+            identifier: namespace.physicalRequestID(foreignID),
+            categoryIdentifier: "remote.category",
+            envelopeData: try LocalNotificationEnvelopeCodec.encode(foreignEnvelope)
+        )
+        let noncanonical = systemRequest(
+            identifier: namespace.physicalRequestID(noncanonicalID),
+            categoryIdentifier: "AppTemplate.LocalNotification.category.Y2F0ZWdvcnk=",
+            envelopeData: try LocalNotificationEnvelopeCodec.encode(noncanonicalEnvelope)
+        )
+        let service = LocalNotificationService.fixture(
+            client: ScriptedLocalNotificationCenterClient(pending: [foreign, noncanonical])
+        )
+
+        #expect(await service.pending().map(\.payload) == [
+            .unreadable(.identifierMismatch),
+            .unreadable(.identifierMismatch)
+        ])
+    }
+
+    @Test
+    func validOwnedSystemCategoryOverridesEnvelopeCategoryAndRemainsReadable() async throws {
+        let namespace = try LocalNotificationNamespace()
+        let requestID = try LocalNotificationID("category-truth")
+        let envelope = LocalNotificationEnvelopeV1(
+            requestID: requestID,
+            categoryID: try LocalNotificationCategoryID("envelope-category"),
+            sound: .none,
+            metadata: [:],
+            defaultDeepLink: nil,
+            foregroundPresentation: [],
+            actionRoutes: []
+        )
+        let request = systemRequest(
+            identifier: namespace.physicalRequestID(requestID),
+            categoryIdentifier: namespace.physicalCategoryID(
+                try LocalNotificationCategoryID("system-category")
+            ),
+            envelopeData: try LocalNotificationEnvelopeCodec.encode(envelope)
+        )
+        let service = LocalNotificationService.fixture(
+            client: ScriptedLocalNotificationCenterClient(pending: [request])
+        )
+
+        guard case let .decoded(stored)? = await service.pending().first?.payload else {
+            Issue.record("Expected a readable managed snapshot")
+            return
+        }
+        let expectedCategoryID = try LocalNotificationCategoryID("system-category")
+        #expect(stored.content.categoryID == expectedCategoryID)
     }
 
     @Test
@@ -672,6 +875,191 @@ struct LocalNotificationServiceTests {
         #expect(await client.operations().isEmpty)
     }
 
+    @Test
+    func alreadyBootstrappedPreCancelledBootstrapAndScheduleRemainCancellation() async throws {
+        let client = ScriptedLocalNotificationCenterClient()
+        let service = LocalNotificationService.fixture(client: client)
+        try await service.bootstrapCategoriesIfNeeded()
+
+        let bootstrap = await preCancelledError {
+            try await service.bootstrapCategoriesIfNeeded()
+        }
+        let schedule = await preCancelledError {
+            try await service.schedule(try LocalNotificationFixtures.request(id: "cancelled"))
+        }
+
+        #expect(bootstrap is CancellationError)
+        #expect(schedule is CancellationError)
+        #expect(await client.categoryReplacements().count == 1)
+        #expect(await client.addedRequests().isEmpty)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func cancelledQueuedCatalogOperationDoesNotReleaseOwnerAndLaterOperationProgresses() async throws {
+        let barrier = AsyncTestBarrier()
+        let enrollment = AsyncTestCounter()
+        let client = ScriptedLocalNotificationCenterClient(
+            categoryHandler: { _, categories in
+                if categories.first?.identifier == "AppTemplate.LocalNotification.category.Zmlyc3Q" {
+                    await barrier.arriveAndWait()
+                }
+            }
+        )
+        let service = LocalNotificationService.fixture(
+            client: client,
+            operationGateWaiterDidEnqueue: {
+                Task { await enrollment.record() }
+            }
+        )
+        let firstCategory = try LocalNotificationFixtures.category(id: "first")
+        let cancelledCategory = try LocalNotificationFixtures.category(id: "cancelled")
+        let thirdCategory = try LocalNotificationFixtures.category(id: "third")
+        let first = Task { try await service.setCategories([firstCategory]) }
+
+        await barrier.waitUntilArrived()
+        let queued = Task { try await service.setCategories([cancelledCategory]) }
+        await enrollment.waitUntilCount(1)
+        queued.cancel()
+
+        #expect(await capturedError { try await queued.value } is CancellationError)
+        #expect(await client.categoryReplacements().count == 1)
+        let third = Task {
+            try await service.setCategories([thirdCategory])
+        }
+        await enrollment.waitUntilCount(2)
+        #expect(await client.categoryReplacements().count == 1)
+        await barrier.release()
+        try await first.value
+        try await third.value
+
+        #expect(await client.categoryReplacements().map { $0.categories.first?.identifier } == [
+            "AppTemplate.LocalNotification.category.Zmlyc3Q",
+            "AppTemplate.LocalNotification.category.dGhpcmQ"
+        ])
+        try await service.schedule(try request(id: "third-request", categoryID: thirdCategory.id))
+        await #expect(throws: LocalNotificationServiceError.invalidCategory(.unknownCategory)) {
+            try await service.schedule(
+                try request(id: "cancelled-request", categoryID: cancelledCategory.id)
+            )
+        }
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func failedBootstrapUnblocksQueuedScheduleWhichRetriesBeforeAdding() async throws {
+        let barrier = AsyncTestBarrier()
+        let enrollment = AsyncTestCounter()
+        let outcomes = ThrowOnInvocation(
+            invocation: 1,
+            error: NSError(domain: "BootstrapRace", code: 17)
+        )
+        let client = ScriptedLocalNotificationCenterClient(
+            categoryHandler: { _, _ in
+                await barrier.arriveAndWait()
+                try await outcomes.call()
+            }
+        )
+        let service = LocalNotificationService.fixture(
+            client: client,
+            operationGateWaiterDidEnqueue: {
+                Task { await enrollment.record() }
+            }
+        )
+        let first = Task { try await service.bootstrapCategoriesIfNeeded() }
+
+        await barrier.waitUntilArrived()
+        let schedule = Task {
+            try await service.schedule(try LocalNotificationFixtures.request(id: "retry"))
+        }
+        await enrollment.waitUntilCount(1)
+        await barrier.release()
+
+        await #expect(
+            throws: LocalNotificationServiceError.system(
+                operation: .setCategories,
+                domain: "BootstrapRace",
+                code: 17
+            )
+        ) {
+            try await first.value
+        }
+        try await schedule.value
+        let operations = await client.operations()
+        guard operations.count == 3,
+              case let .replaceManagedCategories(_, firstCategories) = operations[0],
+              case let .replaceManagedCategories(_, retryCategories) = operations[1],
+              case let .add(added) = operations[2] else {
+            Issue.record("Expected failed bootstrap, retry, then add")
+            return
+        }
+        #expect(firstCategories.isEmpty)
+        #expect(retryCategories.isEmpty)
+        #expect(added.identifier == "AppTemplate.LocalNotification.request.cmV0cnk")
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func failedSetUnblocksQueuedScheduleWithoutPublishingTheStaleReplacement() async throws {
+        let barrier = AsyncTestBarrier()
+        let enrollment = AsyncTestCounter()
+        let client = ScriptedLocalNotificationCenterClient(
+            categoryHandler: { _, categories in
+                guard categories.first?.identifier ==
+                        "AppTemplate.LocalNotification.category.cmVwbGFjZW1lbnQ" else {
+                    return
+                }
+                await barrier.arriveAndWait()
+                throw NSError(domain: "SetRace", code: 23)
+            }
+        )
+        let service = LocalNotificationService.fixture(
+            client: client,
+            operationGateWaiterDidEnqueue: {
+                Task { await enrollment.record() }
+            }
+        )
+        let original = try LocalNotificationFixtures.category(id: "original")
+        let replacement = try LocalNotificationFixtures.category(id: "replacement")
+        try await service.setCategories([original])
+        let failedSet = Task { try await service.setCategories([replacement]) }
+
+        await barrier.waitUntilArrived()
+        let schedule = Task {
+            try await service.schedule(try request(id: "old", categoryID: original.id))
+        }
+        await enrollment.waitUntilCount(1)
+        await barrier.release()
+
+        await #expect(
+            throws: LocalNotificationServiceError.system(
+                operation: .setCategories,
+                domain: "SetRace",
+                code: 23
+            )
+        ) {
+            try await failedSet.value
+        }
+        try await schedule.value
+        let operations = await client.operations()
+        guard operations.count == 3,
+              case let .replaceManagedCategories(_, originalCategories) = operations[0],
+              case let .replaceManagedCategories(_, replacementCategories) = operations[1],
+              case let .add(added) = operations[2] else {
+            Issue.record("Expected original set, failed replacement, then old-catalog add")
+            return
+        }
+        #expect(originalCategories.map(\.identifier) == [
+            "AppTemplate.LocalNotification.category.b3JpZ2luYWw"
+        ])
+        #expect(replacementCategories.map(\.identifier) == [
+            "AppTemplate.LocalNotification.category.cmVwbGFjZW1lbnQ"
+        ])
+        #expect(added.identifier == "AppTemplate.LocalNotification.request.b2xk")
+        await #expect(throws: LocalNotificationServiceError.invalidCategory(.unknownCategory)) {
+            try await service.schedule(
+                try request(id: "new", categoryID: replacement.id)
+            )
+        }
+    }
+
     @Test(.timeLimit(.minutes(1)))
     func catalogMutationAndScheduleRemainOrderedAcrossSystemSuspension() async throws {
         let barrier = AsyncTestBarrier()
@@ -703,7 +1091,8 @@ private extension LocalNotificationService {
         envelopeCodec: LocalNotificationServiceEnvelopeCodec = .live,
         stager: LocalNotificationServiceAttachmentStager? = nil,
         stagingRoot: URL? = nil,
-        eventHub: LocalNotificationEventHub = LocalNotificationEventHub()
+        eventHub: LocalNotificationEventHub = LocalNotificationEventHub(),
+        operationGateWaiterDidEnqueue: @escaping @Sendable () -> Void = {}
     ) -> LocalNotificationService {
         let root = stagingRoot ?? FileManager.default.temporaryDirectory.appending(
             path: "AppTemplate-LocalNotificationServiceTests-\(UUID().uuidString)",
@@ -734,7 +1123,8 @@ private extension LocalNotificationService {
             stager: selectedStager,
             eventHub: eventHub,
             startupCategories: startupCategories,
-            client: client
+            client: client,
+            operationGateWaiterDidEnqueue: operationGateWaiterDidEnqueue
         )
     }
 }
@@ -835,8 +1225,18 @@ private func routedCategory() throws -> LocalNotificationCategory {
 
 private func systemRequest(
     identifier: String,
+    title: String = "",
+    subtitle: String = "",
     body: String = "Body",
+    badge: Int? = nil,
     systemSound: LocalNotificationSystemSound = .default,
+    categoryIdentifier: String? = nil,
+    threadIdentifier: String? = nil,
+    targetContentIdentifier: String? = nil,
+    summaryArgument: String? = nil,
+    summaryArgumentCount: Int? = nil,
+    relevanceScore: Double? = nil,
+    interruptionLevel: LocalNotificationInterruptionLevel = .active,
     envelopeData: Data?,
     trigger: LocalNotificationSystemTrigger = .immediate,
     nextTriggerDate: Date? = nil,
@@ -845,24 +1245,60 @@ private func systemRequest(
     LocalNotificationSystemRequest(
         identifier: identifier,
         content: LocalNotificationSystemContent(
-            title: "",
-            subtitle: "",
+            title: title,
+            subtitle: subtitle,
             body: body,
-            badge: nil,
+            badge: badge,
             sound: systemSound,
-            categoryIdentifier: nil,
-            threadIdentifier: nil,
-            targetContentIdentifier: nil,
-            summaryArgument: nil,
-            summaryArgumentCount: nil,
-            relevanceScore: nil,
-            interruptionLevel: .active,
+            categoryIdentifier: categoryIdentifier,
+            threadIdentifier: threadIdentifier,
+            targetContentIdentifier: targetContentIdentifier,
+            summaryArgument: summaryArgument,
+            summaryArgumentCount: summaryArgumentCount,
+            relevanceScore: relevanceScore,
+            interruptionLevel: interruptionLevel,
             attachments: attachments,
             envelopeData: envelopeData
         ),
         trigger: trigger,
         nextTriggerDate: nextTriggerDate
     )
+}
+
+private func deepNSErrorChain(
+    depth: Int,
+    outerDomain: String,
+    outerCode: Int,
+    leaf: NSError
+) -> NSError {
+    precondition(depth > 0)
+    var error = leaf
+    for index in (1..<depth).reversed() {
+        error = NSError(
+            domain: "PrivateNested\(index)",
+            code: index,
+            userInfo: [NSUnderlyingErrorKey: error]
+        )
+    }
+    return NSError(
+        domain: outerDomain,
+        code: outerCode,
+        userInfo: [NSUnderlyingErrorKey: error]
+    )
+}
+
+private nonisolated final class CyclicTestNSError: NSError, @unchecked Sendable {
+    init() {
+        super.init(domain: "CyclicAuthorization", code: 92, userInfo: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("CyclicTestNSError does not support coding")
+    }
+
+    override var userInfo: [String: Any] {
+        [NSUnderlyingErrorKey: self]
+    }
 }
 
 private actor AsyncTestBarrier {
@@ -894,6 +1330,30 @@ private actor AsyncTestBarrier {
         let waiters = releaseWaiters
         releaseWaiters.removeAll()
         for waiter in waiters { waiter.resume() }
+    }
+}
+
+private actor AsyncTestCounter {
+    private struct Waiter {
+        let target: Int
+        let continuation: CheckedContinuation<Void, Never>
+    }
+
+    private var count = 0
+    private var waiters: [Waiter] = []
+
+    func record() {
+        count += 1
+        let ready = waiters.filter { $0.target <= count }
+        waiters.removeAll { $0.target <= count }
+        for waiter in ready { waiter.continuation.resume() }
+    }
+
+    func waitUntilCount(_ target: Int) async {
+        guard count < target else { return }
+        await withCheckedContinuation { continuation in
+            waiters.append(Waiter(target: target, continuation: continuation))
+        }
     }
 }
 

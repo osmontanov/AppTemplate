@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 nonisolated
 struct LocalNotificationServiceValidator: Sendable {
@@ -77,7 +78,7 @@ actor LocalNotificationService: ILocalNotificationService {
     private let stager: LocalNotificationServiceAttachmentStager
     private let eventHub: LocalNotificationEventHub
     private let client: any LocalNotificationCenterClient
-    private let catalogOperationGate = LocalNotificationServiceOperationGate()
+    private let catalogOperationGate: LocalNotificationServiceOperationGate
 
     private var startupCategories: [LocalNotificationCategory]
     private var registeredCategoriesByID: [
@@ -93,7 +94,8 @@ actor LocalNotificationService: ILocalNotificationService {
         stager: LocalNotificationServiceAttachmentStager,
         eventHub: LocalNotificationEventHub,
         startupCategories: [LocalNotificationCategory],
-        client: any LocalNotificationCenterClient
+        client: any LocalNotificationCenterClient,
+        operationGateWaiterDidEnqueue: @escaping @Sendable () -> Void = {}
     ) {
         self.namespace = namespace
         self.validator = validator
@@ -103,6 +105,9 @@ actor LocalNotificationService: ILocalNotificationService {
         self.eventHub = eventHub
         self.startupCategories = startupCategories
         self.client = client
+        catalogOperationGate = LocalNotificationServiceOperationGate(
+            waiterDidEnqueue: operationGateWaiterDidEnqueue
+        )
     }
 
     func settings() async -> LocalNotificationSettings {
@@ -428,6 +433,9 @@ actor LocalNotificationService: ILocalNotificationService {
                 deepLinkPolicy
             )
             let trigger = try Self.storedTrigger(request.trigger)
+            let categoryID = try storedCategoryID(
+                request.content.categoryIdentifier
+            )
             let attachments: [LocalNotificationStoredAttachment] = request.content.attachments.compactMap { attachment in
                 guard let decoded = namespace.logicalAttachmentID(attachment.identifier),
                       decoded.request == logicalID,
@@ -450,7 +458,7 @@ actor LocalNotificationService: ILocalNotificationService {
                         body: content.body,
                         badge: content.badge,
                         sound: envelope.sound,
-                        categoryID: envelope.categoryID,
+                        categoryID: categoryID,
                         threadIdentifier: content.threadIdentifier,
                         targetContentIdentifier: content.targetContentIdentifier,
                         summaryArgument: content.summaryArgument,
@@ -468,6 +476,18 @@ actor LocalNotificationService: ILocalNotificationService {
         } catch {
             return .unreadable(Self.unreadableReason(for: error))
         }
+    }
+
+    private func storedCategoryID(
+        _ physicalIdentifier: String?
+    ) throws -> LocalNotificationCategoryID? {
+        guard let physicalIdentifier, !physicalIdentifier.isEmpty else {
+            return nil
+        }
+        guard let logicalIdentifier = namespace.logicalCategoryID(physicalIdentifier) else {
+            throw LocalNotificationEnvelopeError.identifierMismatch
+        }
+        return logicalIdentifier
     }
 
     private nonisolated static func systemSound(
@@ -551,7 +571,7 @@ actor LocalNotificationService: ILocalNotificationService {
         _ error: any Error,
         operation: LocalNotificationSystemOperation
     ) throws -> Never {
-        if error is CancellationError {
+        if containsCancellation(error) {
             throw CancellationError()
         }
         let systemError = error as NSError
@@ -560,6 +580,31 @@ actor LocalNotificationService: ILocalNotificationService {
             domain: systemError.domain,
             code: systemError.code
         )
+    }
+
+    private nonisolated static func containsCancellation(
+        _ error: any Error
+    ) -> Bool {
+        if error is CancellationError { return true }
+
+        let bridgedCancellation = CancellationError() as NSError
+        var current: NSError? = error as NSError
+        var visited: Set<ObjectIdentifier> = []
+        for _ in 0..<16 {
+            guard let candidate = current,
+                  visited.insert(ObjectIdentifier(candidate)).inserted else {
+                return false
+            }
+            if candidate.domain == bridgedCancellation.domain,
+               candidate.code == bridgedCancellation.code {
+                return true
+            }
+            guard let underlying = candidate.userInfo[NSUnderlyingErrorKey] as? any Error else {
+                return false
+            }
+            current = underlying as NSError
+        }
+        return false
     }
 }
 
@@ -574,14 +619,27 @@ private extension LocalNotificationAction {
 }
 
 private actor LocalNotificationServiceOperationGate {
+    private struct Waiter: Sendable {
+        let id: UUID
+        let state: LocalNotificationServiceGateWaiterState
+        let continuation: CheckedContinuation<Void, any Error>
+    }
+
     private var isLocked = false
-    private var waiters: [CheckedContinuation<Void, Never>] = []
+    private var waiters: [Waiter] = []
+    private let waiterDidEnqueue: @Sendable () -> Void
+
+    init(waiterDidEnqueue: @escaping @Sendable () -> Void) {
+        self.waiterDidEnqueue = waiterDidEnqueue
+    }
 
     func withExclusiveAccess<T: Sendable>(
         _ operation: @Sendable () async throws -> T
-    ) async rethrows -> T {
-        await acquire()
+    ) async throws -> T {
+        try Task.checkCancellation()
+        try await acquire()
         do {
+            try Task.checkCancellation()
             let result = try await operation()
             release()
             return result
@@ -591,22 +649,74 @@ private actor LocalNotificationServiceOperationGate {
         }
     }
 
-    private func acquire() async {
+    private func acquire() async throws {
+        try Task.checkCancellation()
         guard isLocked else {
             isLocked = true
             return
         }
-        await withCheckedContinuation { continuation in
-            waiters.append(continuation)
+        let id = UUID()
+        let state = LocalNotificationServiceGateWaiterState()
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                waiters.append(
+                    Waiter(
+                        id: id,
+                        state: state,
+                        continuation: continuation
+                    )
+                )
+                waiterDidEnqueue()
+            }
+        } onCancel: {
+            state.cancel()
+            Task { await self.cancelWaiter(id: id) }
         }
     }
 
     private func release() {
-        guard let next = waiters.first else {
-            isLocked = false
+        while let next = waiters.first {
+            waiters.removeFirst()
+            guard next.state.grant() else {
+                next.continuation.resume(throwing: CancellationError())
+                continue
+            }
+            next.continuation.resume()
             return
         }
-        waiters.removeFirst()
-        next.resume()
+        isLocked = false
+    }
+
+    private func cancelWaiter(id: UUID) {
+        guard let index = waiters.firstIndex(where: { $0.id == id }) else {
+            return
+        }
+        let waiter = waiters.remove(at: index)
+        waiter.continuation.resume(throwing: CancellationError())
+    }
+}
+
+private nonisolated final class LocalNotificationServiceGateWaiterState: Sendable {
+    private enum State: Sendable {
+        case waiting
+        case cancelled
+        case granted
+    }
+
+    private let state = Mutex(State.waiting)
+
+    func cancel() {
+        state.withLock { state in
+            guard state == .waiting else { return }
+            state = .cancelled
+        }
+    }
+
+    func grant() -> Bool {
+        state.withLock { state in
+            guard state == .waiting else { return false }
+            state = .granted
+            return true
+        }
     }
 }
