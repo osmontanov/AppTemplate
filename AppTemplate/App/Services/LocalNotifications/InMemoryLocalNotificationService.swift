@@ -15,13 +15,30 @@ actor InMemoryLocalNotificationService: ILocalNotificationService {
     init(
         settings: LocalNotificationSettings,
         authorizationResult: Bool,
-        categories: [LocalNotificationCategory],
         deepLinkPolicy: LocalNotificationDeepLinkPolicy,
         eventHub: LocalNotificationEventHub
     ) {
         configuredSettings = settings
         self.authorizationResult = authorizationResult
-        categoriesByID = Dictionary(uniqueKeysWithValues: categories.map { ($0.id, $0) })
+        categoriesByID = [:]
+        self.deepLinkPolicy = deepLinkPolicy
+        self.eventHub = eventHub
+    }
+
+    init(
+        settings: LocalNotificationSettings,
+        authorizationResult: Bool,
+        configuredCategories: [LocalNotificationCategory],
+        deepLinkPolicy: LocalNotificationDeepLinkPolicy,
+        eventHub: LocalNotificationEventHub
+    ) throws {
+        let configuredCatalog = try Self.validatedCategoryCatalog(
+            configuredCategories,
+            deepLinkPolicy: deepLinkPolicy
+        )
+        configuredSettings = settings
+        self.authorizationResult = authorizationResult
+        categoriesByID = configuredCatalog
         self.deepLinkPolicy = deepLinkPolicy
         self.eventHub = eventHub
     }
@@ -43,9 +60,10 @@ actor InMemoryLocalNotificationService: ILocalNotificationService {
         _ categories: [LocalNotificationCategory]
     ) async throws {
         try Task.checkCancellation()
-        try LocalNotificationValidator.validate(categories: categories)
-        try validateDeepLinks(in: categories)
-        let replacement = Dictionary(uniqueKeysWithValues: categories.map { ($0.id, $0) })
+        let replacement = try Self.validatedCategoryCatalog(
+            categories,
+            deepLinkPolicy: deepLinkPolicy
+        )
         try Task.checkCancellation()
         categoriesByID = replacement
     }
@@ -137,19 +155,24 @@ actor InMemoryLocalNotificationService: ILocalNotificationService {
         badgeCount
     }
 
-    private func validateDeepLinks(
-        in categories: [LocalNotificationCategory]
-    ) throws {
+    private nonisolated static func validatedCategoryCatalog(
+        _ categories: [LocalNotificationCategory],
+        deepLinkPolicy: LocalNotificationDeepLinkPolicy
+    ) throws -> [LocalNotificationCategoryID: LocalNotificationCategory] {
+        try LocalNotificationValidator.validate(categories: categories)
         for category in categories {
             for action in category.actions {
+                let deepLink: URL?
                 switch action {
-                case let .button(button):
-                    try validateDeepLink(button.deepLink)
-                case let .textInput(textInput):
-                    try validateDeepLink(textInput.deepLink)
+                case let .button(button): deepLink = button.deepLink
+                case let .textInput(textInput): deepLink = textInput.deepLink
+                }
+                if let deepLink, !deepLinkPolicy.isValid(deepLink) {
+                    throw LocalNotificationServiceError.invalidDeepLink
                 }
             }
         }
+        return Dictionary(uniqueKeysWithValues: categories.map { ($0.id, $0) })
     }
 
     private func validateDeepLink(_ deepLink: URL?) throws {

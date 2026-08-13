@@ -298,8 +298,40 @@ actor LocalNotificationService: ILocalNotificationService {
         do {
             try await client.add(systemRequest)
         } catch {
+            if case LocalNotificationSystemMapperError.noNextTriggerDate = error {
+                throw LocalNotificationServiceError.invalidTrigger(
+                    .noNextTriggerDate
+                )
+            }
+            if let attachmentError = mappedAttachmentError(
+                error,
+                request: request,
+                systemRequest: systemRequest
+            ) {
+                throw attachmentError
+            }
             try Self.throwSystemError(error, operation: .schedule)
         }
+    }
+
+    private func mappedAttachmentError(
+        _ error: any Error,
+        request: LocalNotificationRequest,
+        systemRequest: LocalNotificationSystemRequest
+    ) -> LocalNotificationServiceError? {
+        guard case let LocalNotificationSystemMapperError.attachmentRejected(
+            physicalAttachmentID
+        ) = error,
+        systemRequest.identifier == namespace.physicalRequestID(request.id),
+        let decoded = namespace.logicalAttachmentID(physicalAttachmentID),
+        decoded.request == request.id,
+        request.content.attachments.contains(where: { $0.id == decoded.attachment }),
+        systemRequest.content.attachments.contains(where: {
+            $0.identifier == physicalAttachmentID
+        }) else {
+            return nil
+        }
+        return .invalidAttachment(decoded.attachment, .systemRejected)
     }
 
     private var categoryNamespacePrefix: String {

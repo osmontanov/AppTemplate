@@ -84,8 +84,7 @@ struct LocalNotificationDependencies: Sendable {
     @MainActor
     static func inMemory(
         settings: LocalNotificationSettings = .inMemoryDefault,
-        authorizationResult: Bool = true,
-        categories: [LocalNotificationCategory] = []
+        authorizationResult: Bool = true
     ) -> LocalNotificationDependencies {
         let parser = DeepLinkParser()
         let eventHub = LocalNotificationEventHub()
@@ -97,7 +96,34 @@ struct LocalNotificationDependencies: Sendable {
         let service = InMemoryLocalNotificationService(
             settings: settings,
             authorizationResult: authorizationResult,
-            categories: categories,
+            deepLinkPolicy: deepLinkPolicy(parser: parser),
+            eventHub: eventHub
+        )
+        return LocalNotificationDependencies(
+            service: service,
+            eventHub: eventHub,
+            navigationCoordinator: navigationCoordinator,
+            bootstrap: {}
+        )
+    }
+
+    @MainActor
+    static func inMemory(
+        settings: LocalNotificationSettings = .inMemoryDefault,
+        authorizationResult: Bool = true,
+        requiredCategories: [LocalNotificationCategory]
+    ) throws -> LocalNotificationDependencies {
+        let parser = DeepLinkParser()
+        let eventHub = LocalNotificationEventHub()
+        let navigationCoordinator = LocalNotificationNavigationCoordinator(
+            eventHub: eventHub,
+            parser: parser
+        )
+        navigationCoordinator.start()
+        let service = try InMemoryLocalNotificationService(
+            settings: settings,
+            authorizationResult: authorizationResult,
+            configuredCategories: requiredCategories,
             deepLinkPolicy: deepLinkPolicy(parser: parser),
             eventHub: eventHub
         )

@@ -62,6 +62,107 @@ struct InMemoryLocalNotificationServiceTests {
     }
 
     @Test
+    func configuredCatalogRejectsAnInvalidCategoryBeforeConstruction() throws {
+        let invalid = LocalNotificationCategory(
+            id: try LocalNotificationCategoryID("invalid"),
+            actions: [
+                .button(
+                    LocalNotificationButtonAction(
+                        id: try LocalNotificationActionID("open"),
+                        title: ""
+                    )
+                )
+            ]
+        )
+
+        #expect(throws: LocalNotificationServiceError.invalidCategory(.invalidActionTitle)) {
+            _ = try InMemoryLocalNotificationService(
+                settings: .fixture(),
+                authorizationResult: true,
+                configuredCategories: [invalid],
+                deepLinkPolicy: LocalNotificationDeepLinkPolicy { _ in true },
+                eventHub: LocalNotificationEventHub()
+            )
+        }
+    }
+
+    @Test
+    func configuredCatalogRejectsDuplicateCategoryIdentifiersWithoutTrapping() throws {
+        let duplicate = try LocalNotificationFixtures.category(id: "duplicate")
+
+        #expect(throws: LocalNotificationServiceError.invalidCategory(.duplicateCategoryID)) {
+            _ = try InMemoryLocalNotificationService(
+                settings: .fixture(),
+                authorizationResult: true,
+                configuredCategories: [duplicate, duplicate],
+                deepLinkPolicy: LocalNotificationDeepLinkPolicy { _ in true },
+                eventHub: LocalNotificationEventHub()
+            )
+        }
+    }
+
+    @Test
+    func configuredCatalogRejectsInvalidCategoryFieldsBeforeConstruction() throws {
+        let invalid = LocalNotificationCategory(
+            id: try LocalNotificationCategoryID("invalid"),
+            hiddenPreviewsBodyPlaceholder: " \t"
+        )
+
+        #expect(
+            throws: LocalNotificationServiceError.invalidCategory(
+                .invalidHiddenPreviewsBodyPlaceholder
+            )
+        ) {
+            _ = try InMemoryLocalNotificationService(
+                settings: .fixture(),
+                authorizationResult: true,
+                configuredCategories: [invalid],
+                deepLinkPolicy: LocalNotificationDeepLinkPolicy { _ in true },
+                eventHub: LocalNotificationEventHub()
+            )
+        }
+    }
+
+    @Test
+    func configuredCatalogRejectsActionDeepLinksOutsideThePolicy() throws {
+        let invalid = try category(
+            id: "invalid",
+            actionID: "website",
+            deepLink: URL(string: "https://example.com")!
+        )
+
+        #expect(throws: LocalNotificationServiceError.invalidDeepLink) {
+            _ = try InMemoryLocalNotificationService(
+                settings: .fixture(),
+                authorizationResult: true,
+                configuredCategories: [invalid],
+                deepLinkPolicy: LocalNotificationDeepLinkPolicy {
+                    $0.scheme == "apptemplate"
+                },
+                eventHub: LocalNotificationEventHub()
+            )
+        }
+    }
+
+    @Test
+    func validConfiguredCatalogCanScheduleARequestImmediately() async throws {
+        let category = try LocalNotificationFixtures.category(id: "configured")
+        let service = try InMemoryLocalNotificationService(
+            settings: .fixture(),
+            authorizationResult: true,
+            configuredCategories: [category],
+            deepLinkPolicy: LocalNotificationDeepLinkPolicy { _ in true },
+            eventHub: LocalNotificationEventHub()
+        )
+        let request = try makeRequest(id: "request", categoryID: category.id)
+
+        try await service.schedule(request)
+
+        #expect(await service.pending().map(\.id) == [request.id])
+        #expect(await service.registeredCategoriesForTesting() == [category])
+    }
+
+    @Test
     func schedulingRejectsAnUnknownCategoryWithoutChangingPendingState() async throws {
         let service = InMemoryLocalNotificationService.fixture()
         let request = try makeRequest(
@@ -429,7 +530,6 @@ private extension InMemoryLocalNotificationService {
     static func fixture(
         settings: LocalNotificationSettings = .fixture(),
         authorizationResult: Bool = true,
-        categories: [LocalNotificationCategory] = [],
         eventHub: LocalNotificationEventHub = LocalNotificationEventHub()
     ) -> InMemoryLocalNotificationService {
         let parser = DeepLinkParser(scheme: "apptemplate")
@@ -450,7 +550,6 @@ private extension InMemoryLocalNotificationService {
         return InMemoryLocalNotificationService(
             settings: settings,
             authorizationResult: authorizationResult,
-            categories: categories,
             deepLinkPolicy: deepLinkPolicy,
             eventHub: eventHub
         )

@@ -438,6 +438,98 @@ struct LocalNotificationServiceTests {
         #expect(try fixture.stagingItems().isEmpty)
     }
 
+    @Test
+    func systemAttachmentRejectionMapsToLogicalIDAndPreservesReplacementAtomicity() async throws {
+        let fixture = try AttachmentFixture()
+        defer { fixture.cleanup() }
+        let namespace = try LocalNotificationNamespace("AppTemplate.LocalNotification")
+        let requestID = try LocalNotificationID("rejected")
+        let attachmentID = try LocalNotificationAttachmentID("image")
+        let client = ScriptedLocalNotificationCenterClient(
+            addError: LocalNotificationSystemMapperError.attachmentRejected(
+                namespace.physicalAttachmentID(
+                    request: requestID,
+                    attachment: attachmentID
+                )
+            )
+        )
+        let service = LocalNotificationService.fixture(
+            client: client,
+            stagingRoot: fixture.stagingRoot
+        )
+
+        await #expect(
+            throws: LocalNotificationServiceError.invalidAttachment(
+                attachmentID,
+                .systemRejected
+            )
+        ) {
+            try await service.schedule(try fixture.request(id: "rejected"))
+        }
+        #expect(await client.addedRequests().count == 1)
+        #expect(await client.removedPendingIDs().isEmpty)
+        #expect(try fixture.stagingItems().isEmpty)
+    }
+
+    @Test(arguments: [
+        "foreign-physical-id",
+        "AppTemplate.LocalNotification.attachment.b3RoZXItcmVxdWVzdA.aW1hZ2U"
+    ])
+    func untrustedAttachmentRejectionIdentifiersStayRedacted(
+        _ rejectedPhysicalID: String
+    ) async throws {
+        let mapperError = LocalNotificationSystemMapperError.attachmentRejected(
+            rejectedPhysicalID
+        )
+        let systemError = mapperError as NSError
+        let client = ScriptedLocalNotificationCenterClient(addError: mapperError)
+        let service = LocalNotificationService.fixture(client: client)
+
+        await #expect(
+            throws: LocalNotificationServiceError.system(
+                operation: .schedule,
+                domain: systemError.domain,
+                code: systemError.code
+            )
+        ) {
+            try await service.schedule(
+                try LocalNotificationFixtures.request(id: "current-request")
+            )
+        }
+    }
+
+    @Test
+    func systemCalendarWithoutNextDateMapsToTypedTriggerErrorWithoutPreRemoval() async throws {
+        let client = ScriptedLocalNotificationCenterClient(
+            addError: LocalNotificationSystemMapperError.noNextTriggerDate
+        )
+        let service = LocalNotificationService.fixture(client: client)
+        var components = DateComponents()
+        components.calendar = Calendar(identifier: .gregorian)
+        components.timeZone = TimeZone(secondsFromGMT: 0)
+        // Future relative to the shared validator's fixed 2023 reference, but
+        // expired relative to Notification Center's live clock.
+        components.year = 2024
+        components.month = 1
+        components.day = 1
+
+        await #expect(
+            throws: LocalNotificationServiceError.invalidTrigger(
+                .noNextTriggerDate
+            )
+        ) {
+            try await service.schedule(
+                LocalNotificationRequest(
+                    id: try LocalNotificationID("past-system-calendar"),
+                    content: LocalNotificationContent(body: "Body"),
+                    trigger: .calendar(components, repeats: false)
+                )
+            )
+        }
+        #expect(await client.addedRequests().count == 1)
+        #expect(await client.removedPendingIDs().isEmpty)
+    }
+
     @Test(.timeLimit(.minutes(1)))
     func cancellationAfterStagingCleansAndPreventsAdd() async throws {
         let fixture = try AttachmentFixture()

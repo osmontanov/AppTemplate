@@ -126,6 +126,26 @@ struct AppDependenciesTests {
     }
 
     @Test
+    func requiredCategoryInMemoryFactoryBuildsAValidatedSchedulableCatalog() async throws {
+        let category = try LocalNotificationFixtures.category(id: "configured")
+        let graph = try LocalNotificationDependencies.inMemory(
+            requiredCategories: [category]
+        )
+        let request = LocalNotificationRequest(
+            id: try LocalNotificationID("request"),
+            content: LocalNotificationContent(
+                body: "Body",
+                categoryID: category.id
+            ),
+            trigger: .immediate
+        )
+
+        try await graph.service.schedule(request)
+
+        #expect(await graph.service.pending().map(\.id) == [request.id])
+    }
+
+    @Test
     func appDependencyFactoriesKeepTheExactInjectedNotificationGraph() throws {
         let notifications = LocalNotificationDependencies.inMemory()
         let settings = SettingsDependencies(

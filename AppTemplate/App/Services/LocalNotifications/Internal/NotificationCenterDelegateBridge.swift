@@ -74,7 +74,8 @@ struct LocalNotificationDelegateEventPublisher: Sendable {
 
 // Objective-C delegate callbacks are not modeled as Sendable by the SDK. The
 // bridge crosses that boundary only through immutable Sendable values; its only
-// callback state is protected by NotificationCenterDelegateCompletion's Mutex.
+// callback state is protected by Mutex values owned by this already-unchecked
+// bridge.
 nonisolated
 final class NotificationCenterDelegateBridge:
     NSObject,
@@ -85,6 +86,9 @@ final class NotificationCenterDelegateBridge:
     private let deepLinkPolicy: LocalNotificationDeepLinkPolicy
     private let eventPublisher: LocalNotificationDelegateEventPublisher
     private let unmanagedHandler: NotificationCenterUnmanagedHandler?
+    private let frameworkCallbacks = Mutex(
+        NotificationCenterFrameworkCallbacks()
+    )
 
     init(
         namespace: LocalNotificationNamespace,
@@ -206,7 +210,7 @@ final class NotificationCenterDelegateBridge:
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
-        withCompletionHandler completionHandler: @escaping (
+        withCompletionHandler completionHandler: @escaping @Sendable (
             UNNotificationPresentationOptions
         ) -> Void
     ) {
@@ -217,13 +221,14 @@ final class NotificationCenterDelegateBridge:
             ),
             deliveredAt: notification.date
         )
-        let frameworkCompletion = NotificationCenterFrameworkCompletion(
+        let callbackID = storeForegroundCallback(
             completionHandler
         )
-        Task { [self, delivery, frameworkCompletion] in
-            await processDelivery(delivery) { presentation in
-                frameworkCompletion.complete(
-                    LocalNotificationSystemMapper.presentationOptions(
+        Task { [self, delivery, callbackID] in
+            await processDelivery(delivery) { [self, callbackID] presentation in
+                completeForegroundCallback(
+                    id: callbackID,
+                    options: LocalNotificationSystemMapper.presentationOptions(
                         presentation
                     )
                 )
@@ -234,7 +239,7 @@ final class NotificationCenterDelegateBridge:
     func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
-        withCompletionHandler completionHandler: @escaping () -> Void
+        withCompletionHandler completionHandler: @escaping @Sendable () -> Void
     ) {
         _ = center
         let systemResponse = LocalNotificationSystemResponse(
@@ -244,14 +249,51 @@ final class NotificationCenterDelegateBridge:
             deliveredAt: response.notification.date,
             kind: Self.responseKind(response)
         )
-        let frameworkCompletion = NotificationCenterFrameworkCompletion<Void> {
-            _ in completionHandler()
-        }
-        Task { [self, systemResponse, frameworkCompletion] in
-            await processResponse(systemResponse) {
-                frameworkCompletion.complete(())
+        let callbackID = storeResponseCallback(completionHandler)
+        Task { [self, systemResponse, callbackID] in
+            await processResponse(systemResponse) { [self, callbackID] in
+                completeResponseCallback(id: callbackID)
             }
         }
+    }
+
+    private func storeForegroundCallback(
+        _ callback: @escaping @Sendable (
+            UNNotificationPresentationOptions
+        ) -> Void
+    ) -> UUID {
+        let id = UUID()
+        frameworkCallbacks.withLock { callbacks in
+            callbacks.foreground[id] = callback
+        }
+        return id
+    }
+
+    private func completeForegroundCallback(
+        id: UUID,
+        options: UNNotificationPresentationOptions
+    ) {
+        let callback = frameworkCallbacks.withLock { callbacks in
+            callbacks.foreground.removeValue(forKey: id)
+        }
+        callback?(options)
+    }
+
+    private func storeResponseCallback(
+        _ callback: @escaping @Sendable () -> Void
+    ) -> UUID {
+        let id = UUID()
+        frameworkCallbacks.withLock { callbacks in
+            callbacks.responses[id] = callback
+        }
+        return id
+    }
+
+    private func completeResponseCallback(id: UUID) {
+        let callback = frameworkCallbacks.withLock { callbacks in
+            callbacks.responses.removeValue(forKey: id)
+        }
+        callback?()
     }
 
     private func decodedNotification(
@@ -485,18 +527,12 @@ private nonisolated final class NotificationCenterDelegateCompletion<Value: Send
     }
 }
 
-// The imported Objective-C completion block is not Sendable even though the
-// bridge calls it through one Mutex-protected owner and never exposes it.
-private nonisolated final class NotificationCenterFrameworkCompletion<Value: Sendable>:
-    @unchecked Sendable
-{
-    private let completion: (Value) -> Void
-
-    init(_ completion: @escaping (Value) -> Void) {
-        self.completion = completion
-    }
-
-    func complete(_ value: Value) {
-        completion(value)
-    }
+// Raw Objective-C completion blocks remain inside storage owned by the
+// already-unchecked delegate bridge. Each callback is removed under the lock,
+// then invoked outside it.
+private nonisolated struct NotificationCenterFrameworkCallbacks {
+    var foreground: [
+        UUID: @Sendable (UNNotificationPresentationOptions) -> Void
+    ] = [:]
+    var responses: [UUID: @Sendable () -> Void] = [:]
 }

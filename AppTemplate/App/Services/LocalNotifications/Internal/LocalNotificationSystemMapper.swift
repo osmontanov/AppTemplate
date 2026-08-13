@@ -5,10 +5,16 @@ import UserNotifications
 nonisolated
 enum LocalNotificationSystemMapperError: Error, Hashable, Sendable {
     case unsupportedTrigger
+    case attachmentRejected(String)
+    case noNextTriggerDate
 }
 
 nonisolated
 enum LocalNotificationSystemMapper {
+    typealias NotificationAttachmentFactory = (
+        LocalNotificationSystemAttachment
+    ) throws -> UNNotificationAttachment
+
     static let envelopeKey = "AppTemplate.LocalNotification.envelope"
 
     static func authorizationOptions(
@@ -105,7 +111,8 @@ enum LocalNotificationSystemMapper {
     }
 
     static func notificationContent(
-        _ content: LocalNotificationSystemContent
+        _ content: LocalNotificationSystemContent,
+        attachmentFactory: NotificationAttachmentFactory = notificationAttachment
     ) throws -> UNMutableNotificationContent {
         let mapped = UNMutableNotificationContent()
         mapped.title = content.title
@@ -121,7 +128,18 @@ enum LocalNotificationSystemMapper {
             mapped.relevanceScore = relevanceScore
         }
         mapped.interruptionLevel = interruptionLevel(content.interruptionLevel)
-        mapped.attachments = try content.attachments.map(notificationAttachment)
+        var mappedAttachments: [UNNotificationAttachment] = []
+        mappedAttachments.reserveCapacity(content.attachments.count)
+        for attachment in content.attachments {
+            do {
+                mappedAttachments.append(try attachmentFactory(attachment))
+            } catch {
+                throw LocalNotificationSystemMapperError.attachmentRejected(
+                    attachment.identifier
+                )
+            }
+        }
+        mapped.attachments = mappedAttachments
         if let envelopeData = content.envelopeData {
             mapped.userInfo = [envelopeKey: envelopeData]
         }
@@ -173,11 +191,21 @@ enum LocalNotificationSystemMapper {
     ) throws -> UNNotificationTrigger? {
         switch trigger {
         case .immediate:
-            nil
+            return nil
         case let .timeInterval(seconds, repeats):
-            UNTimeIntervalNotificationTrigger(timeInterval: seconds, repeats: repeats)
+            return UNTimeIntervalNotificationTrigger(
+                timeInterval: seconds,
+                repeats: repeats
+            )
         case let .calendar(components, repeats):
-            UNCalendarNotificationTrigger(dateMatching: components, repeats: repeats)
+            let trigger = UNCalendarNotificationTrigger(
+                dateMatching: components,
+                repeats: repeats
+            )
+            guard trigger.nextTriggerDate() != nil else {
+                throw LocalNotificationSystemMapperError.noNextTriggerDate
+            }
+            return trigger
         case .unknown:
             throw LocalNotificationSystemMapperError.unsupportedTrigger
         }
@@ -197,11 +225,15 @@ enum LocalNotificationSystemMapper {
     }
 
     static func notificationRequest(
-        _ request: LocalNotificationSystemRequest
+        _ request: LocalNotificationSystemRequest,
+        attachmentFactory: NotificationAttachmentFactory = notificationAttachment
     ) throws -> UNNotificationRequest {
         UNNotificationRequest(
             identifier: request.identifier,
-            content: try notificationContent(request.content),
+            content: try notificationContent(
+                request.content,
+                attachmentFactory: attachmentFactory
+            ),
             trigger: try notificationTrigger(request.trigger)
         )
     }

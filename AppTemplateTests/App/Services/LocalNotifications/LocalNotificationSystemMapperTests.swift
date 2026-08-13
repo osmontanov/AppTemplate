@@ -270,6 +270,59 @@ struct LocalNotificationSystemMapperTests {
     }
 
     @Test
+    @MainActor
+    func pastAbsoluteCalendarTriggerStopsBeforeNotificationCenterAdd() async throws {
+        var components = DateComponents()
+        components.calendar = Calendar(identifier: .gregorian)
+        components.timeZone = TimeZone(secondsFromGMT: 0)
+        components.year = 2001
+        components.month = 1
+        components.day = 1
+        components.hour = 0
+        components.minute = 0
+        components.second = 0
+        let request = LocalNotificationSystemRequest.fixture(
+            identifier: "past-calendar",
+            trigger: .calendar(components, repeats: false)
+        )
+        let api = UserNotificationCenterAPISpy()
+        let client = UserNotificationCenterClient(api: api)
+
+        await #expect(throws: LocalNotificationSystemMapperError.noNextTriggerDate) {
+            try await client.add(request)
+        }
+        #expect(api.addedRequests.isEmpty)
+    }
+
+    @Test
+    func futureAndRepeatingCalendarTriggersRetainAFrameworkNextDate() throws {
+        var future = DateComponents()
+        future.calendar = Calendar(identifier: .gregorian)
+        future.timeZone = TimeZone(secondsFromGMT: 0)
+        future.year = 2035
+        future.month = 1
+        future.day = 2
+        let futureTrigger = try #require(
+            LocalNotificationSystemMapper.notificationTrigger(
+                .calendar(future, repeats: false)
+            ) as? UNCalendarNotificationTrigger
+        )
+
+        var repeating = DateComponents()
+        repeating.calendar = Calendar(identifier: .gregorian)
+        repeating.timeZone = TimeZone(secondsFromGMT: 0)
+        repeating.minute = 7
+        let repeatingTrigger = try #require(
+            LocalNotificationSystemMapper.notificationTrigger(
+                .calendar(repeating, repeats: true)
+            ) as? UNCalendarNotificationTrigger
+        )
+
+        #expect(futureTrigger.nextTriggerDate() != nil)
+        #expect(repeatingTrigger.nextTriggerDate() != nil)
+    }
+
+    @Test
     func requestIsMappedBeforeLeavingBoundary() throws {
         let request = UNNotificationRequest(
             identifier: "physical.request",
@@ -470,6 +523,76 @@ struct LocalNotificationSystemMapperTests {
 
     @Test
     @MainActor
+    func rejectedAttachmentMappingStopsBeforeNotificationCenterAdd() async throws {
+        let physicalAttachmentID =
+            "AppTemplate.LocalNotification.attachment.cmVxdWVzdA.aW1hZ2U"
+        let request = LocalNotificationSystemRequest(
+            identifier: "AppTemplate.LocalNotification.request.cmVxdWVzdA",
+            content: .fixture(
+                sound: .none,
+                attachments: [
+                    LocalNotificationSystemAttachment(
+                        identifier: physicalAttachmentID,
+                        fileURL: URL(filePath: "/tmp/staged.png"),
+                        typeIdentifier: "public.png",
+                        options: .init(typeHint: "public.png")
+                    )
+                ]
+            ),
+            trigger: .immediate
+        )
+        let api = UserNotificationCenterAPISpy()
+        let client = UserNotificationCenterClient(
+            api: api,
+            requestMapper: { request in
+                try LocalNotificationSystemMapper.notificationRequest(
+                    request,
+                    attachmentFactory: { _ in throw AdapterTestError.add }
+                )
+            }
+        )
+
+        await #expect(
+            throws: LocalNotificationSystemMapperError.attachmentRejected(
+                physicalAttachmentID
+            )
+        ) {
+            try await client.add(request)
+        }
+        #expect(api.addedRequests.isEmpty)
+    }
+
+    @Test
+    @MainActor
+    func preCancelledAddMapsSuccessfullyButStopsBeforeNotificationCenterAdd() async throws {
+        let request = LocalNotificationSystemRequest.fixture(
+            identifier: "cancel-before-submit"
+        )
+        let api = UserNotificationCenterAPISpy()
+        var mappingCount = 0
+        let client = UserNotificationCenterClient(
+            api: api,
+            requestMapper: { request in
+                mappingCount += 1
+                return try LocalNotificationSystemMapper.notificationRequest(
+                    request
+                )
+            }
+        )
+        let task = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            try await client.add(request)
+        }
+
+        await #expect(throws: CancellationError.self) {
+            try await task.value
+        }
+        #expect(mappingCount == 1)
+        #expect(api.addedRequests.isEmpty)
+    }
+
+    @Test
+    @MainActor
     func pendingMapsRequestsAndCapturesTheirRawNextDates() async throws {
         var calendarComponents = DateComponents()
         calendarComponents.calendar = Calendar(identifier: .gregorian)
@@ -636,7 +759,8 @@ struct LocalNotificationSystemMapperTests {
 private nonisolated extension LocalNotificationSystemContent {
     static func fixture(
         sound: LocalNotificationSystemSound,
-        envelopeData: Data? = nil
+        envelopeData: Data? = nil,
+        attachments: [LocalNotificationSystemAttachment] = []
     ) -> Self {
         .init(
             title: "",
@@ -651,7 +775,7 @@ private nonisolated extension LocalNotificationSystemContent {
             summaryArgumentCount: nil,
             relevanceScore: nil,
             interruptionLevel: .active,
-            attachments: [],
+            attachments: attachments,
             envelopeData: envelopeData
         )
     }

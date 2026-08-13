@@ -19,15 +19,29 @@ protocol UserNotificationCenterAPI: AnyObject, Sendable {
 final class UserNotificationCenterClient: LocalNotificationCenterClient {
     private let center: UNUserNotificationCenter?
     private let api: (any UserNotificationCenterAPI)?
+    private let requestMapper: @MainActor (
+        LocalNotificationSystemRequest
+    ) throws -> UNNotificationRequest
 
     init(center: UNUserNotificationCenter) {
         self.center = center
         api = nil
+        requestMapper = { request in
+            try LocalNotificationSystemMapper.notificationRequest(request)
+        }
     }
 
-    init(api: any UserNotificationCenterAPI) {
+    init(
+        api: any UserNotificationCenterAPI,
+        requestMapper: @escaping @MainActor (
+            LocalNotificationSystemRequest
+        ) throws -> UNNotificationRequest = { request in
+            try LocalNotificationSystemMapper.notificationRequest(request)
+        }
+    ) {
         center = nil
         self.api = api
+        self.requestMapper = requestMapper
     }
 
     nonisolated func settings() async -> LocalNotificationSettings {
@@ -112,7 +126,8 @@ final class UserNotificationCenterClient: LocalNotificationCenterClient {
     }
 
     private func addMappedRequest(_ request: LocalNotificationSystemRequest) async throws {
-        let mapped = try LocalNotificationSystemMapper.notificationRequest(request)
+        let mapped = try requestMapper(request)
+        try Task.checkCancellation()
         if let api {
             try await api.add(mapped)
         } else {
