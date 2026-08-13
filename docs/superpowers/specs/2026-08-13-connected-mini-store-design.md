@@ -251,6 +251,15 @@ Startup follows one ordered sequence:
     app-owned envelope is removed and resolves to Guest; removal failure
     resolves to unavailable/secureStorageCleanupFailed.
 
+The three-second local bootstrap deadline is implemented as one race between
+the injected sleep and one repository read, identified by a monotonically
+increasing bootstrap-attempt ID. When the deadline wins, the controller marks
+local bootstrap resolved, publishes unavailable/secureStorageReadFailed,
+cancels the read task on a best-effort basis, and invalidates that attempt ID.
+A non-cancellable late read may finish inside the repository but cannot mutate
+Keychain, publish state, or replace the winning result. Retry creates a fresh
+attempt ID and performs a fresh read; it never adopts the stale completion.
+
 Authentication responses use endpoint-specific classification. A status code
 alone is not enough to destroy a session; an error body must first decode as
 the documented DummyJSON authentication error shape for that endpoint.
@@ -397,8 +406,31 @@ consumption exactly once from that scene's perspective; failed execution is
 shown but not automatically replayed. Idempotent favorite upsert prevents
 duplicate persisted data. On Guest restoration, Sign Out, unavailable session,
 or authenticated user-identity change, each typed Store path removes
-`.favorites` and clears pending protected actions while retaining public
-routes. Validating/online/offline changes never alter navigation.
+`.favorites`, clears pending protected actions, resets a selected protected
+Account subsection to the Profile overview, and clears cached Account
+presentation data while retaining the public `.profile` route and all other
+public routes. Validating/online/offline changes never alter navigation.
+
+The Services destination set and its external tags are fixed:
+
+```swift
+enum ServicesRoute: NavigationRoute {
+    case appState
+    case appInfo
+    case userDefaults
+    case keychain
+    case localDatabase
+    case remoteAPI
+    case localNotifications
+}
+```
+
+Its manual Codable representation uses one `tag` with the exact values
+`app-state`, `app-info`, `user-defaults`, `keychain`, `local-database`,
+`remote-api`, and `local-notifications`. Store routes likewise use an explicit
+`tag` (`product`, `reviews`, `favorites`, `cart`, or `profile`) and a positive
+`productID` only for product-bearing cases. No synthesized case name or Swift
+type name is part of schema 5.
 
 ## Store Navigation and User Experience
 
