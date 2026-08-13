@@ -1,7 +1,12 @@
 import CoreGraphics
+import Dispatch
 import Foundation
 import Synchronization
 import Testing
+
+#if canImport(Darwin)
+import Darwin
+#endif
 @testable import AppTemplate
 
 nonisolated
@@ -92,6 +97,60 @@ struct LocalNotificationAttachmentStagerTests {
         #expect(throws: LocalNotificationServiceError.invalidAttachment(identifier, .notRegularFile)) {
             _ = try fixture.makeStager().stage([attachment], requestID: .init("request"))
         }
+        #expect(try fixture.stagedItems().isEmpty)
+    }
+
+    @Test
+    func fifoSourceIsRejectedPromptlyAsNotARegularFile() throws {
+        let fixture = try AttachmentFileFixture()
+        defer { fixture.cleanup() }
+        try FileManager.default.removeItem(at: fixture.sourceURL)
+        guard mkfifo(fixture.sourceURL.path, mode_t(0o600)) == 0 else {
+            throw POSIXTestError.system(errno)
+        }
+
+        let identifier = try LocalNotificationAttachmentID("fifo")
+        let attachment = LocalNotificationAttachment(id: identifier, fileURL: fixture.sourceURL)
+        let stagingRoot = fixture.stagingRoot
+        let completion = DispatchSemaphore(value: 0)
+        let probe = FIFOStageProbe()
+
+        DispatchQueue.global().async {
+            let stager = LocalNotificationAttachmentStager(
+                fileManager: .default,
+                temporaryRootFactory: { _ in stagingRoot },
+                mediaTypeResolver: UniformTypeIdentifiersLocalNotificationMediaResolver(),
+                securityScopeAccessor: FixedSecurityScopeAccessor(startSucceeds: false)
+            )
+            do {
+                _ = try stager.stage([attachment], requestID: .init("request"))
+                probe.finish(.unexpectedlyStaged)
+            } catch let error as LocalNotificationServiceError {
+                probe.finish(.serviceError(error))
+            } catch {
+                probe.finish(.unexpectedError)
+            }
+            completion.signal()
+        }
+
+        let promptResult = completion.wait(timeout: .now() + .seconds(2))
+        #expect(promptResult == .success)
+        if promptResult == .timedOut {
+            let writer = Darwin.open(
+                fixture.sourceURL.path,
+                O_WRONLY | O_NONBLOCK | O_CLOEXEC
+            )
+            guard writer >= 0 else { throw POSIXTestError.system(errno) }
+            _ = Darwin.close(writer)
+            #expect(completion.wait(timeout: .now() + .seconds(2)) == .success)
+        }
+
+        #expect(
+            probe.outcome == .serviceError(
+                .invalidAttachment(identifier, .notRegularFile)
+            )
+        )
+        #expect(FileManager.default.fileExists(atPath: fixture.sourceURL.path))
         #expect(try fixture.stagedItems().isEmpty)
     }
 
@@ -812,6 +871,25 @@ private nonisolated final class CancellationFlag: Sendable {
     }
 }
 
+private nonisolated final class FIFOStageProbe: Sendable {
+    enum Outcome: Hashable, Sendable {
+        case pending
+        case unexpectedlyStaged
+        case serviceError(LocalNotificationServiceError)
+        case unexpectedError
+    }
+
+    private let state = Mutex(Outcome.pending)
+
+    var outcome: Outcome {
+        state.withLock { $0 }
+    }
+
+    func finish(_ outcome: Outcome) {
+        state.withLock { $0 = outcome }
+    }
+}
+
 private nonisolated final class ControlledStagingFileSystem: LocalNotificationStagingFileSystem, Sendable {
     enum Behavior: Sendable {
         case afterSourceOpen(@Sendable () throws -> Void)
@@ -1021,6 +1099,10 @@ private nonisolated final class ControlledStagingFileSystem: LocalNotificationSt
 
 private nonisolated enum PrivateCopyError: Error {
     case secretPath
+}
+
+private nonisolated enum POSIXTestError: Error {
+    case system(Int32)
 }
 
 private nonisolated enum FixtureError: Error {

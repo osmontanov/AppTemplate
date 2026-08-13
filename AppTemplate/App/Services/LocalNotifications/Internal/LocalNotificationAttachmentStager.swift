@@ -216,7 +216,7 @@ struct POSIXLocalNotificationStagingFileSystem: LocalNotificationStagingFileSyst
     func openSourceFile(at url: URL) throws -> LocalNotificationStagingFileDescriptor {
         let descriptor = try openAbsolutePath(
             url,
-            finalFlags: O_RDONLY | O_NOFOLLOW | O_CLOEXEC
+            finalFlags: O_RDONLY | O_NONBLOCK | O_NOFOLLOW | O_CLOEXEC
         )
         do {
             var metadata = stat()
@@ -567,6 +567,8 @@ private nonisolated final class LocalNotificationStagingOwnership: Hashable, Sen
                   ) == active.operationIdentity else {
                 return .replacementDetected
             }
+            // Darwin has no public identity-conditioned rmdir. This checked unlink is safe
+            // within the app-owned staging namespace, not against an active same-UID swap.
             try fileSystem.unlinkDirectory(
                 named: active.operationName,
                 in: active.rootDescriptor
