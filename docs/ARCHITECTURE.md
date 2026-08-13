@@ -157,6 +157,61 @@ empty extension points until their features need a real dependency.
 `AppInfoService` reads display name and short version from the app bundle and
 is injected into Settings.
 
+### Local Notification runtime
+
+Features depend only on the platform-neutral `any ILocalNotificationService`.
+The live implementation is an actor; system framework types, the notification
+center client, attachment staging, the versioned envelope, and the delegate
+bridge stay behind the service boundary. `AppDependencies` owns one
+app-scoped `LocalNotificationDependencies` graph containing that service, its
+event hub, the strongly held delegate bridge, the category bootstrapper, and
+the MainActor navigation coordinator.
+
+Live construction creates the center client, event hub, and navigation
+coordinator; starts the coordinator; creates and strongly retains one delegate
+bridge; installs it as the shared center delegate; and then creates the service.
+Each scene registers its lifecycle and runs idempotent category bootstrap before
+it becomes eligible for notification navigation. Bootstrap registers the
+configured catalog and does not request authorization. The only prompt-capable
+operation is an explicit `requestAuthorization(_:)` service call.
+
+Notification Center is the sole schedule and delivery-list truth. The service
+does not mirror pending requests in UserDefaults, SwiftData, Keychain, or a
+process-global cache. Logical request, category, action, and attachment IDs are
+encoded beneath the stable `AppTemplate.LocalNotification` physical namespace.
+An internal versioned envelope preserves only service-owned state that the
+system request cannot round-trip reliably, including typed metadata, logical
+sound, deep links, foreground options, and action routes. Pending and delivered
+queries filter to canonically owned request IDs; an owned request with invalid
+envelope state is returned as a redacted unreadable snapshot. Owned remove-all
+operations never call the system-wide remove-all APIs.
+
+Notification authorization, badge state, registered categories, and the
+single delegate are app-global resources shared by local notifications and any
+future remote producer. A future remote subsystem must use the bridge's
+unmanaged-notification handler rather than replacing the delegate. The current
+template has no APNs registration or remote payload handling.
+
+The bridge multicasts foreground, open, dismiss, custom-button, and text-input
+events. Default opens use the request route; custom and text actions use only
+their own stored route and never fall back to the request route. Feature code
+owns business effects for action events. The hub and navigation queue are
+process-local rather than durable across termination.
+
+Each scene registers its own `AppSceneNavigationLifecycle` weakly. On iOS and
+iPadOS, the last active scene is eligible; on macOS, a narrow probe observes
+only its hosting window and selects the last key scene. One
+route is delivered to one eligible scene. When none is eligible, routes wait in
+a process-local FIFO and drain in order to the next eligible scene. Delivery
+through `AppSceneNavigationLifecycle.receive(_:)` preserves the existing
+pre-restoration queue, authentication and maintenance deferral, and per-scene
+snapshot behavior. The macOS path never searches global application windows.
+
+Preview, UI-test, and explicitly constructed in-memory graphs each own a fresh
+`InMemoryLocalNotificationService`, event hub, and navigation coordinator.
+They do not resolve the shared system center, install a system delegate,
+schedule a real notification, or display a permission prompt.
+
 ### Local SwiftData reference store
 
 `ILocalDatabaseService` is a Sendable typed value API, implemented by one

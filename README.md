@@ -6,6 +6,16 @@ dependency injection, deep links, previews, unit and UI tests, a hardened
 network layer, and a local-only typed SwiftData reference engine.
 Platform verification is performed locally.
 
+The template also includes a typed, local-only Local Notification service.
+Permission is requested only when product code calls it from an explicit user
+action. It supports immediate, interval, and calendar requests; local
+image/audio/video attachments; button and text-input actions; foreground
+events; and per-scene deep-link navigation. Preview and UI-test graphs use
+fresh in-memory instances. There is no APNs registration or remote-notification
+subsystem. See [Architecture](docs/ARCHITECTURE.md),
+[Customization](docs/CUSTOMIZATION.md), and the
+[Release checklist](docs/RELEASE_CHECKLIST.md) before adopting it.
+
 ## Start here
 
 1. Open `AppTemplate.xcodeproj` in Xcode 26.6 or later.

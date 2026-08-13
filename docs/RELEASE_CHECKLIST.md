@@ -56,6 +56,37 @@ Complete this checklist for the adopted product, not for the untouched sample.
 - [ ] Test layout, truncation, pluralization, right-to-left behavior, VoiceOver,
   keyboard navigation, and Dynamic Type where applicable.
 
+## Mandatory Local Notification signed-build gate
+
+> **RELEASE BLOCKER:** Unit tests, UI tests, simulator runs, and unsigned builds
+> verify deterministic service and composition behavior only. They cannot prove
+> permission UI, real Notification Center delivery or presentation, attachment
+> rendering, action callbacks, relaunch behavior, or signed multi-window routing.
+
+- [ ] On signed development builds, trigger the first permission request from
+  an explicit user action; record both allow and deny paths, then refresh and
+  verify the detailed notification settings after each path.
+- [ ] On supported signed iPhone, iPad, and macOS builds, verify immediate,
+  nonrepeating/repeating interval, and one-shot/repeating calendar delivery.
+- [ ] Verify foreground banner, list, sound, and badge presentation against the
+  app's request and the current system settings.
+- [ ] Verify same-ID pending replacement, point cancellation, owned-only
+  pending/delivered removal, and app-global badge set/clear behavior.
+- [ ] Verify local image, audio, and video attachments on signed builds.
+  Inspect system presentation and prove every original source file remains
+  byte-for-byte intact after scheduling.
+- [ ] Verify default open, reported dismiss, custom button, and text-input
+  actions. Confirm action text is neither persisted nor logged, and confirm an
+  action with no route does not fall back to the request route.
+- [ ] Verify valid notification deep links from both cold launch and a warm
+  process, including authentication/maintenance deferral and restoration.
+- [ ] With no eligible scene, invoke multiple route-bearing actions and verify
+  their process-local FIFO drains once, in order, to the next active scene.
+- [ ] With two signed macOS windows, alternate key status and verify each route
+  reaches only the last key window; also verify resign, close, and reactivation.
+- [ ] Record Notification Center/user-settings limitations with the evidence:
+  successful scheduling is system acceptance, never a delivery guarantee.
+
 ## Behavior, tests, and migration
 
 - [ ] For the active schema, confirm the production registry entity set and
@@ -79,10 +110,16 @@ Complete this checklist for the adopted product, not for the untouched sample.
 - [ ] Confirm local database privacy, retention, backup, sync, and
   cross-process decisions; the template enables no CloudKit sync or App Group
   sharing by default.
-- [ ] Run unit-test bundles locally on macOS, iPhone 17 / iOS 26.5, and
-  iPad (A16) / iOS 26.5 with Swift and Clang warnings treated as errors.
-- [ ] Run the complete macOS scheme and the full UI-test bundle on both listed
-  iOS simulator destinations with zero failures, skips, or expected failures.
+- [ ] Run `AppTemplateTests` on macOS with Swift and Clang warnings treated as
+  errors and zero failures, skips, or expected failures.
+- [ ] Run `AppTemplateTests` on iPhone 17 / iOS 26.5 with the same requirements.
+- [ ] Run `AppTemplateTests` on iPad (A16) / iOS 26.5 with the same requirements.
+- [ ] Run `AppTemplateUITests` on macOS with zero failures, skips, or expected
+  failures.
+- [ ] Run `AppTemplateUITests` on iPhone 17 / iOS 26.5 with the same
+  requirements.
+- [ ] Run `AppTemplateUITests` on iPad (A16) / iOS 26.5 with the same
+  requirements.
 - [ ] Build Release for generic macOS and unsigned generic iOS with warnings
   treated as errors; perform distribution signing/archive checks separately.
 - [ ] Review the schema-1 app-state model, storage key, recovery behavior, and
@@ -105,6 +142,10 @@ Complete this checklist for the adopted product, not for the untouched sample.
   credentials, logs, and network transport against the product privacy policy.
 - [ ] Add only necessary permission usage descriptions, capabilities, and
   entitlements; exercise both grant and denial paths.
+- [ ] Confirm Local Notification adoption added no Info.plist prompt text,
+  `aps-environment`, remote-notification background mode, Push Notifications,
+  critical-alert or location capability/key, entitlement file, or
+  time-sensitive/critical/location code path.
 - [ ] Verify macOS sandbox and hardened-runtime settings and iOS/iPadOS
   entitlements in the signed archive.
 - [ ] Inspect signed Debug and Release macOS app entitlements: require

@@ -66,6 +66,144 @@ is sufficient. To replace it:
 
 ## 5. Services and features
 
+### Local Notification Service
+
+Adopt the notification boundary deliberately before a product release:
+
+1. Change `LocalNotificationNamespace.live` from
+   `AppTemplate.LocalNotification` to one stable product namespace before the
+   first shipped notification. Keep the namespace and every logical request,
+   category, action, and attachment ID stable. A post-release namespace change
+   requires an explicit migration/removal strategy for requests and categories
+   created under the old namespace; the service does not discover or migrate
+   them automatically.
+2. Define one stable category catalog in product code and register it during
+   startup. Category IDs are unique, action IDs are unique within a category,
+   and each category has at most 10 ordered actions. Replacing the catalog
+   replaces only this service's namespaced categories and preserves unrelated
+   app-global categories. A scheduled request may reference only the last
+   successfully registered catalog.
+3. Keep permission timing user-driven. `settings()` only reads state and never
+   prompts. Call `requestAuthorization(_:)` only from an `explicit user action`,
+   such as an Enable Notifications button, and refresh `settings()` after the
+   returned system result. Do not add a launch, composition, scene, or category
+   registration prompt.
+4. Use only routes accepted by the app's `DeepLinkParser`. A default open uses
+   the request route. A button or text-input action uses only its own route; a
+   missing action route intentionally performs no navigation and never falls
+   back to the request route.
+5. Package a named sound where Notification Center can load it and pass only
+   its leaf resource name, such as `Reminder.aiff`. Do not pass a path or URL.
+   Service validation does not prove that the resource is packaged or that
+   user settings will allow it to play.
+6. Supply attachments as readable local regular files. The service supports
+   image, audio, and video types, rejects network URLs and symbolic links, and
+   stages a disposable copy before system submission. The caller's source file
+   must remain readable until `schedule(_:)` returns and is left unchanged; on
+   success it can be moved or deleted because Notification Center accepted the
+   staged attachment. Snapshot attachment URLs are system-owned and require
+   security-scoped access while read; they are not the original source URL.
+7. Treat successful scheduling as system acceptance, not a delivery guarantee
+   or receipt. User settings, Focus, platform policy, and process state still
+   govern presentation. Scheduling the same logical request ID replaces its
+   pending request without pre-removal; it does not remove an already delivered
+   notification with that ID.
+8. Give each Feature only `any ILocalNotificationService`. The Feature owns its
+   `events()` consumer task and all business behavior caused by foreground,
+   open, dismiss, button, or text-input events. Do not inject the event hub,
+   navigation coordinator, delegate bridge, or system center into a Feature.
+9. Keep preview, UI-test, and unit-test graphs isolated. The existing factories
+   create a fresh in-memory service and event graph each time; inject that
+   service explicitly when a preview or test needs configured settings,
+   categories, pending requests, delivered requests, or events. Do not add a
+   global in-memory singleton.
+10. Design a separate subsystem if the product needs APNs, remote payloads,
+    network attachment downloads, durable action queues, location triggers,
+    time-sensitive or critical interruption levels, notification extensions,
+    analytics, or delivery receipts. None is included here.
+
+The following samples use only the neutral service contract and models. This
+permission function belongs behind a visible control's action handler:
+
+```swift
+func enableNotifications(
+    using service: any ILocalNotificationService
+) async throws -> Bool {
+    try await service.requestAuthorization([.alert, .sound, .badge])
+}
+```
+
+Register stable actions before scheduling a request that references them:
+
+```swift
+func registerReminderCatalog(
+    using service: any ILocalNotificationService
+) async throws {
+    guard let projectURL = URL(
+        string: "apptemplate://projects/project/example"
+    ) else { return }
+
+    let category = LocalNotificationCategory(
+        id: try LocalNotificationCategoryID("reminder"),
+        actions: [
+            .button(
+                LocalNotificationButtonAction(
+                    id: try LocalNotificationActionID("open-project"),
+                    title: "Open",
+                    options: [.foreground],
+                    deepLink: projectURL
+                )
+            ),
+            .textInput(
+                LocalNotificationTextInputAction(
+                    id: try LocalNotificationActionID("reply"),
+                    title: "Reply",
+                    deepLink: nil,
+                    textInputButtonTitle: "Send",
+                    textInputPlaceholder: "Message"
+                )
+            )
+        ],
+        reportsDismissal: true
+    )
+    try await service.setCategories([category])
+}
+```
+
+Scheduling performs one system add only after validation and local attachment
+staging succeed:
+
+```swift
+func scheduleReminder(
+    imageURL: URL,
+    using service: any ILocalNotificationService
+) async throws {
+    guard let projectURL = URL(
+        string: "apptemplate://projects/project/example"
+    ) else { return }
+
+    let request = LocalNotificationRequest(
+        id: try LocalNotificationID("example-reminder"),
+        content: LocalNotificationContent(
+            title: "Project reminder",
+            body: "Review the example project.",
+            sound: .named(resourceName: "Reminder.aiff"),
+            categoryID: try LocalNotificationCategoryID("reminder"),
+            attachments: [
+                LocalNotificationAttachment(
+                    id: try LocalNotificationAttachmentID("preview"),
+                    fileURL: imageURL
+                )
+            ],
+            deepLink: projectURL,
+            foregroundPresentation: [.banner, .sound]
+        ),
+        trigger: .timeInterval(seconds: 300, repeats: false)
+    )
+    try await service.schedule(request)
+}
+```
+
 ### Local SwiftData reference store
 
 Before shipping product data:
