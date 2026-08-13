@@ -10,6 +10,7 @@ protocol NetworkTarget: Sendable {
     var shouldHandleCookies: Bool { get }
     var validation: StatusCodeValidation { get }
     var sampleResponse: StubResponse { get }
+    var diagnosticDescriptor: NetworkDiagnosticDescriptor? { get }
 }
 
 nonisolated
@@ -19,4 +20,5 @@ extension NetworkTarget {
     var shouldHandleCookies: Bool { true }
     var validation: StatusCodeValidation { .successful }
     var sampleResponse: StubResponse { StubResponse() }
+    var diagnosticDescriptor: NetworkDiagnosticDescriptor? { nil }
 }

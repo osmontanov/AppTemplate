@@ -8,6 +8,7 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
     private let requestBuilder: NetworkRequestBuilder
     private let stubBehavior: @Sendable (Target) -> StubBehavior
     private let clock: AppClock
+    private let diagnosticRecorder: NetworkDiagnosticRecorder?
 
     init(
         transport: any NetworkTransport = URLSessionTransport(),
@@ -19,7 +20,8 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
         stubBehavior: @escaping @Sendable (Target) -> StubBehavior = { _ in
             .never
         },
-        clock: AppClock = .live
+        clock: AppClock = .live,
+        diagnosticRecorder: NetworkDiagnosticRecorder? = nil
     ) {
         self.transport = transport
         self.adapters = adapters
@@ -29,31 +31,72 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
         )
         self.stubBehavior = stubBehavior
         self.clock = clock
+        self.diagnosticRecorder = diagnosticRecorder
     }
 
     @concurrent
     func request(_ target: Target) async throws -> NetworkResponse {
-        var request = try requestBuilder.build(target)
+        let operationID = UUID()
+        let started = clock.monotonicNow()
+        let descriptor = target.diagnosticDescriptor
+        let method = target.method
+        var request: URLRequest
+
+        do {
+            request = try requestBuilder.build(target)
+        } catch {
+            let networkError = (error as? NetworkError)
+                ?? NetworkError.requestConstruction
+            await recordDiagnostic(
+                descriptor: descriptor,
+                operationID: operationID,
+                method: method,
+                started: started,
+                response: nil,
+                error: networkError
+            )
+            throw networkError
+        }
 
         do {
             for adapter in adapters {
-                request = try await adapter.adapt(request, target: target)
+                request = try await adapter.adapt(
+                    request,
+                    target: target
+                )
             }
         } catch {
-            throw adaptationError(from: error)
+            let networkError = adaptationError(from: error)
+            await recordDiagnostic(
+                descriptor: descriptor,
+                operationID: operationID,
+                method: method,
+                started: started,
+                response: nil,
+                error: networkError
+            )
+            throw networkError
         }
 
+        var preparedRequest = request
         if !target.shouldHandleCookies {
-            request = CredentialRedirectPolicy().prepare(request)
+            preparedRequest = CredentialRedirectPolicy().prepare(request)
         }
 
-        let context = NetworkRequestContext(id: UUID(), request: request)
+        let context = NetworkRequestContext(
+            id: operationID,
+            request: preparedRequest
+        )
 
         for monitor in monitors {
             await monitor.willSend(context: context, target: target)
         }
 
-        let result = await result(for: request, target: target)
+        let result = await result(
+            for: preparedRequest,
+            target: target,
+            operationID: operationID
+        )
 
         for monitor in monitors {
             await monitor.didComplete(
@@ -63,12 +106,34 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
             )
         }
 
+        switch result {
+        case let .success(response):
+            await recordDiagnostic(
+                descriptor: descriptor,
+                operationID: operationID,
+                method: method,
+                started: started,
+                response: response,
+                error: nil
+            )
+        case let .failure(error):
+            await recordDiagnostic(
+                descriptor: descriptor,
+                operationID: operationID,
+                method: method,
+                started: started,
+                response: response(from: error),
+                error: error
+            )
+        }
+
         return try result.get()
     }
 
     private func result(
         for request: URLRequest,
-        target: Target
+        target: Target,
+        operationID: UUID
     ) async -> Result<NetworkResponse, NetworkError> {
         guard !Task.isCancelled else {
             return .failure(.cancelled)
@@ -77,14 +142,21 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
         let response: NetworkResponse
         switch stubBehavior(target) {
         case .never:
-            switch await liveResult(for: request) {
+            switch await liveResult(
+                for: request,
+                operationID: operationID
+            ) {
             case let .success(liveResponse):
                 response = liveResponse
             case let .failure(error):
                 return .failure(error)
             }
         case .immediate:
-            response = stubResponse(for: request, target: target)
+            response = stubResponse(
+                for: request,
+                target: target,
+                operationID: operationID
+            )
         case let .delayed(duration):
             do {
                 try await clock.sleep(duration)
@@ -94,7 +166,11 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
             guard !Task.isCancelled else {
                 return .failure(.cancelled)
             }
-            response = stubResponse(for: request, target: target)
+            response = stubResponse(
+                for: request,
+                target: target,
+                operationID: operationID
+            )
         }
 
         guard target.validation.accepts(response.statusCode) else {
@@ -105,7 +181,8 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
     }
 
     private func liveResult(
-        for request: URLRequest
+        for request: URLRequest,
+        operationID: UUID
     ) async -> Result<NetworkResponse, NetworkError> {
         let data: Data
         let urlResponse: URLResponse
@@ -121,6 +198,7 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
 
         return .success(
             NetworkResponse(
+                operationID: operationID,
                 request: request,
                 url: httpResponse.url,
                 statusCode: httpResponse.statusCode,
@@ -132,10 +210,12 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
 
     private func stubResponse(
         for request: URLRequest,
-        target: Target
+        target: Target,
+        operationID: UUID
     ) -> NetworkResponse {
         let sample = target.sampleResponse
         return NetworkResponse(
+            operationID: operationID,
             request: request,
             url: request.url,
             statusCode: sample.statusCode,
@@ -183,6 +263,58 @@ struct NetworkProvider<Target: NetworkTarget>: Sendable {
             return .cancelled
         }
         return nil
+    }
+
+    private func recordDiagnostic(
+        descriptor: NetworkDiagnosticDescriptor?,
+        operationID: UUID,
+        method: HTTPMethod,
+        started: ContinuousClock.Instant,
+        response: NetworkResponse?,
+        error: NetworkError?
+    ) async {
+        guard let descriptor, let diagnosticRecorder else { return }
+        let event = NetworkDiagnosticEvent(
+            operationID: operationID,
+            operation: descriptor.operation,
+            method: method,
+            safePath: descriptor.safePath,
+            queryKeys: descriptor.queryKeys,
+            statusClass: response.map { $0.statusCode / 100 },
+            elapsed: started.duration(to: clock.monotonicNow()),
+            failure: error.map(diagnosticFailure),
+            summary: nil
+        )
+        await diagnosticRecorder.record(event)
+    }
+
+    private func diagnosticFailure(
+        _ error: NetworkError
+    ) -> NetworkDiagnosticFailure {
+        switch error {
+        case .cancelled:
+            .cancelled
+        case .transport:
+            .transport
+        case let .unacceptableStatus(response):
+            .statusClass(response.statusCode / 100)
+        case .requestConstruction,
+             .requestEncoding,
+             .requestAdaptation,
+             .nonHTTPResponse,
+             .decoding:
+            .invalidResponse
+        }
+    }
+
+    private func response(from error: NetworkError) -> NetworkResponse? {
+        switch error {
+        case let .unacceptableStatus(response),
+             let .decoding(_, response):
+            response
+        default:
+            nil
+        }
     }
 
     private func httpHeaders(

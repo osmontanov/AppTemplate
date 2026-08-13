@@ -6,6 +6,7 @@ struct AppDependencies: Sendable {
     let keychain: any IKeychainService
     let settings: SettingsDependencies
     let localNotifications: LocalNotificationDependencies
+    let diagnostics: NetworkDiagnosticRecorder
 
     @MainActor
     static func live(
@@ -21,30 +22,34 @@ struct AppDependencies: Sendable {
         localNotificationRuntimeResolver: @MainActor () -> UserNotificationCenterRuntime =
             UserNotificationCenterRuntimeFactory.live
     ) -> AppDependencies {
-        AppDependencies(
+        let diagnostics = NetworkDiagnosticRecorder()
+        return AppDependencies(
             localDatabase: LocalDatabaseService(
                 configuration: .live(locationResolver: localDatabaseStoreLocationResolver)
             ),
-            remote: RemoteService(),
+            remote: RemoteService(diagnosticRecorder: diagnostics),
             appStateStorage: UserDefaultsAppStateStorage(userDefaults: userDefaultsService),
             keychain: keychainService,
             settings: SettingsDependencies(appInfo: AppInfoService()),
             localNotifications: localNotifications ?? .live(
                 runtimeResolver: localNotificationRuntimeResolver
-            )
+            ),
+            diagnostics: diagnostics
         )
     }
 
     @MainActor
     static func uiTesting(
         initialState: AppState,
+        remoteService: any IRemoteService,
+        diagnostics: NetworkDiagnosticRecorder,
         localNotifications: LocalNotificationDependencies? = nil
     ) -> AppDependencies {
         AppDependencies(
             localDatabase: LocalDatabaseService(
                 configuration: .inMemory()
             ),
-            remote: RemoteService(),
+            remote: remoteService,
             appStateStorage: InMemoryAppStateStorage(initialState: initialState),
             keychain: InMemoryKeychainService(),
             settings: SettingsDependencies(
@@ -53,18 +58,20 @@ struct AppDependencies: Sendable {
                     version: "1.0"
                 )
             ),
-            localNotifications: localNotifications ?? .inMemory()
+            localNotifications: localNotifications ?? .inMemory(),
+            diagnostics: diagnostics
         )
     }
 
     @MainActor
     static func preview(
         settings: SettingsDependencies,
+        remoteService: any IRemoteService,
+        diagnostics: NetworkDiagnosticRecorder,
         appStateStorage: any IAppStateStorage = InMemoryAppStateStorage(),
         localDatabaseService: any ILocalDatabaseService = LocalDatabaseService(
             configuration: .inMemory()
         ),
-        remoteService: any IRemoteService = RemoteService(),
         keychainService: any IKeychainService = InMemoryKeychainService(),
         localNotifications: LocalNotificationDependencies? = nil
     ) -> AppDependencies {
@@ -74,7 +81,8 @@ struct AppDependencies: Sendable {
             appStateStorage: appStateStorage,
             keychain: keychainService,
             settings: settings,
-            localNotifications: localNotifications ?? .inMemory()
+            localNotifications: localNotifications ?? .inMemory(),
+            diagnostics: diagnostics
         )
     }
 
@@ -82,6 +90,7 @@ struct AppDependencies: Sendable {
     static func test(
         localDatabaseService: any ILocalDatabaseService,
         remoteService: any IRemoteService,
+        diagnostics: NetworkDiagnosticRecorder,
         appStateStorage: any IAppStateStorage,
         keychainService: any IKeychainService,
         settings: SettingsDependencies,
@@ -93,7 +102,51 @@ struct AppDependencies: Sendable {
             appStateStorage: appStateStorage,
             keychain: keychainService,
             settings: settings,
-            localNotifications: localNotifications
+            localNotifications: localNotifications,
+            diagnostics: diagnostics
         )
+    }
+}
+
+actor FailClosedRemoteService: IRemoteService {
+    func fetchExample(_ request: ExampleRequest) async throws -> ExampleResponse {
+        _ = request
+        throw RemoteServiceError.invalidResponse
+    }
+
+    func products(_ request: ProductPageRequest) async throws -> ProductPageDTO {
+        _ = request
+        throw RemoteServiceError.invalidResponse
+    }
+
+    func categories() async throws -> [ProductCategoryDTO] {
+        throw RemoteServiceError.invalidResponse
+    }
+
+    func product(id: Int) async throws -> ProductDTO {
+        _ = id
+        throw RemoteServiceError.invalidResponse
+    }
+
+    func login(_ request: LoginRequestDTO) async throws -> AuthSessionDTO {
+        _ = request
+        throw RemoteServiceError.invalidResponse
+    }
+
+    func me(accessToken: String) async throws -> UserProfileDTO {
+        _ = accessToken
+        throw RemoteServiceError.invalidResponse
+    }
+
+    func refresh(_ request: RefreshRequestDTO) async throws -> AuthTokensDTO {
+        _ = request
+        throw RemoteServiceError.invalidResponse
+    }
+
+    func diagnostic(
+        _ request: HTTPDiagnosticRequest
+    ) async throws -> HTTPDiagnosticDTO {
+        _ = request
+        throw RemoteServiceError.invalidResponse
     }
 }

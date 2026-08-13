@@ -19,9 +19,17 @@ struct RemoteServiceTests {
             return (responseData, response)
         }
         let provider = NetworkProvider<ExampleTarget>(transport: transport)
+        let recorder = NetworkDiagnosticRecorder()
+        let dummyProvider = NetworkProvider<DummyJSONTarget>(
+            transport: unexpectedRemoteTransport(),
+            diagnosticRecorder: recorder
+        )
         let service = RemoteService(
             baseURL: URL(string: "https://api.example.test/v1")!,
-            provider: provider
+            provider: provider,
+            dummyJSONProvider: dummyProvider,
+            authenticationProvider: dummyProvider,
+            diagnosticRecorder: recorder
         )
 
         let response = try await service.fetchExample(
@@ -53,9 +61,17 @@ struct RemoteServiceTests {
             transport: transport,
             stubBehavior: { _ in .immediate }
         )
+        let recorder = NetworkDiagnosticRecorder()
+        let dummyProvider = NetworkProvider<DummyJSONTarget>(
+            transport: unexpectedRemoteTransport(),
+            diagnosticRecorder: recorder
+        )
         let service = RemoteService(
             baseURL: URL(string: "https://api.example.test")!,
-            provider: provider
+            provider: provider,
+            dummyJSONProvider: dummyProvider,
+            authenticationProvider: dummyProvider,
+            diagnosticRecorder: recorder
         )
 
         let response = try await service.fetchExample(

@@ -13,8 +13,16 @@ struct AppDependenciesTests {
         let settings = SettingsDependencies(
             appInfo: AppInfoService(displayName: "Preview", version: "1")
         )
-        let first = AppDependencies.preview(settings: settings)
-        let second = AppDependencies.preview(settings: settings)
+        let first = AppDependencies.preview(
+            settings: settings,
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder()
+        )
+        let second = AppDependencies.preview(
+            settings: settings,
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder()
+        )
 
         try await first.localNotifications.service.schedule(
             LocalNotificationFixtures.request(id: "one")
@@ -113,8 +121,16 @@ struct AppDependenciesTests {
             hasCompletedOnboarding: false,
             isMaintenanceEnabled: false
         )
-        let preview = AppDependencies.preview(settings: settings)
-        let uiTest = AppDependencies.uiTesting(initialState: state)
+        let preview = AppDependencies.preview(
+            settings: settings,
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder()
+        )
+        let uiTest = AppDependencies.uiTesting(
+            initialState: state,
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder()
+        )
         let direct = LocalNotificationDependencies.inMemory()
 
         #expect(preview.localNotifications.service is InMemoryLocalNotificationService)
@@ -153,6 +169,8 @@ struct AppDependenciesTests {
         )
         let dependencies = AppDependencies.preview(
             settings: settings,
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder(),
             localNotifications: notifications
         )
 
@@ -308,9 +326,11 @@ struct AppDependenciesTests {
         let dependencies = AppDependencies.live(
             localNotifications: .inMemory()
         )
+        let remote = dependencies.remote as? RemoteService
 
         #expect(dependencies.localDatabase is LocalDatabaseService)
         #expect(dependencies.remote is RemoteService)
+        #expect(remote?.diagnosticRecorder === dependencies.diagnostics)
         #expect(dependencies.appStateStorage is UserDefaultsAppStateStorage)
         #expect(dependencies.keychain is KeychainService)
         #expect(dependencies.settings.appInfo is AppInfoService)
@@ -387,8 +407,16 @@ struct AppDependenciesTests {
         let settings = SettingsDependencies(
             appInfo: AppInfoService(displayName: "Preview", version: "1")
         )
-        let firstPreview = AppDependencies.preview(settings: settings)
-        let secondPreview = AppDependencies.preview(settings: settings)
+        let firstPreview = AppDependencies.preview(
+            settings: settings,
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder()
+        )
+        let secondPreview = AppDependencies.preview(
+            settings: settings,
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder()
+        )
         try await firstPreview.localDatabase.upsert(
             ExampleRecord(id: "preview", payload: "first")
         )
@@ -405,8 +433,16 @@ struct AppDependenciesTests {
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: false
         )
-        let firstUI = AppDependencies.uiTesting(initialState: state)
-        let secondUI = AppDependencies.uiTesting(initialState: state)
+        let firstUI = AppDependencies.uiTesting(
+            initialState: state,
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder()
+        )
+        let secondUI = AppDependencies.uiTesting(
+            initialState: state,
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder()
+        )
         try await firstUI.localDatabase.upsert(
             ExampleRecord(id: "ui", payload: "first")
         )
@@ -423,8 +459,16 @@ struct AppDependenciesTests {
         let settings = SettingsDependencies(
             appInfo: AppInfoService(displayName: "Preview", version: "1")
         )
-        let preview1 = AppDependencies.preview(settings: settings)
-        let preview2 = AppDependencies.preview(settings: settings)
+        let preview1 = AppDependencies.preview(
+            settings: settings,
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder()
+        )
+        let preview2 = AppDependencies.preview(
+            settings: settings,
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder()
+        )
         try await preview1.keychain.set(Data([1]), for: .data("Isolation"))
         #expect(try await preview2.keychain.data(for: .data("Isolation")) == nil)
 
@@ -433,8 +477,16 @@ struct AppDependenciesTests {
             hasCompletedOnboarding: false,
             isMaintenanceEnabled: false
         )
-        let ui1 = AppDependencies.uiTesting(initialState: state)
-        let ui2 = AppDependencies.uiTesting(initialState: state)
+        let ui1 = AppDependencies.uiTesting(
+            initialState: state,
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder()
+        )
+        let ui2 = AppDependencies.uiTesting(
+            initialState: state,
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder()
+        )
         try await ui1.keychain.set(Data([1]), for: .data("Isolation"))
         #expect(try await ui2.keychain.data(for: .data("Isolation")) == nil)
     }
@@ -444,13 +496,19 @@ struct AppDependenciesTests {
         let settings = SettingsDependencies(
             appInfo: AppInfoService(displayName: "Preview", version: "1")
         )
-        let preview = AppDependencies.preview(settings: settings)
+        let preview = AppDependencies.preview(
+            settings: settings,
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder()
+        )
         let uiTesting = AppDependencies.uiTesting(
             initialState: AppState(
                 isAuthenticated: false,
                 hasCompletedOnboarding: false,
                 isMaintenanceEnabled: false
-            )
+            ),
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder()
         )
 
         await expectUnregisteredTestModel(preview.localDatabase)
@@ -465,7 +523,9 @@ struct AppDependenciesTests {
                     displayName: "Preview App",
                     version: "9.8.7"
                 )
-            )
+            ),
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder()
         )
 
         #expect(dependencies.appStateStorage is InMemoryAppStateStorage)
@@ -478,8 +538,16 @@ struct AppDependenciesTests {
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: false
         )
-        let firstDependencies = AppDependencies.uiTesting(initialState: initialState)
-        let secondDependencies = AppDependencies.uiTesting(initialState: initialState)
+        let firstDependencies = AppDependencies.uiTesting(
+            initialState: initialState,
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder()
+        )
+        let secondDependencies = AppDependencies.uiTesting(
+            initialState: initialState,
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder()
+        )
         let firstStorage = try #require(
             firstDependencies.appStateStorage as? InMemoryAppStateStorage
         )
@@ -488,7 +556,7 @@ struct AppDependenciesTests {
         )
 
         #expect(firstDependencies.localDatabase is LocalDatabaseService)
-        #expect(firstDependencies.remote is RemoteService)
+        #expect(firstDependencies.remote is InjectedRemoteService)
         #expect(firstDependencies.settings.appInfo.displayName == "AppTemplate UI Tests")
         #expect(firstDependencies.settings.appInfo.version == "1.0")
         #expect(try decodedState(from: firstStorage) == initialState)
@@ -504,6 +572,7 @@ struct AppDependenciesTests {
         let remoteService = InjectedRemoteService()
         let appStateStorage = InjectedAppStateStorage()
         let keychainService = KeychainServiceSpy()
+        let diagnostics = NetworkDiagnosticRecorder()
         let settings = SettingsDependencies(
             appInfo: AppInfoService(
                 displayName: "Preview App",
@@ -512,9 +581,10 @@ struct AppDependenciesTests {
         )
         let dependencies = AppDependencies.preview(
             settings: settings,
+            remoteService: remoteService,
+            diagnostics: diagnostics,
             appStateStorage: appStateStorage,
             localDatabaseService: localDatabaseService,
-            remoteService: remoteService,
             keychainService: keychainService
         )
         let resolvedLocalDatabaseService = try #require(
@@ -534,6 +604,7 @@ struct AppDependenciesTests {
         #expect(resolvedRemoteService === remoteService)
         #expect(resolvedAppStateStorage === appStateStorage)
         #expect(resolvedKeychainService === keychainService)
+        #expect(dependencies.diagnostics === diagnostics)
         #expect(dependencies.settings.appInfo.displayName == "Preview App")
         #expect(dependencies.settings.appInfo.version == "9.8.7")
     }
@@ -544,6 +615,7 @@ struct AppDependenciesTests {
         let remoteService = InjectedRemoteService()
         let appStateStorage = InjectedAppStateStorage()
         let keychainService = KeychainServiceSpy()
+        let diagnostics = NetworkDiagnosticRecorder()
         let settings = SettingsDependencies(
             appInfo: AppInfoService(
                 displayName: "Test App",
@@ -553,6 +625,7 @@ struct AppDependenciesTests {
         let dependencies = AppDependencies.test(
             localDatabaseService: localDatabaseService,
             remoteService: remoteService,
+            diagnostics: diagnostics,
             appStateStorage: appStateStorage,
             keychainService: keychainService,
             settings: settings,
@@ -575,6 +648,7 @@ struct AppDependenciesTests {
         #expect(resolvedRemoteService === remoteService)
         #expect(resolvedAppStateStorage === appStateStorage)
         #expect(resolvedKeychainService === keychainService)
+        #expect(dependencies.diagnostics === diagnostics)
         #expect(dependencies.settings.appInfo.displayName == "Test App")
         #expect(dependencies.settings.appInfo.version == "3.2.1")
     }
@@ -645,6 +719,42 @@ private actor InjectedRemoteService: IRemoteService {
         _ request: ExampleRequest
     ) async throws -> ExampleResponse {
         ExampleResponse(id: "injected", title: request.query)
+    }
+
+    func products(_ request: ProductPageRequest) async throws -> ProductPageDTO {
+        _ = request
+        throw RemoteServiceError.invalidResponse
+    }
+
+    func categories() async throws -> [ProductCategoryDTO] {
+        throw RemoteServiceError.invalidResponse
+    }
+
+    func product(id: Int) async throws -> ProductDTO {
+        _ = id
+        throw RemoteServiceError.invalidResponse
+    }
+
+    func login(_ request: LoginRequestDTO) async throws -> AuthSessionDTO {
+        _ = request
+        throw RemoteServiceError.invalidResponse
+    }
+
+    func me(accessToken: String) async throws -> UserProfileDTO {
+        _ = accessToken
+        throw RemoteServiceError.invalidResponse
+    }
+
+    func refresh(_ request: RefreshRequestDTO) async throws -> AuthTokensDTO {
+        _ = request
+        throw RemoteServiceError.invalidResponse
+    }
+
+    func diagnostic(
+        _ request: HTTPDiagnosticRequest
+    ) async throws -> HTTPDiagnosticDTO {
+        _ = request
+        throw RemoteServiceError.invalidResponse
     }
 }
 

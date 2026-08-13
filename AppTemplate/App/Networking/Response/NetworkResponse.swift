@@ -2,6 +2,7 @@ import Foundation
 
 nonisolated
 struct NetworkResponse: Sendable {
+    let operationID: UUID
     let request: URLRequest
     let url: URL?
     let statusCode: Int

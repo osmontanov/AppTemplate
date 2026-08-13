@@ -3,6 +3,10 @@ import Testing
 @testable import AppTemplate
 
 struct NetworkResponseTests {
+    fileprivate static let operationID = UUID(
+        uuidString: "00000000-0000-0000-0000-000000000042"
+    )!
+
     @Test
     func decodesModelFromRawData() throws {
         let response = makeResponse(
@@ -32,6 +36,7 @@ struct NetworkResponseTests {
             #expect(retainedResponse.statusCode == 200)
             #expect(retainedResponse.data == response.data)
             #expect(retainedResponse.request.url == response.request.url)
+            #expect(retainedResponse.operationID == Self.operationID)
         } catch {
             Issue.record("Unexpected error: \(error)")
         }
@@ -41,6 +46,7 @@ struct NetworkResponseTests {
 private func makeResponse(data: Data) -> NetworkResponse {
     let url = URL(string: "https://api.example.test/examples")!
     return NetworkResponse(
+        operationID: NetworkResponseTests.operationID,
         request: URLRequest(url: url),
         url: url,
         statusCode: 200,

@@ -25,7 +25,12 @@ struct AppTemplateApp: App {
         case .live:
             dependencies = AppDependencies.live()
         case let .uiTesting(initialState):
-            dependencies = AppDependencies.uiTesting(initialState: initialState)
+            let diagnostics = NetworkDiagnosticRecorder()
+            dependencies = AppDependencies.uiTesting(
+                initialState: initialState,
+                remoteService: FailClosedRemoteService(),
+                diagnostics: diagnostics
+            )
         }
 
         let store = AppStateStore(
