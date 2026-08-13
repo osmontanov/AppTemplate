@@ -68,10 +68,10 @@ struct LocalDatabasePersistenceTests {
     }
 
     @Test
-    func genericServiceOpensStoreSeededDirectlyThroughFrozenV1Entity()
+    func genericServiceOpensStoreSeededDirectlyThroughActiveV2Entity()
         async throws
     {
-        let url = try uniqueLocalDatabaseStoreURL(label: "direct-frozen-v1")
+        let url = try uniqueLocalDatabaseStoreURL(label: "direct-v2")
         let expected = [
             ExampleRecord(id: " spaced id ", payload: ""),
             ExampleRecord(id: "case", payload: "lowercase"),
@@ -87,7 +87,7 @@ struct LocalDatabasePersistenceTests {
             context.autosaveEnabled = false
             for record in expected {
                 context.insert(
-                    LocalDatabaseSchemaV1.StoredExampleRecord(
+                    LocalDatabaseSchemaV2.StoredExampleRecord(
                         id: record.id,
                         payload: record.payload
                     )

@@ -45,7 +45,11 @@ struct LocalDatabaseModelRegistry: Sendable {
     }
 
     static let production = LocalDatabaseModelRegistry(
-        adapters: [ExampleRecordAdapter.self]
+        adapters: [
+            ExampleRecordAdapter.self,
+            FavoriteProductSnapshotAdapter.self,
+            CartAggregateAdapter.self
+        ]
     )
 
     func validateIntegrity() throws {

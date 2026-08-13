@@ -10,7 +10,7 @@ extension ExampleRecord: LocalDatabaseModel {
 nonisolated
 enum ExampleRecordAdapter: LocalEntityAdapter {
     typealias Value = ExampleRecord
-    typealias Entity = LocalDatabaseSchemaV1.StoredExampleRecord
+    typealias Entity = LocalDatabaseSchemaV2.StoredExampleRecord
     typealias Query = ExampleQuery
 
     static let diagnosticName = "StoredExampleRecord"

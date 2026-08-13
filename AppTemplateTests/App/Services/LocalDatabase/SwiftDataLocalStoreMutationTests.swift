@@ -116,7 +116,7 @@ struct SwiftDataLocalStoreMutationTests {
             let seedContext = ModelContext(writable)
             seedContext.autosaveEnabled = false
             seedContext.insert(
-                LocalDatabaseSchemaV1.StoredExampleRecord(
+                LocalDatabaseSchemaV2.StoredExampleRecord(
                     id: "record-1",
                     payload: "durable"
                 )
@@ -124,7 +124,7 @@ struct SwiftDataLocalStoreMutationTests {
             try seedContext.save()
         }
 
-        let schema = Schema(versionedSchema: LocalDatabaseSchemaV1.self)
+        let schema = Schema(versionedSchema: LocalDatabaseSchemaV2.self)
         let readOnlyConfiguration = ModelConfiguration(
             "LocalDatabase",
             schema: schema,

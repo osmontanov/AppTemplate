@@ -213,7 +213,7 @@ struct SwiftDataLocalStoreBatchTests {
     @Test
     func diskBatchDeleteIsDurableBeforeSaveAndRollbackCannotRestore() throws {
         typealias StoredRecord =
-            LocalDatabaseSchemaV1.StoredExampleRecord
+            LocalDatabaseSchemaV2.StoredExampleRecord
         let url = try uniqueLocalDatabaseStoreURL(
             label: "batch-delete-boundary"
         )

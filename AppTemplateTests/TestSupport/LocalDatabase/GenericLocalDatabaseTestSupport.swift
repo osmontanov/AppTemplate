@@ -170,7 +170,7 @@ func makeGenericTestRegistry() -> LocalDatabaseModelRegistry {
 nonisolated
 func makeGenericInMemoryLocalDatabaseContainer() throws -> ModelContainer {
     let schema = Schema([
-        LocalDatabaseSchemaV1.StoredExampleRecord.self,
+        LocalDatabaseSchemaV2.StoredExampleRecord.self,
         StoredTestLocalRecord.self
     ])
     let configuration = ModelConfiguration(

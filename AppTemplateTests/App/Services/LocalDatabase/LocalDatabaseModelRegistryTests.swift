@@ -14,25 +14,25 @@ struct LocalDatabaseModelRegistryTests {
     }
 
     @Test
-    func productionRegistryContainsExactlyExampleRegistration() throws {
+    func productionRegistryContainsExactlyStoreRegistrations() throws {
         let registry = LocalDatabaseModelRegistry.production
 
         try registry.validateIntegrity()
-        #expect(registry.registrationCount == 1)
+        #expect(registry.registrationCount == 3)
         #expect(registry.contains(ExampleRecordAdapter.self))
+        #expect(registry.contains(FavoriteProductSnapshotAdapter.self))
+        #expect(registry.contains(CartAggregateAdapter.self))
         #expect(
             registry.registeredEntityIdentifiers
-                == [ObjectIdentifier(
-                    LocalDatabaseSchemaV1.StoredExampleRecord.self
-                )]
+                == Set(LocalDatabaseSchemaV2.models.map(ObjectIdentifier.init))
         )
     }
 
     @Test
-    func productionRegistryEntityTypesEqualFrozenSchemaTypesAndCardinality() throws {
+    func productionRegistryEntityTypesEqualActiveSchemaTypesAndCardinality() throws {
         let registry = LocalDatabaseModelRegistry.production
         let schemaIdentifiers = Set(
-            LocalDatabaseSchemaV1.models.map(ObjectIdentifier.init)
+            LocalDatabaseSchemaV2.models.map(ObjectIdentifier.init)
         )
 
         try registry.validateIntegrity()

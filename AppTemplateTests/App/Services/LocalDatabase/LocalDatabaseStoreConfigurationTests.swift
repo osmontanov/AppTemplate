@@ -169,7 +169,7 @@ struct LocalDatabaseStoreConfigurationTests {
         let firstContext = ModelContext(container)
         firstContext.autosaveEnabled = false
         firstContext.insert(
-            LocalDatabaseSchemaV1.StoredExampleRecord(
+            LocalDatabaseSchemaV2.StoredExampleRecord(
                 id: "same",
                 payload: "first"
             )
@@ -179,7 +179,7 @@ struct LocalDatabaseStoreConfigurationTests {
         let secondContext = ModelContext(container)
         secondContext.autosaveEnabled = false
         secondContext.insert(
-            LocalDatabaseSchemaV1.StoredExampleRecord(
+            LocalDatabaseSchemaV2.StoredExampleRecord(
                 id: "same",
                 payload: "second"
             )
@@ -189,7 +189,7 @@ struct LocalDatabaseStoreConfigurationTests {
         let verifier = ModelContext(container)
         let rows = try verifier.fetch(
             FetchDescriptor<
-                LocalDatabaseSchemaV1.StoredExampleRecord
+                LocalDatabaseSchemaV2.StoredExampleRecord
             >()
         )
         #expect(rows.count == 1)

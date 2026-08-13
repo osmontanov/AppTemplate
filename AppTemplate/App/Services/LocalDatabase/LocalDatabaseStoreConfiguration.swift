@@ -71,7 +71,7 @@ enum LocalDatabaseContainerFactories {
     static func disk(url: URL) -> LocalDatabaseContainerFactory {
         {
             let schema = Schema(
-                versionedSchema: LocalDatabaseSchemaV1.self
+                versionedSchema: LocalDatabaseSchemaV2.self
             )
             let configuration = ModelConfiguration(
                 "LocalDatabase",
@@ -91,7 +91,7 @@ enum LocalDatabaseContainerFactories {
     static func inMemory() -> LocalDatabaseContainerFactory {
         {
             let schema = Schema(
-                versionedSchema: LocalDatabaseSchemaV1.self
+                versionedSchema: LocalDatabaseSchemaV2.self
             )
             let configuration = ModelConfiguration(
                 "LocalDatabase",

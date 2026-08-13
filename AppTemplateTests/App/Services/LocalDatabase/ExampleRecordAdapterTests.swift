@@ -80,11 +80,11 @@ struct ExampleRecordAdapterTests {
 
     @Test
     func duplicatePersistedIDsThrowInsteadOfTrapping() {
-        let first = LocalDatabaseSchemaV1.StoredExampleRecord(
+        let first = LocalDatabaseSchemaV2.StoredExampleRecord(
             id: "same",
             payload: "one"
         )
-        let second = LocalDatabaseSchemaV1.StoredExampleRecord(
+        let second = LocalDatabaseSchemaV2.StoredExampleRecord(
             id: "same",
             payload: "two"
         )

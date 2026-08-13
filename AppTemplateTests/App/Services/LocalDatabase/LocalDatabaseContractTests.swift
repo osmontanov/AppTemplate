@@ -22,14 +22,53 @@ struct LocalDatabaseContractTests {
     }
 
     @Test
-    func schemaRemainsFrozenAtV1WithoutMigrationStages() {
+    func storeModelsFreezeTheirCompileTimePersistenceAssociations() {
+        requireModelAssociation(
+            FavoriteProductSnapshot.self,
+            id: String.self,
+            query: FavoriteProductQuery.self,
+            adapter: FavoriteProductSnapshotAdapter.self
+        )
+        requireModelAssociation(
+            CartAggregate.self,
+            id: String.self,
+            query: CartAggregateQuery.self,
+            adapter: CartAggregateAdapter.self
+        )
+        requireAdapterAssociation(
+            FavoriteProductSnapshotAdapter.self,
+            value: FavoriteProductSnapshot.self,
+            entity: LocalDatabaseSchemaV2.StoredFavoriteProductSnapshot.self,
+            query: FavoriteProductQuery.self
+        )
+        requireAdapterAssociation(
+            CartAggregateAdapter.self,
+            value: CartAggregate.self,
+            entity: LocalDatabaseSchemaV2.StoredCartAggregate.self,
+            query: CartAggregateQuery.self
+        )
+    }
+
+    @Test
+    func schemaKeepsFrozenV1AndAddsOneExplicitV2MigrationStage() {
         #expect(
             LocalDatabaseSchemaV1.versionIdentifier
                 == Schema.Version(1, 0, 0)
         )
         #expect(LocalDatabaseSchemaV1.models.count == 1)
-        #expect(LocalDatabaseMigrationPlan.schemas.count == 1)
-        #expect(LocalDatabaseMigrationPlan.stages.isEmpty)
+        #expect(
+            LocalDatabaseSchemaV2.versionIdentifier
+                == Schema.Version(2, 0, 0)
+        )
+        #expect(LocalDatabaseSchemaV2.models.count == 3)
+        let schemaIdentifiers = LocalDatabaseMigrationPlan.schemas.map {
+            ObjectIdentifier($0)
+        }
+        #expect(schemaIdentifiers == [
+            ObjectIdentifier(LocalDatabaseSchemaV1.self),
+            ObjectIdentifier(LocalDatabaseSchemaV2.self)
+        ])
+        #expect(LocalDatabaseMigrationPlan.stages.count == 1)
     }
 
     @Test
@@ -45,6 +84,18 @@ struct LocalDatabaseContractTests {
             ).isEmpty
         )
     }
+}
+
+private func requireAdapterAssociation<Adapter: LocalEntityAdapter>(
+    _ adapter: Adapter.Type,
+    value: Adapter.Value.Type,
+    entity: Adapter.Entity.Type,
+    query: Adapter.Query.Type
+) {
+    _ = adapter
+    _ = value
+    _ = entity
+    _ = query
 }
 
 actor GenericNoOpDatabase: ILocalDatabaseService {
