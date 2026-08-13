@@ -752,6 +752,59 @@ struct AppDependenciesTests {
         #expect(dependencies.settings.appInfo.displayName == "Test App")
         #expect(dependencies.settings.appInfo.version == "3.2.1")
     }
+
+    @Test
+    func graphRetainsOneIdentityForEveryStoreRepository() {
+        let dependencies = AppDependencies.preview(
+            settings: SettingsDependencies(
+                appInfo: AppInfoService(displayName: "Preview", version: "1")
+            ),
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: InjectedImageLoader()
+        )
+
+        #expect(dependencies.favorites as AnyObject === dependencies.favorites as AnyObject)
+        #expect(dependencies.cart as AnyObject === dependencies.cart as AnyObject)
+        #expect(dependencies.storePreferences as AnyObject === dependencies.storePreferences as AnyObject)
+    }
+
+    @Test
+    func previewStoreRepositoriesAreGraphLocalAndShareTheirGraphDatabase() async throws {
+        let settings = SettingsDependencies(
+            appInfo: AppInfoService(displayName: "Preview", version: "1")
+        )
+        let first = AppDependencies.preview(
+            settings: settings,
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: InjectedImageLoader()
+        )
+        let second = AppDependencies.preview(
+            settings: settings,
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: InjectedImageLoader()
+        )
+        let product = ProductSnapshot(
+            id: 41,
+            title: "Graph-local",
+            price: 1,
+            thumbnailURL: nil
+        )
+
+        #expect(try await first.favorites.ensureFavorite(product, userID: 7))
+        #expect(try await first.cart.add(product, quantity: 1).revision == 1)
+        try await first.storePreferences.setLayout(.list)
+
+        #expect(try await first.localDatabase.fetch(
+            FavoriteProductSnapshot.self,
+            id: "user:7|product:41"
+        ) != nil)
+        #expect(!(try await second.favorites.contains(userID: 7, productID: 41)))
+        #expect(try await second.cart.cart().revision == 0)
+        #expect(await second.storePreferences.current() == .defaults)
+    }
 }
 
 private func decodedState(from storage: InMemoryAppStateStorage) throws -> AppState {

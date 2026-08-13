@@ -3,6 +3,9 @@ import Foundation
 nonisolated
 struct AppDependencies: Sendable {
     let localDatabase: any ILocalDatabaseService
+    let favorites: any IFavoritesRepository
+    let cart: any ICartRepository
+    let storePreferences: any IStorePreferencesRepository
     let remote: any IRemoteService
     let appStateStorage: any IAppStateStorage
     let legacyAuthentication: LegacyAuthenticationState
@@ -30,10 +33,14 @@ struct AppDependencies: Sendable {
             UserNotificationCenterRuntimeFactory.live
     ) -> AppDependencies {
         let diagnostics = NetworkDiagnosticRecorder()
+        let database = LocalDatabaseService(
+            configuration: .live(locationResolver: localDatabaseStoreLocationResolver)
+        )
         return AppDependencies(
-            localDatabase: LocalDatabaseService(
-                configuration: .live(locationResolver: localDatabaseStoreLocationResolver)
-            ),
+            localDatabase: database,
+            favorites: FavoritesRepository(database: database),
+            cart: CartRepository(database: database),
+            storePreferences: StorePreferencesRepository(userDefaults: userDefaultsService),
             remote: RemoteService(diagnosticRecorder: diagnostics),
             appStateStorage: UserDefaultsAppStateStorage(userDefaults: userDefaultsService),
             legacyAuthentication: LegacyAuthenticationState(),
@@ -111,6 +118,9 @@ struct AppDependencies: Sendable {
         )
         return AppDependencies(
             localDatabase: database,
+            favorites: FavoritesRepository(database: database),
+            cart: CartRepository(database: database),
+            storePreferences: StorePreferencesRepository(userDefaults: InMemoryUserDefaultsService()),
             remote: remote,
             appStateStorage: InMemoryAppStateStorage(initialState: scenario.appState),
             legacyAuthentication: LegacyAuthenticationState(
@@ -148,8 +158,12 @@ struct AppDependencies: Sendable {
         legacyAuthentication: LegacyAuthenticationState = LegacyAuthenticationState(),
         localNotifications: LocalNotificationDependencies? = nil
     ) -> AppDependencies {
-        AppDependencies(
-            localDatabase: LocalDatabaseService(configuration: .inMemory()),
+        let database = LocalDatabaseService(configuration: .inMemory())
+        return AppDependencies(
+            localDatabase: database,
+            favorites: FavoritesRepository(database: database),
+            cart: CartRepository(database: database),
+            storePreferences: StorePreferencesRepository(userDefaults: InMemoryUserDefaultsService()),
             remote: remoteService,
             appStateStorage: InMemoryAppStateStorage(initialState: initialState),
             legacyAuthentication: legacyAuthentication,
@@ -179,11 +193,15 @@ struct AppDependencies: Sendable {
         localDatabaseService: any ILocalDatabaseService = LocalDatabaseService(
             configuration: .inMemory()
         ),
+        storePreferencesService: any IUserDefaultsService = InMemoryUserDefaultsService(),
         keychainService: any IKeychainService = InMemoryKeychainService(),
         localNotifications: LocalNotificationDependencies? = nil
     ) -> AppDependencies {
         AppDependencies(
             localDatabase: localDatabaseService,
+            favorites: FavoritesRepository(database: localDatabaseService),
+            cart: CartRepository(database: localDatabaseService),
+            storePreferences: StorePreferencesRepository(userDefaults: storePreferencesService),
             remote: remoteService,
             appStateStorage: appStateStorage,
             legacyAuthentication: legacyAuthentication,
@@ -207,10 +225,14 @@ struct AppDependencies: Sendable {
         legacyAuthentication: LegacyAuthenticationState = LegacyAuthenticationState(),
         keychainService: any IKeychainService,
         settings: SettingsDependencies,
-        localNotifications: LocalNotificationDependencies
+        localNotifications: LocalNotificationDependencies,
+        storePreferencesService: any IUserDefaultsService = InMemoryUserDefaultsService()
     ) -> AppDependencies {
         AppDependencies(
             localDatabase: localDatabaseService,
+            favorites: FavoritesRepository(database: localDatabaseService),
+            cart: CartRepository(database: localDatabaseService),
+            storePreferences: StorePreferencesRepository(userDefaults: storePreferencesService),
             remote: remoteService,
             appStateStorage: appStateStorage,
             legacyAuthentication: legacyAuthentication,
