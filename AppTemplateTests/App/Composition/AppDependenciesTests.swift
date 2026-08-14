@@ -789,6 +789,8 @@ struct AppDependenciesTests {
         #expect(second.session as AnyObject === session)
         #expect(first.products as AnyObject === dependencies.products as AnyObject)
         #expect(first.products as AnyObject === second.products as AnyObject)
+        #expect(first.favorites as AnyObject === dependencies.favorites as AnyObject)
+        #expect(first.favorites as AnyObject === second.favorites as AnyObject)
         #expect(first.cart as AnyObject === dependencies.cart as AnyObject)
         #expect(first.preferences as AnyObject === dependencies.storePreferences as AnyObject)
         #expect(first.appInfo as AnyObject === dependencies.appInfo as AnyObject)
@@ -851,6 +853,28 @@ struct AppDependenciesTests {
         #expect(!(try await second.favorites.contains(userID: 7, productID: 41)))
         #expect(try await second.cart.cart().revision == 0)
         #expect(await second.storePreferences.current() == .defaults)
+    }
+}
+
+@MainActor
+struct AppDependenciesTask3Tests {
+    @Test
+    func storeFactoryUsesTheExactAppScopedFavoritesActor() {
+        let dependencies = AppDependencies.preview(
+            settings: SettingsDependencies(
+                appInfo: AppInfoService(displayName: "Task 3", version: "1")
+            ),
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: InjectedImageLoader()
+        )
+        let session = CompositionSessionActionsSpy()
+
+        let first = dependencies.makeStoreDependencies(session: session)
+        let second = dependencies.makeStoreDependencies(session: session)
+
+        #expect(first.favorites as AnyObject === dependencies.favorites as AnyObject)
+        #expect(first.favorites as AnyObject === second.favorites as AnyObject)
     }
 }
 

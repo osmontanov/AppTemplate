@@ -5,15 +5,23 @@ struct AppRobot {
     let app: XCUIApplication
 
     static func launchGuestStore() throws -> AppRobot {
+        try launch(scenario: "guest-store")
+    }
+
+    static func launchProtectedFavorite() throws -> AppRobot {
+        try launch(scenario: "protected-favorite")
+    }
+
+    private static func launch(scenario: String) throws -> AppRobot {
         let app = XCUIApplication()
         #if os(macOS)
         app.launchArguments = [
             "-ApplePersistenceIgnoreState", "YES",
-            "--ui-testing", "--ui-test-scenario", "guest-store"
+            "--ui-testing", "--ui-test-scenario", scenario
         ]
         #else
         app.launchArguments = [
-            "--ui-testing", "--ui-test-scenario", "guest-store"
+            "--ui-testing", "--ui-test-scenario", scenario
         ]
         #endif
         app.launch()

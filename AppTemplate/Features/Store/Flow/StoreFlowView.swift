@@ -4,6 +4,7 @@ struct StoreFlowView: View {
     @Bindable var router: StoreRouter
     let dependencies: StoreDependencies
     let uiSupport: StoreUISupport
+    @Environment(ProtectedStoreActionExecutor.self) private var protectedActions
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
@@ -26,7 +27,7 @@ struct StoreFlowView: View {
                     Menu("More", systemImage: "ellipsis.circle") {
                         Button("Profile") { router.push(.profile) }
                         Button("Cart") { router.push(.cart) }
-                        Button("Favorites") { router.push(.favorites) }
+                        Button("Favorites") { requestProtected(.openFavorites) }
                     }
                 }
             }
@@ -57,6 +58,16 @@ struct StoreFlowView: View {
                 "Reminder for product \(productID)",
                 systemImage: "bell"
             )
+        case let .sessionRecovery(reason):
+            SessionRecoveryView(
+                reason: reason,
+                session: dependencies.session,
+                onResolved: {
+                    if case .sessionRecovery = router.presentation {
+                        router.presentation = nil
+                    }
+                }
+            )
         }
     }
 
@@ -71,21 +82,58 @@ struct StoreFlowView: View {
                 cart: dependencies.cart,
                 images: uiSupport.images
             )
+            .toolbar {
+                ToolbarItem {
+                    Button("Favorite", systemImage: "heart") {
+                        Task {
+                            await protectedActions.activateHeart(
+                                productID: id,
+                                session: dependencies.session.presentation.state
+                            )
+                        }
+                    }
+                    .accessibilityIdentifier("action.store.favorite")
+                }
+            }
         case let .reviews(id):
             ReviewsView(productID: id, products: dependencies.products)
         case .favorites:
-            ContentUnavailableView(
-                "Favorites require sign in",
-                systemImage: "heart"
-            )
-            .navigationTitle("Favorites")
+            if case let .authenticated(profile, _) = dependencies.session.presentation.state {
+                FavoritesView(
+                    router: router,
+                    repository: dependencies.favorites,
+                    userID: profile.id
+                )
+            } else {
+                ContentUnavailableView("Favorites require sign in", systemImage: "heart")
+            }
         case .cart:
             CartView(repository: dependencies.cart)
         case .profile:
             ProfileView(
+                router: router,
+                session: dependencies.session,
                 appInfo: dependencies.appInfo,
                 preferences: dependencies.preferences
             )
+        }
+    }
+
+    private func requestProtected(_ action: ProtectedStoreAction) {
+        let state = dependencies.session.presentation.state
+        switch router.requestProtected(action, session: state) {
+        case let .execute(action):
+            guard case let .authenticated(profile, _) = state else { return }
+            Task {
+                await protectedActions.execute(
+                    action,
+                    expectedUserID: profile.id
+                )
+            }
+        case .presentAuthentication:
+            break
+        case let .blocked(reason):
+            router.presentation = .sessionRecovery(reason)
         }
     }
 

@@ -81,9 +81,114 @@ nonisolated extension UITestPreferencesSeed {
 
 nonisolated extension UITestScenario {
     func preparedForLaunch() -> UITestScenario {
-        guard id == .guestStore else { return self }
-        return GuestStoreUITestFixture.scenario
+        switch id {
+        case .guestStore:
+            GuestStoreUITestFixture.scenario
+        case .protectedFavorite:
+            ProtectedFavoriteUITestFixture.scenario
+        case .productReminder, .servicesBasic, .accessibilitySmoke:
+            self
+        }
     }
+}
+
+private nonisolated enum ProtectedFavoriteUITestFixture {
+    static var scenario: UITestScenario {
+        UITestScenario(
+            id: .protectedFavorite,
+            appState: AppState(
+                hasCompletedOnboarding: true,
+                isMaintenanceEnabled: false
+            ),
+            sessionSeed: UITestSessionSeed(keychainData: nil),
+            localDatabaseSeed: UITestLocalDatabaseSeed(
+                examples: [],
+                favorites: [],
+                cart: CartAggregate(
+                    id: CartAggregate.singletonID,
+                    revision: 0,
+                    lines: []
+                )
+            ),
+            preferencesSeed: UITestPreferencesSeed(encodedValues: [
+                "Store.CatalogLayout": Data(#""list""#.utf8),
+                "Store.CatalogSort": Data(#""featured""#.utf8),
+                "Store.RemotePageSize": Data("10".utf8)
+            ]),
+            notificationSeed: UITestNotificationSeed(
+                authorizationStatus: .notDetermined,
+                pendingRequests: []
+            ),
+            imageSeed: UITestImageSeed(steps: []),
+            networkPolicy: .failClosed,
+            remoteSteps: [
+                jsonStep(
+                    path: "/products/categories",
+                    body: #"[{"slug":"phones","name":"Phones","url":"https://dummyjson.com/products/category/phones"}]"#
+                ),
+                jsonStep(
+                    path: "/products",
+                    queryItems: pageQuery,
+                    body: pageJSON
+                ),
+                jsonStep(path: "/products/1", body: productJSON),
+                jsonStep(
+                    path: "/products/category/phones",
+                    queryItems: relatedQuery,
+                    body: pageJSON
+                ),
+                jsonStep(
+                    method: .post,
+                    path: "/auth/login",
+                    shouldHandleCookies: false,
+                    bodyExpectation: .json(Data(
+                        #"{"username":"emilys","password":"emilyspass","expiresInMins":30}"#.utf8
+                    )),
+                    body: loginJSON
+                ),
+                jsonStep(path: "/products/1", body: productJSON)
+            ]
+        )
+    }
+
+    private static func jsonStep(
+        method: HTTPMethod = .get,
+        path: String,
+        queryItems: [URLQueryItem] = [],
+        shouldHandleCookies: Bool? = true,
+        bodyExpectation: ScriptedBodyExpectation = .none,
+        body: String
+    ) -> ScriptedNetworkStep {
+        ScriptedNetworkStep(
+            origin: RemoteService.defaultDummyJSONBaseURL,
+            method: method,
+            path: path,
+            queryItems: queryItems,
+            headers: [:],
+            shouldHandleCookies: shouldHandleCookies,
+            body: bodyExpectation,
+            result: .response(
+                statusCode: 200,
+                headers: ["Content-Type": "application/json"],
+                body: Data(body.utf8)
+            )
+        )
+    }
+
+    private static let pageQuery = [
+        URLQueryItem(name: "limit", value: "10"),
+        URLQueryItem(name: "skip", value: "0")
+    ]
+    private static let relatedQuery = [
+        URLQueryItem(name: "limit", value: "26"),
+        URLQueryItem(name: "skip", value: "0")
+    ]
+    private static let productJSON =
+        #"{"id":1,"title":"Protected Phone","description":"Favorite after login","category":"phones","price":49,"rating":4.5,"stock":5,"brand":"Demo","availabilityStatus":"In Stock","reviews":[],"images":[],"thumbnail":null}"#
+    private static let pageJSON =
+        #"{"products":["# + productJSON + #"],"total":1,"skip":0,"limit":10}"#
+    private static let loginJSON =
+        #"{"id":1,"username":"emilys","firstName":"Emily","lastName":"Johnson","email":"emily@example.com","image":null,"accessToken":"access","refreshToken":"refresh"}"#
 }
 
 private nonisolated enum GuestStoreUITestFixture {

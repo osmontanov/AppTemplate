@@ -220,6 +220,58 @@ struct AppLaunchConfigurationTests {
         #expect(try await dependencies.cart.cart().lines.isEmpty)
     }
 
+    @MainActor
+    @Test
+    func protectedFavoriteLaunchProvidesOrderedAuthProductAndFavoriteJourney() async throws {
+        let configuration = AppLaunchConfiguration(arguments: [
+            "AppTemplate", "--ui-testing", "--ui-test-scenario", "protected-favorite"
+        ])
+        let scenario = try #require({
+            if case let .uiTesting(value) = configuration { return value }
+            return nil
+        }())
+
+        #expect(scenario.networkPolicy == .failClosed)
+        #expect(scenario.sessionSeed.keychainData == nil)
+        #expect(scenario.localDatabaseSeed.favorites.isEmpty)
+        #expect(scenario.localDatabaseSeed.cart?.lines.isEmpty == true)
+        #expect(scenario.imageSeed.steps.isEmpty)
+        #expect(scenario.remoteSteps.count == 6)
+
+        let dependencies = AppDependencies.uiTesting(scenario: scenario)
+        try await dependencies.bootstrap()
+        #expect(try await dependencies.remote.categories().map(\.slug) == ["phones"])
+        #expect(
+            try await dependencies.remote.products(ProductPageRequest(
+                mode: .all,
+                sort: nil,
+                limit: 10,
+                skip: 0
+            )).products.map(\.id) == [1]
+        )
+        #expect(try await dependencies.remote.product(id: 1).id == 1)
+        #expect(
+            try await dependencies.remote.products(ProductPageRequest(
+                mode: .category("phones"),
+                sort: nil,
+                limit: 26,
+                skip: 0
+            )).products.map(\.id) == [1]
+        )
+        #expect(
+            try await dependencies.remote.login(LoginRequestDTO(
+                username: "emilys",
+                password: "emilyspass",
+                expiresInMins: 30
+            )).id == 1
+        )
+        #expect(try await dependencies.remote.product(id: 1).id == 1)
+
+        let tracker = try #require(dependencies.uiTestScriptTracker)
+        var iterator = await tracker.updates().makeAsyncIterator()
+        #expect(await iterator.next() == .exhausted)
+    }
+
     private func guestStoreLaunchScenario() throws -> UITestScenario {
         let configuration = AppLaunchConfiguration(arguments: [
             "AppTemplate", "--ui-testing", "--ui-test-scenario", "guest-store"

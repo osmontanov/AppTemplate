@@ -29,7 +29,14 @@ final class AppRouter {
     }
 
     func handle(_ intent: NavigationIntent) -> NavigationOutcome {
-        return apply(intent)
+        apply(intent, session: nil)
+    }
+
+    func handle(
+        _ intent: NavigationIntent,
+        session: SessionState
+    ) -> NavigationOutcome {
+        apply(intent, session: session)
     }
 
     func reconcile(
@@ -46,7 +53,10 @@ final class AppRouter {
         }
     }
 
-    private func apply(_ intent: NavigationIntent) -> NavigationOutcome {
+    private func apply(
+        _ intent: NavigationIntent,
+        session: SessionState?
+    ) -> NavigationOutcome {
         switch intent {
         case .openStoreRoot: openDefaultDestination(for: .store)
         case let .openProduct(id):
@@ -54,7 +64,15 @@ final class AppRouter {
             store.replace(with: .product(id))
         case .openFavorites:
             selectedSection = .store
-            store.replace(with: .favorites)
+            guard let session else { return .deferred }
+            switch store.requestProtected(.openFavorites, session: session) {
+            case .execute:
+                store.replace(with: .favorites)
+            case .presentAuthentication:
+                break
+            case let .blocked(reason):
+                store.presentation = .sessionRecovery(reason)
+            }
         case .openProfile:
             selectedSection = .store
             store.replace(with: .profile)

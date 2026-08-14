@@ -24,6 +24,7 @@ final class AppSceneNavigationLifecycle: ISceneNavigationActions {
     private var lastAppliedTransitionID: UUID?
     private var deferredIntent: NavigationIntent?
     private var deepLinkFailure: DeepLinkFailurePresentation?
+    private var latestSessionState: SessionState?
 
     init(appFlowRouter: AppFlowRouter) {
         router = AppRouter(appFlowRouter: appFlowRouter)
@@ -98,6 +99,7 @@ final class AppSceneNavigationLifecycle: ISceneNavigationActions {
             presentation.revision > $0
         } ?? true
         let action = router.reconcile(presentation)
+        latestSessionState = presentation.state
         guard isNewerRevision,
               presentation.state != .restoring else {
             return action
@@ -166,7 +168,11 @@ final class AppSceneNavigationLifecycle: ISceneNavigationActions {
     }
 
     private func applyIntent(_ intent: NavigationIntent) {
-        _ = router.handle(intent)
+        guard let latestSessionState else {
+            deferredIntent = intent
+            return
+        }
+        _ = router.handle(intent, session: latestSessionState)
     }
 
     private func takeDeferredIntent() -> NavigationIntent? {

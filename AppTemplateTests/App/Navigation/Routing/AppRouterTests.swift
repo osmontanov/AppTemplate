@@ -38,7 +38,6 @@ struct AppRouterTests {
 
     @Test(arguments: [
         (NavigationIntent.openProduct(12), AppSection.store, [StoreRoute.product(12)], []),
-        (.openFavorites, .store, [.favorites], []),
         (.openProfile, .store, [.profile], []),
         (.openService(.appState), .services, [], [ServicesRoute.appState]),
         (.openService(.localNotifications), .services, [], [.localNotifications])
@@ -62,6 +61,36 @@ struct AppRouterTests {
             #expect(router.store.path == [.cart, .profile])
             #expect(router.services.path == expectedServicesPath)
         }
+    }
+
+    @Test
+    func favoritesIntentIsProtectedWhileProfileRemainsPublic() {
+        let router = makeRouter(selectedSection: .services)
+        router.store.path = [.product(4)]
+
+        #expect(router.handle(.openFavorites, session: .guest) == .applied)
+        #expect(router.selectedSection == .store)
+        #expect(router.store.path == [.product(4)])
+        #expect(router.store.pendingProtectedAction == .openFavorites)
+        #expect(router.store.presentation == .authentication)
+
+        router.store.cancelAuthentication()
+        #expect(router.handle(.openProfile, session: .guest) == .applied)
+        #expect(router.store.path == [.profile])
+    }
+
+    @Test
+    func blockedFavoritesIntentPresentsSafeRecoveryWithoutReplacingPath() {
+        let router = makeRouter()
+        router.store.path = [.profile, .product(4)]
+
+        _ = router.handle(
+            .openFavorites,
+            session: .unavailable(.secureStorageCleanupFailed)
+        )
+
+        #expect(router.store.path == [.profile, .product(4)])
+        #expect(router.store.presentation == .sessionRecovery(.secureStorageCleanupFailed))
     }
 
     @Test

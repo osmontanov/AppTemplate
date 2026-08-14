@@ -51,6 +51,32 @@ struct AppSceneNavigationLifecycleTests {
     }
 
     @Test
+    func protectedFavoritesLinkQueuesAfterGuestReadinessWithoutPersistingRoute() throws {
+        let lifecycle = AppSceneNavigationLifecycle(router: makeRouter())
+        _ = lifecycle.receive(try #require(URL(string: "apptemplate://store/favorites")))
+        _ = lifecycle.restore(from: nil)
+
+        _ = lifecycle.reconcile(.init(state: .guest, revision: 1))
+
+        #expect(lifecycle.presentation().storePath.isEmpty)
+        #expect(lifecycle.presentation().hasPendingProtectedAction)
+        #expect(lifecycle.router.store.presentation == .authentication)
+        #expect(lifecycle.snapshot.storePath.isEmpty)
+    }
+
+    @Test
+    func publicProfileLinkAppliesForGuest() throws {
+        let lifecycle = AppSceneNavigationLifecycle(router: makeRouter())
+        _ = lifecycle.receive(try #require(URL(string: "apptemplate://store/profile")))
+        _ = lifecycle.restore(from: nil)
+
+        _ = lifecycle.reconcile(.init(state: .guest, revision: 1))
+
+        #expect(lifecycle.presentation().storePath == [.profile])
+        #expect(!lifecycle.presentation().hasPendingProtectedAction)
+    }
+
+    @Test
     func invalidLinkHasZeroRouteOrDeferredMutation() throws {
         let lifecycle = AppSceneNavigationLifecycle(
             router: makeRouter(selectedSection: .services)

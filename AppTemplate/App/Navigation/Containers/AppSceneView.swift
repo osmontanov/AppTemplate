@@ -11,6 +11,7 @@ struct AppSceneView: View {
         AppSceneNavigationPersistencePolicy
 
     @State private var lifecycle: AppSceneNavigationLifecycle
+    @State private var protectedStoreActionExecutor: ProtectedStoreActionExecutor
     @State private var onboardingRouter: FlowRouter
     @State private var maintenanceRouter: FlowRouter
     @State private var localNotificationRegistration:
@@ -40,11 +41,16 @@ struct AppSceneView: View {
         self.storeDependencies = storeDependencies
         self.storeUISupport = storeUISupport
         self.navigationPersistencePolicy = navigationPersistencePolicy
-        _lifecycle = State(
-            initialValue: AppSceneNavigationLifecycle(
-                appFlowRouter: appFlowCoordinator.appFlowRouter
-            )
+        let sceneStoreRouter = AppSceneNavigationLifecycle(
+            appFlowRouter: appFlowCoordinator.appFlowRouter
         )
+        _lifecycle = State(initialValue: sceneStoreRouter)
+        _protectedStoreActionExecutor = State(initialValue: ProtectedStoreActionExecutor(
+            router: sceneStoreRouter.router.store,
+            products: storeDependencies.products,
+            favorites: storeDependencies.favorites,
+            session: storeDependencies.session
+        ))
         _onboardingRouter = State(
             initialValue: FlowRouter(appFlowCoordinator: appFlowCoordinator)
         )
@@ -68,6 +74,7 @@ struct AppSceneView: View {
             storeDependencies: storeDependencies,
             storeUISupport: storeUISupport
         )
+            .environment(protectedStoreActionExecutor)
             .task {
                 let restorationData = navigationPersistencePolicy.restorationData(
                     from: encodedSnapshot
@@ -76,7 +83,8 @@ struct AppSceneView: View {
                     from: restorationData,
                     applying: appFlowRouter.transition
                 ) != nil
-                _ = lifecycle.reconcile(session)
+                protectedStoreActionExecutor.sessionDidChange(session)
+                execute(lifecycle.reconcile(session), presentation: session)
                 localNotificationRegistration.setNavigationReady(
                     lifecycle.isNavigationReady
                 )
@@ -86,7 +94,11 @@ struct AppSceneView: View {
             }
             .onChange(of: session) { _, presentation in
                 guard lifecycle.hasRestored else { return }
-                _ = lifecycle.reconcile(presentation)
+                protectedStoreActionExecutor.sessionDidChange(presentation)
+                execute(
+                    lifecycle.reconcile(presentation),
+                    presentation: presentation
+                )
                 localNotificationRegistration.setNavigationReady(
                     lifecycle.isNavigationReady
                 )
@@ -174,6 +186,22 @@ struct AppSceneView: View {
         } catch {
             Logger.navigation.error(
                 "Failed to encode navigation snapshot: \(String(describing: error), privacy: .public)"
+            )
+        }
+    }
+
+    private func execute(
+        _ action: ProtectedStoreAction?,
+        presentation: SessionPresentation
+    ) {
+        guard let action,
+              case let .authenticated(profile, _) = presentation.state else {
+            return
+        }
+        Task {
+            await protectedStoreActionExecutor.execute(
+                action,
+                expectedUserID: profile.id
             )
         }
     }

@@ -325,6 +325,7 @@ struct AppDependencies: Sendable {
         StoreDependencies(
             products: products,
             session: session,
+            favorites: favorites,
             cart: cart,
             preferences: storePreferences,
             appInfo: appInfo
