@@ -351,6 +351,22 @@ struct AppDependencies: Sendable {
             appInfo: appInfo
         )
     }
+
+    @MainActor
+    func makeServicesDependencies(
+        appState: any IAppStateInspecting,
+        appFlowCoordinator: any IAppFlowCoordinator,
+        sessionActions: any ISessionActions,
+        appStateStatus: ServicesAppStateStatus
+    ) -> ServicesDependencies {
+        ServicesDependencies(
+            appState: appState,
+            appFlowCoordinator: appFlowCoordinator,
+            appStateStatus: appStateStatus,
+            sessionActions: sessionActions,
+            appInfo: appInfo
+        )
+    }
 }
 
 nonisolated

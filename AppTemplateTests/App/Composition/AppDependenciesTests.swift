@@ -878,6 +878,59 @@ struct AppDependenciesTests {
         #expect(try await second.cart.cart().revision == 0)
         #expect(await second.storePreferences.current() == .defaults)
     }
+
+}
+
+@MainActor
+struct ServicesDependenciesCompositionTests {
+    @Test
+    func factoryPackagesExactOwnersWithoutEagerWorkAndSharesAppInfoCalls() {
+        let appInfo = CountingAppInfoService(
+            displayName: "Shared App",
+            version: "8.4"
+        )
+        let dependencies = AppDependencies.preview(
+            settings: SettingsDependencies(appInfo: appInfo),
+            remoteService: InjectedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: InjectedImageLoader()
+        )
+        let store = AppStateStore(storage: InMemoryAppStateStorage())
+        let router = AppFlowRouter(flow: .main)
+        let inspector = CountingAppStateInspector(
+            base: AppStateInspector(store: store, router: router)
+        )
+        let coordinator = AppFlowCoordinatorSpy()
+        let session = CompositionSessionActionsSpy()
+        let status = ServicesAppStateStatus()
+
+        let services = dependencies.makeServicesDependencies(
+            appState: inspector,
+            appFlowCoordinator: coordinator,
+            sessionActions: session,
+            appStateStatus: status
+        )
+
+        #expect(inspector.readCount == 0)
+        #expect(session.statusReadCount == 0)
+        #expect(coordinator.commands.isEmpty)
+        #expect(services.appState as AnyObject === inspector)
+        #expect(services.appFlowCoordinator as AnyObject === coordinator)
+        #expect(services.sessionActions as AnyObject === session)
+        #expect(services.appStateStatus === status)
+
+        let storeSlice = dependencies.makeStoreDependencies(session: session)
+        let servicesModel = ServicesAppInfoViewModel(
+            appInfo: services.appInfo,
+            platformName: "Tests"
+        )
+        #expect(storeSlice.appInfo.displayName == "Shared App")
+        #expect(dependencies.settings.appInfo.version == "8.4")
+        #expect(servicesModel.displayName == "Shared App")
+        #expect(servicesModel.version == "8.4")
+        #expect(appInfo.displayNameReads == 2)
+        #expect(appInfo.versionReads == 2)
+    }
 }
 
 @MainActor
@@ -936,10 +989,15 @@ private func expectUnregisteredTestModel(
 
 @MainActor
 private final class CompositionSessionActionsSpy: ISessionActions {
-    private(set) var status = SessionStatusPresentation(
+    private var storedStatus = SessionStatusPresentation(
         session: SessionPresentation(state: .guest, revision: 1),
         expiry: nil
     )
+    private(set) var statusReadCount = 0
+    var status: SessionStatusPresentation {
+        statusReadCount += 1
+        return storedStatus
+    }
     var presentation: SessionPresentation { status.session }
     private(set) var loginCalls = 0
 
@@ -963,6 +1021,60 @@ private final class CompositionSessionActionsSpy: ISessionActions {
     func validateSession() async -> SessionValidationResult { .unchanged }
     func refreshSession() async -> SessionValidationResult { .unchanged }
     func signOut() async -> SessionSignOutResult { .cancelled }
+}
+
+@MainActor
+private final class CountingAppStateInspector: IAppStateInspecting {
+    private let base: any IAppStateInspecting
+    private(set) var readCount = 0
+
+    init(base: any IAppStateInspecting) {
+        self.base = base
+    }
+
+    var inspection: AppStateInspection {
+        readCount += 1
+        return base.inspection
+    }
+}
+
+nonisolated
+private final class CountingAppInfoService:
+    IAppInfoService,
+    @unchecked Sendable
+{
+    private let lock = NSLock()
+    private let storedDisplayName: String
+    private let storedVersion: String
+    private var displayNameReadCount = 0
+    private var versionReadCount = 0
+
+    init(displayName: String, version: String) {
+        storedDisplayName = displayName
+        storedVersion = version
+    }
+
+    var displayName: String {
+        lock.withLock {
+            displayNameReadCount += 1
+            return storedDisplayName
+        }
+    }
+
+    var version: String {
+        lock.withLock {
+            versionReadCount += 1
+            return storedVersion
+        }
+    }
+
+    var displayNameReads: Int {
+        lock.withLock { displayNameReadCount }
+    }
+
+    var versionReads: Int {
+        lock.withLock { versionReadCount }
+    }
 }
 
 private actor InjectedLocalDatabaseService: ILocalDatabaseService {

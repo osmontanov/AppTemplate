@@ -6,6 +6,8 @@ struct MacSidebarAppShellView: View {
     let session: SessionPresentation
     let storeDependencies: StoreDependencies
     let storeUISupport: StoreUISupport
+    let servicesDependencies: ServicesDependencies
+    let sceneNavigation: any ISceneNavigationActions
 
     var body: some View {
         NavigationSplitView {
@@ -24,7 +26,9 @@ struct MacSidebarAppShellView: View {
                 servicesRouter: router.services,
                 session: session,
                 storeDependencies: storeDependencies,
-                storeUISupport: storeUISupport
+                storeUISupport: storeUISupport,
+                servicesDependencies: servicesDependencies,
+                sceneNavigation: sceneNavigation
             )
         }
     }

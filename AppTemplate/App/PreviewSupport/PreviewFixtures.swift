@@ -8,14 +8,22 @@ enum PreviewFixtures {
     ) -> ContentView {
         let dependencies = failClosedDependencies()
         let session = PreviewSessionActions()
+        let graph = appFlowGraph(
+            state: state,
+            isLocalSessionBootstrapResolved: isLocalSessionBootstrapResolved
+        )
+        let servicesDependencies = dependencies.makeServicesDependencies(
+            appState: graph.inspector,
+            appFlowCoordinator: graph.coordinator,
+            sessionActions: session,
+            appStateStatus: ServicesAppStateStatus()
+        )
         return ContentView(
-            appFlowCoordinator: appFlowCoordinator(
-                state: state,
-                isLocalSessionBootstrapResolved: isLocalSessionBootstrapResolved
-            ),
+            appFlowCoordinator: graph.coordinator,
             session: session.presentation,
             storeDependencies: dependencies.makeStoreDependencies(session: session),
-            storeUISupport: dependencies.storeUISupport
+            storeUISupport: dependencies.storeUISupport,
+            servicesDependencies: servicesDependencies
         )
     }
 
@@ -117,6 +125,16 @@ enum PreviewFixtures {
         state: AppState,
         isLocalSessionBootstrapResolved: Bool = false
     ) -> AppFlowCoordinator {
+        appFlowGraph(
+            state: state,
+            isLocalSessionBootstrapResolved: isLocalSessionBootstrapResolved
+        ).coordinator
+    }
+
+    private static func appFlowGraph(
+        state: AppState,
+        isLocalSessionBootstrapResolved: Bool
+    ) -> (coordinator: AppFlowCoordinator, inspector: AppStateInspector) {
         let storage = InMemoryAppStateStorage(initialState: state)
         let store = AppStateStore(storage: storage)
         let appFlowRouter = AppFlowRouter(
@@ -125,10 +143,14 @@ enum PreviewFixtures {
                 isLocalSessionBootstrapResolved: isLocalSessionBootstrapResolved
             )
         )
-        return AppFlowCoordinator(
+        let coordinator = AppFlowCoordinator(
             store: store,
             appFlowRouter: appFlowRouter,
             isLocalSessionBootstrapResolved: isLocalSessionBootstrapResolved
+        )
+        return (
+            coordinator,
+            AppStateInspector(store: store, router: appFlowRouter)
         )
     }
 

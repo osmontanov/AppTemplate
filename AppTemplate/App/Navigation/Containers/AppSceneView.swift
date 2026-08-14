@@ -7,6 +7,7 @@ struct AppSceneView: View {
     let localNotifications: LocalNotificationDependencies
     let storeDependencies: StoreDependencies
     let storeUISupport: StoreUISupport
+    let servicesDependencies: ServicesDependencies
     private let navigationPersistencePolicy:
         AppSceneNavigationPersistencePolicy
 
@@ -33,6 +34,7 @@ struct AppSceneView: View {
         localNotifications: LocalNotificationDependencies,
         storeDependencies: StoreDependencies,
         storeUISupport: StoreUISupport,
+        servicesDependencies: ServicesDependencies,
         navigationPersistencePolicy:
             AppSceneNavigationPersistencePolicy = .restored
     ) {
@@ -41,6 +43,7 @@ struct AppSceneView: View {
         self.localNotifications = localNotifications
         self.storeDependencies = storeDependencies
         self.storeUISupport = storeUISupport
+        self.servicesDependencies = servicesDependencies
         self.navigationPersistencePolicy = navigationPersistencePolicy
         let sceneStoreRouter = AppSceneNavigationLifecycle(
             appFlowRouter: appFlowCoordinator.appFlowRouter
@@ -80,7 +83,9 @@ struct AppSceneView: View {
             maintenanceRouter: maintenanceRouter,
             session: session,
             storeDependencies: storeDependencies,
-            storeUISupport: storeUISupport
+            storeUISupport: storeUISupport,
+            servicesDependencies: servicesDependencies,
+            sceneNavigation: lifecycle
         )
             .environment(protectedStoreActionExecutor)
             .task {

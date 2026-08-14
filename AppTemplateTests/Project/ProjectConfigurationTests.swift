@@ -57,19 +57,32 @@ struct ProjectConfigurationTests {
         let projectSession = ProjectSessionActions()
         let storeDependencies = dependencies.makeStoreDependencies(session: projectSession)
         let storeUISupport = dependencies.storeUISupport
+        let appStateInspector = AppStateInspector(
+            store: AppStateStore(storage: InMemoryAppStateStorage()),
+            router: appFlowRouter
+        )
+        let servicesDependencies = dependencies.makeServicesDependencies(
+            appState: appStateInspector,
+            appFlowCoordinator: appFlowCoordinator,
+            sessionActions: projectSession,
+            appStateStatus: ServicesAppStateStatus()
+        )
+        let sceneNavigation = AppSceneNavigationLifecycle(router: router)
 
         _ = ContentView(
             appFlowCoordinator: appFlowCoordinator,
             session: session,
             storeDependencies: storeDependencies,
-            storeUISupport: storeUISupport
+            storeUISupport: storeUISupport,
+            servicesDependencies: servicesDependencies
         )
         _ = AppSceneView(
             appFlowCoordinator: appFlowCoordinator,
             session: session,
             localNotifications: dependencies.localNotifications,
             storeDependencies: storeDependencies,
-            storeUISupport: storeUISupport
+            storeUISupport: storeUISupport,
+            servicesDependencies: servicesDependencies
         )
         _ = AppRootView(
             appFlowRouter: appFlowRouter,
@@ -78,20 +91,57 @@ struct ProjectConfigurationTests {
             maintenanceRouter: maintenanceRouter,
             session: session,
             storeDependencies: storeDependencies,
-            storeUISupport: storeUISupport
+            storeUISupport: storeUISupport,
+            servicesDependencies: servicesDependencies,
+            sceneNavigation: sceneNavigation
         )
         _ = AppShellView(
             router: router,
             session: session,
             storeDependencies: storeDependencies,
-            storeUISupport: storeUISupport
+            storeUISupport: storeUISupport,
+            servicesDependencies: servicesDependencies,
+            sceneNavigation: sceneNavigation
         )
+        _ = AppSectionContentView(
+            section: .services,
+            storeRouter: router.store,
+            servicesRouter: router.services,
+            session: session,
+            storeDependencies: storeDependencies,
+            storeUISupport: storeUISupport,
+            servicesDependencies: servicesDependencies,
+            sceneNavigation: sceneNavigation
+        )
+        #if os(macOS)
+        _ = MacSidebarAppShellView(
+            router: router,
+            session: session,
+            storeDependencies: storeDependencies,
+            storeUISupport: storeUISupport,
+            servicesDependencies: servicesDependencies,
+            sceneNavigation: sceneNavigation
+        )
+        #else
+        _ = AdaptiveTabAppShellView(
+            router: router,
+            session: session,
+            storeDependencies: storeDependencies,
+            storeUISupport: storeUISupport,
+            servicesDependencies: servicesDependencies,
+            sceneNavigation: sceneNavigation
+        )
+        #endif
         _ = StoreFlowView(
             router: router.store,
             dependencies: storeDependencies,
             uiSupport: storeUISupport
         )
-        _ = ServicesFlowView(router: router.services, session: session)
+        _ = ServicesFlowView(
+            router: router.services,
+            dependencies: servicesDependencies,
+            sceneNavigation: sceneNavigation
+        )
         let authenticationDependencies = AuthenticationDependencies(
             session: projectSession,
             cancellation: ProjectAuthenticationCancellation()

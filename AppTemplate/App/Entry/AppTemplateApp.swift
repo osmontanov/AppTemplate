@@ -13,6 +13,9 @@ struct AppTemplateApp: App {
     private let dependencies: AppDependencies?
     private let storeDependencies: StoreDependencies?
     private let storeUISupport: StoreUISupport?
+    private let servicesDependencies: ServicesDependencies?
+    private let appStateInspector: AppStateInspector?
+    private let servicesAppStateStatus: ServicesAppStateStatus?
     private let sceneNavigationPersistencePolicy: AppSceneNavigationPersistencePolicy
     @State private var appFlowCoordinator: AppFlowCoordinator?
     @State private var sessionController: SessionController?
@@ -42,12 +45,13 @@ struct AppTemplateApp: App {
                     isLocalSessionBootstrapResolved: false
                 )
             )
+            let appFlowCoordinator = AppFlowCoordinator(
+                store: store,
+                appFlowRouter: router,
+                isLocalSessionBootstrapResolved: false
+            )
             _appFlowCoordinator = State(
-                initialValue: AppFlowCoordinator(
-                    store: store,
-                    appFlowRouter: router,
-                    isLocalSessionBootstrapResolved: false
-                )
+                initialValue: appFlowCoordinator
             )
             let sessionController = SessionController(
                 repository: resolved.sessionRepository,
@@ -55,10 +59,23 @@ struct AppTemplateApp: App {
                 startupValidationPolicy: resolved.sessionStartupValidationPolicy,
                 refreshSchedulePolicy: resolved.sessionRefreshSchedulePolicy
             )
+            let inspector = AppStateInspector(store: store, router: router)
+            let status = ServicesAppStateStatus()
             storeDependencies = resolved.makeStoreDependencies(session: sessionController)
+            servicesDependencies = resolved.makeServicesDependencies(
+                appState: inspector,
+                appFlowCoordinator: appFlowCoordinator,
+                sessionActions: sessionController,
+                appStateStatus: status
+            )
+            appStateInspector = inspector
+            servicesAppStateStatus = status
             _sessionController = State(initialValue: sessionController)
         } else {
             storeDependencies = nil
+            servicesDependencies = nil
+            appStateInspector = nil
+            servicesAppStateStatus = nil
             _appFlowCoordinator = State(initialValue: nil)
             _sessionController = State(initialValue: nil)
         }
@@ -69,12 +86,14 @@ struct AppTemplateApp: App {
             if let dependencies,
                let storeDependencies,
                let storeUISupport,
+               let servicesDependencies,
                let appFlowCoordinator,
                let sessionController {
                 ConfiguredAppRootView(
                     dependencies: dependencies,
                     storeDependencies: storeDependencies,
                     storeUISupport: storeUISupport,
+                    servicesDependencies: servicesDependencies,
                     appFlowCoordinator: appFlowCoordinator,
                     sessionController: sessionController,
                     navigationPersistencePolicy: sceneNavigationPersistencePolicy
@@ -103,6 +122,7 @@ private struct ConfiguredAppRootView: View {
     let dependencies: AppDependencies
     let storeDependencies: StoreDependencies
     let storeUISupport: StoreUISupport
+    let servicesDependencies: ServicesDependencies
     let appFlowCoordinator: AppFlowCoordinator
     let sessionController: SessionController
     let navigationPersistencePolicy: AppSceneNavigationPersistencePolicy
@@ -115,6 +135,7 @@ private struct ConfiguredAppRootView: View {
         dependencies: AppDependencies,
         storeDependencies: StoreDependencies,
         storeUISupport: StoreUISupport,
+        servicesDependencies: ServicesDependencies,
         appFlowCoordinator: AppFlowCoordinator,
         sessionController: SessionController,
         navigationPersistencePolicy: AppSceneNavigationPersistencePolicy
@@ -122,6 +143,7 @@ private struct ConfiguredAppRootView: View {
         self.dependencies = dependencies
         self.storeDependencies = storeDependencies
         self.storeUISupport = storeUISupport
+        self.servicesDependencies = servicesDependencies
         self.appFlowCoordinator = appFlowCoordinator
         self.sessionController = sessionController
         self.navigationPersistencePolicy = navigationPersistencePolicy
@@ -140,6 +162,7 @@ private struct ConfiguredAppRootView: View {
                     localNotifications: dependencies.localNotifications,
                     storeDependencies: storeDependencies,
                     storeUISupport: storeUISupport,
+                    servicesDependencies: servicesDependencies,
                     navigationPersistencePolicy: navigationPersistencePolicy
                 )
             } else {

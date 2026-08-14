@@ -2,7 +2,8 @@ import SwiftUI
 
 struct ServicesFlowView: View {
     @Bindable var router: ServicesRouter
-    let session: SessionPresentation
+    let dependencies: ServicesDependencies
+    let sceneNavigation: any ISceneNavigationActions
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
@@ -10,30 +11,46 @@ struct ServicesFlowView: View {
             path: $router.path,
             layout: AdaptiveFlowLayoutPolicy.resolve(horizontalSizeClass: horizontalSizeClass, isMacOS: isMacOS)
         ) {
-            List(services, id: \.route) { item in
-                NavigationLink(item.title, value: item.route)
-            }
-            .navigationTitle("Services")
-            .accessibilityIdentifier("screen.services.root")
+            ServicesCatalogView()
         } placeholder: {
             ContentUnavailableView("Select a Service", systemImage: "wrench.and.screwdriver")
         } destination: { route in
-            ContentUnavailableView(title(for: route), systemImage: "wrench.and.screwdriver")
-                .navigationTitle(title(for: route))
+            destination(for: route)
         }
     }
 
-    private var services: [(route: ServicesRoute, title: String)] {
-        [
-            (.appState, "App State"), (.appInfo, "App Info"),
-            (.userDefaults, "UserDefaults"), (.keychain, "Keychain"),
-            (.localDatabase, "Local Database"), (.remoteAPI, "Remote API"),
-            (.localNotifications, "Local Notifications")
-        ]
+    @ViewBuilder
+    private func destination(for route: ServicesRoute) -> some View {
+        let item = catalogItem(for: route)
+        switch route {
+        case .appState:
+            ServicesAppStateView(
+                guide: item.guide,
+                dependencies: dependencies,
+                sceneNavigation: sceneNavigation
+            )
+        case .appInfo:
+            ServicesAppInfoView(
+                guide: item.guide,
+                appInfo: dependencies.appInfo,
+                platformName: platformName
+            )
+        case .userDefaults,
+             .keychain,
+             .localDatabase,
+             .remoteAPI,
+             .localNotifications:
+            ServiceLabPlaceholderView(item: item)
+        }
     }
 
-    private func title(for route: ServicesRoute) -> String {
-        services.first { $0.route == route }?.title ?? "Services"
+    private func catalogItem(for route: ServicesRoute) -> ServicesCatalogItem {
+        guard let item = ServicesCatalogViewModel.items.first(where: {
+            $0.route == route
+        }) else {
+            preconditionFailure("Every Services route must have one catalog guide")
+        }
+        return item
     }
 
     private var isMacOS: Bool {
@@ -42,5 +59,30 @@ struct ServicesFlowView: View {
         #else
         false
         #endif
+    }
+
+    private var platformName: String {
+        #if os(macOS)
+        "macOS"
+        #elseif os(iOS)
+        "iOS"
+        #else
+        "Apple Platform"
+        #endif
+    }
+}
+
+private struct ServiceLabPlaceholderView: View {
+    let item: ServicesCatalogItem
+
+    var body: some View {
+        ServiceLabGuideView(guide: item.guide, result: .idle) {
+            Text("This lab is not active yet.")
+                .foregroundStyle(.secondary)
+        } advanced: {
+            Text("No service calls are made by this placeholder.")
+                .foregroundStyle(.secondary)
+        }
+        .navigationTitle(item.route.displayTitle)
     }
 }

@@ -8,6 +8,8 @@ struct AppRootView: View {
     let session: SessionPresentation
     let storeDependencies: StoreDependencies
     let storeUISupport: StoreUISupport
+    let servicesDependencies: ServicesDependencies
+    let sceneNavigation: any ISceneNavigationActions
 
     var body: some View {
         Group {
@@ -21,7 +23,9 @@ struct AppRootView: View {
                     router: router,
                     session: session,
                     storeDependencies: storeDependencies,
-                    storeUISupport: storeUISupport
+                    storeUISupport: storeUISupport,
+                    servicesDependencies: servicesDependencies,
+                    sceneNavigation: sceneNavigation
                 )
             case .maintenance:
                 MaintenanceFlowView(router: maintenanceRouter)

@@ -7,6 +7,8 @@ struct AppSectionContentView: View {
     let session: SessionPresentation
     let storeDependencies: StoreDependencies
     let storeUISupport: StoreUISupport
+    let servicesDependencies: ServicesDependencies
+    let sceneNavigation: any ISceneNavigationActions
 
     var body: some View {
         switch section {
@@ -17,7 +19,11 @@ struct AppSectionContentView: View {
                 uiSupport: storeUISupport
             )
         case .services:
-            ServicesFlowView(router: servicesRouter, session: session)
+            ServicesFlowView(
+                router: servicesRouter,
+                dependencies: servicesDependencies,
+                sceneNavigation: sceneNavigation
+            )
         }
     }
 }

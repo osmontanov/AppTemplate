@@ -3,25 +3,33 @@ import SwiftUI
 struct ContentView: View {
     @State private var appFlowCoordinator: AppFlowCoordinator
     @State private var router: AppRouter
+    @State private var sceneNavigation: AppSceneNavigationLifecycle
     @State private var onboardingRouter: FlowRouter
     @State private var maintenanceRouter: FlowRouter
     let session: SessionPresentation
     let storeDependencies: StoreDependencies
     let storeUISupport: StoreUISupport
+    let servicesDependencies: ServicesDependencies
 
     init(
         appFlowCoordinator: AppFlowCoordinator,
         session: SessionPresentation,
         storeDependencies: StoreDependencies,
-        storeUISupport: StoreUISupport
+        storeUISupport: StoreUISupport,
+        servicesDependencies: ServicesDependencies
     ) {
         _appFlowCoordinator = State(initialValue: appFlowCoordinator)
-        _router = State(initialValue: AppRouter(appFlowRouter: appFlowCoordinator.appFlowRouter))
+        let router = AppRouter(appFlowRouter: appFlowCoordinator.appFlowRouter)
+        _router = State(initialValue: router)
+        _sceneNavigation = State(
+            initialValue: AppSceneNavigationLifecycle(router: router)
+        )
         _onboardingRouter = State(initialValue: FlowRouter(appFlowCoordinator: appFlowCoordinator))
         _maintenanceRouter = State(initialValue: FlowRouter(appFlowCoordinator: appFlowCoordinator))
         self.session = session
         self.storeDependencies = storeDependencies
         self.storeUISupport = storeUISupport
+        self.servicesDependencies = servicesDependencies
     }
 
     var body: some View {
@@ -32,7 +40,9 @@ struct ContentView: View {
             maintenanceRouter: maintenanceRouter,
             session: session,
             storeDependencies: storeDependencies,
-            storeUISupport: storeUISupport
+            storeUISupport: storeUISupport,
+            servicesDependencies: servicesDependencies,
+            sceneNavigation: sceneNavigation
         )
     }
 }

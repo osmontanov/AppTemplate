@@ -5,6 +5,8 @@ struct AppShellView: View {
     let session: SessionPresentation
     let storeDependencies: StoreDependencies
     let storeUISupport: StoreUISupport
+    let servicesDependencies: ServicesDependencies
+    let sceneNavigation: any ISceneNavigationActions
 
     var body: some View {
         #if os(macOS)
@@ -12,14 +14,18 @@ struct AppShellView: View {
             router: router,
             session: session,
             storeDependencies: storeDependencies,
-            storeUISupport: storeUISupport
+            storeUISupport: storeUISupport,
+            servicesDependencies: servicesDependencies,
+            sceneNavigation: sceneNavigation
         )
         #else
         AdaptiveTabAppShellView(
             router: router,
             session: session,
             storeDependencies: storeDependencies,
-            storeUISupport: storeUISupport
+            storeUISupport: storeUISupport,
+            servicesDependencies: servicesDependencies,
+            sceneNavigation: sceneNavigation
         )
         #endif
     }
