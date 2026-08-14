@@ -26,13 +26,9 @@ final class AppSceneNavigationLifecycle {
     private var queuedURLs: [URL] = []
 
     init(
-        appFlowRouter: AppFlowRouter,
-        appFlowCoordinator: any IAppFlowCoordinator
+        appFlowRouter: AppFlowRouter
     ) {
-        router = AppRouter(
-            appFlowRouter: appFlowRouter,
-            appFlowCoordinator: appFlowCoordinator
-        )
+        router = AppRouter(appFlowRouter: appFlowRouter)
         parser = DeepLinkParser()
     }
 
@@ -120,7 +116,10 @@ final class AppSceneNavigationLifecycle {
         case let .success(intent):
             _ = router.handle(intent)
         case let .failure(error):
-            _ = router.handle(.openSectionRoot(parser.fallbackSection(for: url)))
+            let fallback = parser.fallbackSection(for: url)
+            _ = router.handle(
+                fallback == .store ? .openStoreRoot : .openServicesRoot
+            )
             Logger.navigation.error(
                 "Rejected deep link: \(String(describing: error), privacy: .public)"
             )

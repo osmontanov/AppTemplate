@@ -1,54 +1,36 @@
+import Foundation
 import Testing
 @testable import AppTemplate
 
 @MainActor
 struct AppSectionPresentationTests {
     @Test(arguments: [
-        (AppSection.home, "house", "app.section.home", "tab.home"),
+        (AppSection.store, "Store", "storefront", "app.section.store", "tab.store"),
         (
-            AppSection.browse,
-            "square.grid.2x2",
-            "app.section.browse",
-            "tab.browse"
-        ),
-        (
-            AppSection.projects,
-            "folder",
-            "app.section.projects",
-            "tab.projects"
-        ),
-        (
-            AppSection.settings,
-            "gearshape",
-            "app.section.settings",
-            "tab.settings"
+            AppSection.services,
+            "Services",
+            "wrench.and.screwdriver",
+            "app.section.services",
+            "tab.services"
         )
     ])
     func sectionMetadataIsStable(
         section: AppSection,
+        title: String,
         systemImage: String,
         presentationIdentifier: String,
         accessibilityIdentifier: String
     ) {
+        #expect(String(localized: section.localizedTitle) == title)
         #expect(section.systemImage == systemImage)
         #expect(section.presentationIdentifier == presentationIdentifier)
         #expect(section.accessibilityIdentifier == accessibilityIdentifier)
     }
 
     @Test
-    func sectionIdentifiersAreUnique() {
-        let presentationIdentifiers = AppSection.allCases.map(
-            \.presentationIdentifier
-        )
-        let accessibilityIdentifiers = AppSection.allCases.map(
-            \.accessibilityIdentifier
-        )
-
-        #expect(
-            Set(presentationIdentifiers).count == AppSection.allCases.count
-        )
-        #expect(
-            Set(accessibilityIdentifiers).count == AppSection.allCases.count
-        )
+    func mainContainsExactlyStoreAndServicesWithUniqueIdentifiers() {
+        #expect(AppSection.allCases == [.store, .services])
+        #expect(Set(AppSection.allCases.map(\.presentationIdentifier)).count == 2)
+        #expect(Set(AppSection.allCases.map(\.accessibilityIdentifier)).count == 2)
     }
 }

@@ -67,6 +67,9 @@ struct AppTemplateApp: App {
                     sessionController: sessionController,
                     navigationPersistencePolicy: sceneNavigationPersistencePolicy
                 )
+                #if os(macOS)
+                .frame(minWidth: 820, minHeight: 620)
+                #endif
             } else {
                 InvalidUITestDependenciesView()
             }
@@ -115,7 +118,7 @@ private struct ConfiguredAppRootView: View {
             } else if isReady {
                 AppSceneView(
                     appFlowCoordinator: appFlowCoordinator,
-                    settings: dependencies.settings,
+                    session: sessionController.presentation,
                     localNotifications: dependencies.localNotifications,
                     navigationPersistencePolicy: navigationPersistencePolicy
                 )

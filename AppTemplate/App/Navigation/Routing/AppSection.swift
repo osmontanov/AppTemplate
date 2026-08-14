@@ -1,8 +1,7 @@
+nonisolated
 enum AppSection: String, CaseIterable, Codable, Hashable, Identifiable, Sendable {
-    case home
-    case browse
-    case projects
-    case settings
+    case store
+    case services
 
     var id: Self { self }
 }

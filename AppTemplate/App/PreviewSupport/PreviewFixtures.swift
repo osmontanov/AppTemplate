@@ -11,7 +11,7 @@ enum PreviewFixtures {
                 state: state,
                 isLocalSessionBootstrapResolved: isLocalSessionBootstrapResolved
             ),
-            settings: settingsDependencies()
+            session: SessionPresentation(state: .guest, revision: 1)
         )
     }
 
@@ -22,13 +22,10 @@ enum PreviewFixtures {
                 isMaintenanceEnabled: false
             )
         )
-        let router = AppRouter(
-            appFlowRouter: appFlowCoordinator.appFlowRouter,
-            appFlowCoordinator: appFlowCoordinator
-        )
+        let router = FlowRouter(appFlowCoordinator: appFlowCoordinator)
         return AuthenticationFlowView(
-            router: router.authentication,
-            authenticationCancellation: router
+            router: router,
+            authenticationCancellation: PreviewAuthenticationCancellation(router: router)
         )
     }
 
@@ -135,4 +132,13 @@ enum PreviewFixtures {
             isMaintenanceEnabled: false
         )
     }
+}
+
+@MainActor
+private final class PreviewAuthenticationCancellation: IAuthenticationCancellation {
+    private let router: FlowRouter
+
+    init(router: FlowRouter) { self.router = router }
+
+    func cancelAuthentication() { router.popToRoot() }
 }

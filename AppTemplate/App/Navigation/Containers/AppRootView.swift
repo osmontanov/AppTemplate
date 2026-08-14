@@ -3,7 +3,9 @@ import SwiftUI
 struct AppRootView: View {
     let appFlowRouter: AppFlowRouter
     let router: AppRouter
-    let settings: SettingsDependencies
+    let onboardingRouter: FlowRouter
+    let maintenanceRouter: FlowRouter
+    let session: SessionPresentation
 
     var body: some View {
         Group {
@@ -11,11 +13,11 @@ struct AppRootView: View {
             case .restoring:
                 SessionRestoringView()
             case .onboarding:
-                OnboardingFlowView(router: router.onboarding)
+                OnboardingFlowView(router: onboardingRouter)
             case .main:
-                AppShellView(router: router, settings: settings)
+                AppShellView(router: router, session: session)
             case .maintenance:
-                MaintenanceFlowView(router: router.maintenance)
+                MaintenanceFlowView(router: maintenanceRouter)
             }
         }
         .id(appFlowRouter.transition.id)

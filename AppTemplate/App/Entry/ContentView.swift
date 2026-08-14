@@ -1,47 +1,37 @@
-//
-//  ContentView.swift
-//  AppTemplate
-//
-//  Created by aurora on 24/07/2026.
-//
-
-import Foundation
 import SwiftUI
 
 struct ContentView: View {
-    let settings: SettingsDependencies
     @State private var appFlowCoordinator: AppFlowCoordinator
     @State private var router: AppRouter
+    @State private var onboardingRouter: FlowRouter
+    @State private var maintenanceRouter: FlowRouter
+    let session: SessionPresentation
 
     init(
         appFlowCoordinator: AppFlowCoordinator,
-        settings: SettingsDependencies
+        session: SessionPresentation
     ) {
-        self.settings = settings
         _appFlowCoordinator = State(initialValue: appFlowCoordinator)
-        _router = State(
-            initialValue: AppRouter(
-                appFlowRouter: appFlowCoordinator.appFlowRouter,
-                appFlowCoordinator: appFlowCoordinator
-            )
-        )
+        _router = State(initialValue: AppRouter(appFlowRouter: appFlowCoordinator.appFlowRouter))
+        _onboardingRouter = State(initialValue: FlowRouter(appFlowCoordinator: appFlowCoordinator))
+        _maintenanceRouter = State(initialValue: FlowRouter(appFlowCoordinator: appFlowCoordinator))
+        self.session = session
     }
 
     var body: some View {
         AppRootView(
             appFlowRouter: appFlowCoordinator.appFlowRouter,
             router: router,
-            settings: settings
+            onboardingRouter: onboardingRouter,
+            maintenanceRouter: maintenanceRouter,
+            session: session
         )
     }
 }
 
 #Preview {
     PreviewFixtures.appComposition(
-        state: AppState(
-            hasCompletedOnboarding: true,
-            isMaintenanceEnabled: false
-        ),
+        state: AppState(hasCompletedOnboarding: true, isMaintenanceEnabled: false),
         isLocalSessionBootstrapResolved: true
     )
 }

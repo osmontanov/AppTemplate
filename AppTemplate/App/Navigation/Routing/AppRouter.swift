@@ -1,44 +1,31 @@
 import Foundation
 import Observation
 import OSLog
-import SwiftUI
 
 @MainActor
 @Observable
-final class AppRouter: IAuthenticationCancellation {
+final class AppRouter {
     let appFlowRouter: AppFlowRouter
     var selectedSection: AppSection
-    let authentication: FlowRouter
-    let onboarding: FlowRouter
-    let home: FlowRouter
-    let browse: FlowRouter
-    let projects: FlowRouter
-    let settings: FlowRouter
-    let maintenance: FlowRouter
+    let store: StoreRouter
+    let services: ServicesRouter
     private(set) var pendingIntent: NavigationIntent?
 
     init(
         appFlowRouter: AppFlowRouter,
-        appFlowCoordinator: any IAppFlowCoordinator,
-        selectedSection: AppSection = .home
+        selectedSection: AppSection = .store,
+        store: StoreRouter = StoreRouter(),
+        services: ServicesRouter = ServicesRouter()
     ) {
         self.appFlowRouter = appFlowRouter
         self.selectedSection = selectedSection
-        authentication = FlowRouter(appFlowCoordinator: appFlowCoordinator)
-        onboarding = FlowRouter(appFlowCoordinator: appFlowCoordinator)
-        home = FlowRouter(appFlowCoordinator: appFlowCoordinator)
-        browse = FlowRouter(appFlowCoordinator: appFlowCoordinator)
-        projects = FlowRouter(appFlowCoordinator: appFlowCoordinator)
-        settings = FlowRouter(appFlowCoordinator: appFlowCoordinator)
-        maintenance = FlowRouter(appFlowCoordinator: appFlowCoordinator)
+        self.store = store
+        self.services = services
     }
 
     @discardableResult
     func apply(_ transition: AppFlowTransition) -> NavigationOutcome? {
-        if transition.historyAction == .reset {
-            resetFlowHistories()
-        }
-
+        if transition.historyAction == .reset { resetHistories() }
         switch transition.pendingIntentAction {
         case .preserve:
             return nil
@@ -46,7 +33,9 @@ final class AppRouter: IAuthenticationCancellation {
             pendingIntent = nil
             return nil
         case .replay:
-            return replayPendingIntent()
+            guard let intent = pendingIntent else { return nil }
+            pendingIntent = nil
+            return apply(intent)
         }
     }
 
@@ -60,290 +49,150 @@ final class AppRouter: IAuthenticationCancellation {
 
     func openDefaultDestination(for section: AppSection) {
         selectedSection = section
-        router(for: section).popToRoot()
-    }
-
-    func cancelAuthentication() {
-        authentication.popToRoot()
-        pendingIntent = nil
-    }
-
-    private func replayPendingIntent() -> NavigationOutcome? {
-        guard let intent = pendingIntent else {
-            return nil
+        switch section {
+        case .store: store.reset()
+        case .services: services.reset()
         }
-        pendingIntent = nil
-        return apply(intent)
     }
 
     private func apply(_ intent: NavigationIntent) -> NavigationOutcome {
         switch intent {
-        case let .selectSection(section):
-            selectedSection = section
-        case let .openSectionRoot(section):
-            openDefaultDestination(for: section)
-        case let .browseItem(id):
-            selectedSection = .browse
-            browse.popToRoot()
-            browse.push(BrowseRoute.item(id: id))
-        case let .project(id):
-            selectedSection = .projects
-            projects.popToRoot()
-            projects.push(ProjectsRoute.project(id: id))
-        case let .projectTask(projectID, taskID):
-            selectedSection = .projects
-            projects.popToRoot()
-            projects.push(ProjectsRoute.project(id: projectID))
-            projects.push(
-                ProjectDetailsRoute.task(
-                    projectID: projectID,
-                    taskID: taskID
-                )
-            )
+        case .openStoreRoot: openDefaultDestination(for: .store)
+        case .openServicesRoot: openDefaultDestination(for: .services)
         }
         return .applied
     }
 
-    private func router(for section: AppSection) -> FlowRouter {
-        switch section {
-        case .home:
-            home
-        case .browse:
-            browse
-        case .projects:
-            projects
-        case .settings:
-            settings
-        }
-    }
-
-    private func resetFlowHistories() {
-        selectedSection = .home
-        authentication.popToRoot()
-        onboarding.popToRoot()
-        home.popToRoot()
-        browse.popToRoot()
-        projects.popToRoot()
-        settings.popToRoot()
-        maintenance.popToRoot()
-    }
-}
-
-extension AppRouter {
     var snapshot: NavigationSnapshot {
         makeSnapshot(lastAppliedTransitionID: nil)
     }
 
-    func makeSnapshot(
-        lastAppliedTransitionID: UUID?
-    ) -> NavigationSnapshot {
+    func makeSnapshot(lastAppliedTransitionID: UUID?) -> NavigationSnapshot {
         NavigationSnapshot(
             lastAppliedTransitionID: lastAppliedTransitionID,
             selectedSection: selectedSection,
-            homePath: home.path,
-            browsePath: browse.path,
-            projectsPath: projects.path,
-            settingsPath: settings.path
+            storePath: store.path,
+            servicesPath: services.path
         )
     }
 
     @discardableResult
     func restore(from data: Data?) -> NavigationRestoration {
         guard let data else {
-            return NavigationRestoration(
-                result: .noState,
-                lastAppliedTransitionID: nil
-            )
+            return NavigationRestoration(result: .noState, lastAppliedTransitionID: nil)
         }
-
         let schemaVersion: Int
         do {
             schemaVersion = try NavigationSnapshotCodec.schemaVersion(in: data)
         } catch {
-            resetNavigation()
-            Logger.navigation.error(
-                "Reset corrupt navigation snapshot: \(String(describing: error), privacy: .public)"
-            )
-            return NavigationRestoration(
-                result: .reset(.corruptData),
-                lastAppliedTransitionID: nil
-            )
+            return resetAfterFailure(.corruptData, error: error)
         }
 
         switch schemaVersion {
         case NavigationSnapshot.currentSchemaVersion:
-            let decoded: NavigationSnapshot
             do {
-                decoded = try NavigationSnapshotCodec.decode(data)
-            } catch {
-                resetNavigation()
-                Logger.navigation.error(
-                    "Reset corrupt navigation snapshot: \(String(describing: error), privacy: .public)"
-                )
+                let recovered = try NavigationSnapshotCodec.decodeRecoveringSchemaFive(data)
+                apply(recovered.snapshot)
+                let result: NavigationRestorationResult = recovered.recoveredSections.isEmpty
+                    ? .restored
+                    : .recovered(recovered.recoveredSections)
                 return NavigationRestoration(
-                    result: .reset(.corruptData),
-                    lastAppliedTransitionID: nil
-                )
-            }
-            return NavigationRestoration(
-                result: restore(
-                    selectedSection: decoded.selectedSection,
-                    homeSnapshot: decoded.homePath,
-                    browseSnapshot: decoded.browsePath,
-                    projectsSnapshot: decoded.projectsPath,
-                    settingsSnapshot: decoded.settingsPath
-                ),
-                lastAppliedTransitionID: decoded.lastAppliedTransitionID
-            )
-        case 3:
-            let decoded: NavigationSnapshotV3
-            do {
-                decoded = try JSONDecoder().decode(
-                    NavigationSnapshotV3.self,
-                    from: data
+                    result: result,
+                    lastAppliedTransitionID: recovered.snapshot.lastAppliedTransitionID
                 )
             } catch {
-                resetNavigation()
-                Logger.navigation.error(
-                    "Reset corrupt navigation snapshot: \(String(describing: error), privacy: .public)"
-                )
-                return NavigationRestoration(
-                    result: .reset(.corruptData),
-                    lastAppliedTransitionID: nil
-                )
+                return resetAfterFailure(.corruptData, error: error)
             }
-            let result = restore(
-                selectedSection: decoded.selectedSection,
-                homeSnapshot: decoded.homePath,
-                browseSnapshot: decoded.browsePath,
-                projectsSnapshot: decoded.projectsPath,
-                settingsSnapshot: decoded.settingsPath
-            )
-            return NavigationRestoration(
-                result: result == .restored ? .migrated(from: 3) : result,
-                lastAppliedTransitionID: nil
-            )
         case 2:
-            let decoded: NavigationSnapshotV2
+            return migrate(LegacyNavigationSnapshotV2.self, from: data, schemaVersion: 2)
+        case 3:
+            return migrate(LegacyNavigationSnapshotV3.self, from: data, schemaVersion: 3)
+        case 4:
             do {
-                decoded = try JSONDecoder().decode(
-                    NavigationSnapshotV2.self,
-                    from: data
+                let legacy = try JSONDecoder().decode(LegacyNavigationSnapshotV4.self, from: data)
+                resetNavigation()
+                return NavigationRestoration(
+                    result: .migrated(from: 4),
+                    lastAppliedTransitionID: legacy.lastAppliedTransitionID
                 )
             } catch {
-                resetNavigation()
-                Logger.navigation.error(
-                    "Reset corrupt navigation snapshot: \(String(describing: error), privacy: .public)"
-                )
-                return NavigationRestoration(
-                    result: .reset(.corruptData),
-                    lastAppliedTransitionID: nil
-                )
+                return resetAfterFailure(.corruptData, error: error)
             }
-            let result = restore(
-                selectedSection: decoded.selectedSection,
-                homeSnapshot: decoded.homePath,
-                browseSnapshot: decoded.browsePath,
-                projectsSnapshot: nil,
-                settingsSnapshot: decoded.settingsPath
-            )
-            return NavigationRestoration(
-                result: result == .restored ? .migrated(from: 2) : result,
-                lastAppliedTransitionID: nil
-            )
-        case let futureVersion
-            where futureVersion > NavigationSnapshot.currentSchemaVersion:
+        case let future where future > NavigationSnapshot.currentSchemaVersion:
             resetNavigation()
-            Logger.navigation.error(
-                "Preserved future navigation schema: \(futureVersion)"
-            )
-            return NavigationRestoration(
-                result: .preservedFutureSchema(futureVersion),
-                lastAppliedTransitionID: nil
-            )
+            Logger.navigation.error("Preserved future navigation schema: \(future)")
+            return NavigationRestoration(result: .preservedFutureSchema(future), lastAppliedTransitionID: nil)
         default:
-            resetNavigation()
-            Logger.navigation.error(
-                "Reset unsupported navigation schema: \(schemaVersion)"
-            )
-            return NavigationRestoration(
-                result: .reset(.unsupportedSchema(schemaVersion)),
-                lastAppliedTransitionID: nil
-            )
+            return resetAfterFailure(.unsupportedSchema(schemaVersion), error: nil)
         }
-    }
-
-    private func restore(
-        selectedSection: AppSection,
-        homeSnapshot: FlowPathSnapshot,
-        browseSnapshot: FlowPathSnapshot,
-        projectsSnapshot: FlowPathSnapshot?,
-        settingsSnapshot: FlowPathSnapshot
-    ) -> NavigationRestorationResult {
-        let homePath = homeSnapshot.restoredPath
-        let browsePath = browseSnapshot.restoredPath
-        let projectsPath = projectsSnapshot?.restoredPath
-        let settingsPath = settingsSnapshot.restoredPath
-        var recoveredSections: Set<AppSection> = []
-        if homePath == nil {
-            recoveredSections.insert(.home)
-        }
-        if browsePath == nil {
-            recoveredSections.insert(.browse)
-        }
-        if projectsSnapshot != nil, projectsPath == nil {
-            recoveredSections.insert(.projects)
-        }
-        if settingsPath == nil {
-            recoveredSections.insert(.settings)
-        }
-
-        self.selectedSection = selectedSection
-        authentication.popToRoot()
-        onboarding.popToRoot()
-        home.replacePath(with: homePath ?? .init())
-        browse.replacePath(with: browsePath ?? .init())
-        projects.replacePath(with: projectsPath ?? .init())
-        settings.replacePath(with: settingsPath ?? .init())
-        maintenance.popToRoot()
-        pendingIntent = nil
-
-        guard recoveredSections.isEmpty else {
-            let names = recoveredSections
-                .map(\.rawValue)
-                .sorted()
-                .joined(separator: ", ")
-            Logger.navigation.error(
-                "Reset non-restorable navigation flows: \(names, privacy: .public)"
-            )
-            return .recovered(recoveredSections)
-        }
-        return .restored
     }
 
     func resetNavigation() {
+        resetHistories()
         pendingIntent = nil
-        resetFlowHistories()
+    }
+
+    private func resetHistories() {
+        selectedSection = .store
+        store.reset()
+        services.reset()
+    }
+
+    private func apply(_ snapshot: NavigationSnapshot) {
+        selectedSection = snapshot.selectedSection
+        store.path = snapshot.storePath
+        store.presentation = nil
+        services.path = snapshot.servicesPath
+        pendingIntent = nil
+    }
+
+    private func migrate<Value: Decodable>(
+        _ type: Value.Type,
+        from data: Data,
+        schemaVersion: Int
+    ) -> NavigationRestoration {
+        do {
+            _ = try JSONDecoder().decode(type, from: data)
+            resetNavigation()
+            return NavigationRestoration(result: .migrated(from: schemaVersion), lastAppliedTransitionID: nil)
+        } catch {
+            return resetAfterFailure(.corruptData, error: error)
+        }
+    }
+
+    private func resetAfterFailure(
+        _ failure: NavigationRestorationFailure,
+        error: Error?
+    ) -> NavigationRestoration {
+        resetNavigation()
+        Logger.navigation.error("Reset navigation snapshot: \(String(describing: error), privacy: .public)")
+        return NavigationRestoration(result: .reset(failure), lastAppliedTransitionID: nil)
     }
 }
 
-private
-nonisolated
-struct NavigationSnapshotV3: Decodable {
+private nonisolated struct LegacyNavigationSnapshotV2: Decodable {
     let schemaVersion: Int
-    let selectedSection: AppSection
+    let selectedSection: String
+    let homePath: FlowPathSnapshot
+    let browsePath: FlowPathSnapshot
+    let settingsPath: FlowPathSnapshot
+}
+
+private nonisolated struct LegacyNavigationSnapshotV3: Decodable {
+    let schemaVersion: Int
+    let selectedSection: String
     let homePath: FlowPathSnapshot
     let browsePath: FlowPathSnapshot
     let projectsPath: FlowPathSnapshot
     let settingsPath: FlowPathSnapshot
 }
 
-private
-nonisolated
-struct NavigationSnapshotV2: Decodable {
+private nonisolated struct LegacyNavigationSnapshotV4: Decodable {
     let schemaVersion: Int
-    let selectedSection: AppSection
+    let lastAppliedTransitionID: UUID?
+    let selectedSection: String
     let homePath: FlowPathSnapshot
     let browsePath: FlowPathSnapshot
+    let projectsPath: FlowPathSnapshot
     let settingsPath: FlowPathSnapshot
 }

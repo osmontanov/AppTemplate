@@ -3,12 +3,14 @@ import SwiftUI
 
 struct AppSceneView: View {
     let appFlowCoordinator: AppFlowCoordinator
-    let settings: SettingsDependencies
+    let session: SessionPresentation
     let localNotifications: LocalNotificationDependencies
     private let navigationPersistencePolicy:
         AppSceneNavigationPersistencePolicy
 
     @State private var lifecycle: AppSceneNavigationLifecycle
+    @State private var onboardingRouter: FlowRouter
+    @State private var maintenanceRouter: FlowRouter
     @State private var localNotificationRegistration:
         LocalNotificationSceneRegistration
     @SceneStorage("AppTemplate.NavigationSnapshot") private var encodedSnapshot: Data?
@@ -23,20 +25,25 @@ struct AppSceneView: View {
 
     init(
         appFlowCoordinator: AppFlowCoordinator,
-        settings: SettingsDependencies,
+        session: SessionPresentation,
         localNotifications: LocalNotificationDependencies,
         navigationPersistencePolicy:
             AppSceneNavigationPersistencePolicy = .restored
     ) {
         self.appFlowCoordinator = appFlowCoordinator
-        self.settings = settings
+        self.session = session
         self.localNotifications = localNotifications
         self.navigationPersistencePolicy = navigationPersistencePolicy
         _lifecycle = State(
             initialValue: AppSceneNavigationLifecycle(
-                appFlowRouter: appFlowCoordinator.appFlowRouter,
-                appFlowCoordinator: appFlowCoordinator
+                appFlowRouter: appFlowCoordinator.appFlowRouter
             )
+        )
+        _onboardingRouter = State(
+            initialValue: FlowRouter(appFlowCoordinator: appFlowCoordinator)
+        )
+        _maintenanceRouter = State(
+            initialValue: FlowRouter(appFlowCoordinator: appFlowCoordinator)
         )
         _localNotificationRegistration = State(
             initialValue: LocalNotificationSceneRegistration(
@@ -49,7 +56,9 @@ struct AppSceneView: View {
         AppRootView(
             appFlowRouter: appFlowRouter,
             router: lifecycle.router,
-            settings: settings
+            onboardingRouter: onboardingRouter,
+            maintenanceRouter: maintenanceRouter,
+            session: session
         )
             .task {
                 let restorationData = navigationPersistencePolicy.restorationData(

@@ -3,20 +3,17 @@ import SwiftUI
 
 struct AdaptiveTabAppShellView: View {
     @Bindable var router: AppRouter
-    let settings: SettingsDependencies
+    let session: SessionPresentation
 
     var body: some View {
         TabView(selection: $router.selectedSection) {
             ForEach(AppSection.allCases) { section in
-                Tab(
-                    section.localizedTitle,
-                    systemImage: section.systemImage,
-                    value: section
-                ) {
+                Tab(section.localizedTitle, systemImage: section.systemImage, value: section) {
                     AppSectionContentView(
                         section: section,
-                        router: router,
-                        settings: settings
+                        storeRouter: router.store,
+                        servicesRouter: router.services,
+                        session: session
                     )
                     .background {
                         TabAccessibilityIdentifierInstaller()
@@ -25,9 +22,7 @@ struct AdaptiveTabAppShellView: View {
                     }
                 }
                 .customizationID(section.presentationIdentifier)
-                .accessibilityIdentifier(
-                    section.accessibilityIdentifier
-                )
+                .accessibilityIdentifier(section.accessibilityIdentifier)
             }
         }
         .tabViewStyle(.sidebarAdaptable)

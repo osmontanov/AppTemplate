@@ -51,22 +51,22 @@ struct TabAccessibilityIdentifierInstallerTests {
 
     @Test
     func missingTabsAreReportedWithoutPositionalFallback() {
-        let home = UITab(
+        let store = UITab(
             title: "Same localized title",
             image: nil,
-            identifier: AppSection.home.presentationIdentifier
+            identifier: AppSection.store.presentationIdentifier
         ) { _ in
             UIViewController()
         }
-        let controller = UITabBarController(tabs: [home])
+        let controller = UITabBarController(tabs: [store])
 
         #expect(
             TabAccessibilityIdentifierInstaller.install(in: controller)
-                == Set([.browse, .projects, .settings])
+                == Set([.services])
         )
         #expect(
-            home.accessibilityIdentifier
-                == AppSection.home.accessibilityIdentifier
+            store.accessibilityIdentifier
+                == AppSection.store.accessibilityIdentifier
         )
     }
 }

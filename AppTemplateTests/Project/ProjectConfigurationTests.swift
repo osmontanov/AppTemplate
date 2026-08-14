@@ -34,9 +34,12 @@ struct ProjectConfigurationTests {
         )
         let appFlowRouter = appFlowCoordinator.appFlowRouter
         let router = AppRouter(
-            appFlowRouter: appFlowRouter,
-            appFlowCoordinator: appFlowCoordinator
+            appFlowRouter: appFlowRouter
         )
+        let onboardingRouter = FlowRouter(appFlowCoordinator: appFlowCoordinator)
+        let maintenanceRouter = FlowRouter(appFlowCoordinator: appFlowCoordinator)
+        let legacyRouter = FlowRouter(appFlowCoordinator: appFlowCoordinator)
+        let session = SessionPresentation(state: .guest, revision: 1)
         let settings = SettingsDependencies(
             appInfo: AppInfoService(
                 displayName: "AppTemplate",
@@ -46,47 +49,51 @@ struct ProjectConfigurationTests {
 
         _ = ContentView(
             appFlowCoordinator: appFlowCoordinator,
-            settings: settings
+            session: session
         )
         _ = AppSceneView(
             appFlowCoordinator: appFlowCoordinator,
-            settings: settings,
+            session: session,
             localNotifications: .inMemory()
         )
         _ = AppRootView(
             appFlowRouter: appFlowRouter,
             router: router,
-            settings: settings
+            onboardingRouter: onboardingRouter,
+            maintenanceRouter: maintenanceRouter,
+            session: session
         )
-        _ = AppShellView(router: router, settings: settings)
+        _ = AppShellView(router: router, session: session)
+        _ = StoreFlowView(router: router.store, session: session)
+        _ = ServicesFlowView(router: router.services, session: session)
         _ = AuthenticationFlowView(
-            router: router.authentication,
-            authenticationCancellation: router
+            router: legacyRouter,
+            authenticationCancellation: ProjectAuthenticationCancellation(router: legacyRouter)
         )
         _ = AuthenticationHelpView()
-        _ = OnboardingFlowView(router: router.onboarding)
-        _ = OnboardingView(router: router.onboarding)
-        _ = HomeFlowView(router: router.home)
+        _ = OnboardingFlowView(router: onboardingRouter)
+        _ = OnboardingView(router: onboardingRouter)
+        _ = HomeFlowView(router: legacyRouter)
         _ = GuideTopicView(id: "screen-owned-routes")
         _ = QuickStartView()
-        _ = BrowseFlowView(router: router.browse)
-        _ = BrowseView(router: router.browse)
+        _ = BrowseFlowView(router: legacyRouter)
+        _ = BrowseView(router: legacyRouter)
         _ = BrowseOptionsView()
-        _ = BrowseDetailView(id: "source", router: router.browse)
-        _ = RelatedItemsView(sourceItemID: "source", router: router.browse)
+        _ = BrowseDetailView(id: "source", router: legacyRouter)
+        _ = RelatedItemsView(sourceItemID: "source", router: legacyRouter)
         _ = RelatedItemDetailView(id: "related")
-        _ = ProjectsFlowView(router: router.projects)
-        _ = ProjectsView(router: router.projects)
+        _ = ProjectsFlowView(router: legacyRouter)
+        _ = ProjectsView(router: legacyRouter)
         _ = ProjectDetailsView(
             projectID: "project-from-deep-link",
-            router: router.projects
+            router: legacyRouter
         )
         _ = TaskDetailsView(
             projectID: "project-from-deep-link",
             taskID: "task-from-restored-navigation"
         )
         let createProjectFlowState = CreateProjectFlowState()
-        _ = CreateProjectFlowView(appFlowCoordinator: router.projects)
+        _ = CreateProjectFlowView(appFlowCoordinator: legacyRouter)
         _ = ProjectInfoView(projectID: "project-from-deep-link")
         _ = ProjectBasicsView(
             router: makeTestFlowRouter(),
@@ -98,18 +105,18 @@ struct ProjectConfigurationTests {
         )
         _ = ProjectReviewView(flowState: createProjectFlowState)
         _ = SettingsFlowView(
-            router: router.settings,
+            router: legacyRouter,
             dependencies: settings
         )
         _ = SettingsView(
-            router: router.settings,
+            router: legacyRouter,
             dependencies: settings
         )
-        _ = AboutView(router: router.settings)
+        _ = AboutView(router: legacyRouter)
         _ = PlatformDetailsView(platform: .macOS)
         _ = SessionInfoView()
-        _ = MaintenanceFlowView(router: router.maintenance)
-        _ = MaintenanceView(router: router.maintenance)
+        _ = MaintenanceFlowView(router: maintenanceRouter)
+        _ = MaintenanceView(router: maintenanceRouter)
     }
 }
 
@@ -152,6 +159,15 @@ extension ProjectConfigurationTests {
 
         #expect(didDismiss)
     }
+}
+
+@MainActor
+private final class ProjectAuthenticationCancellation: IAuthenticationCancellation {
+    private let router: FlowRouter
+
+    init(router: FlowRouter) { self.router = router }
+
+    func cancelAuthentication() { router.popToRoot() }
 }
 
 @MainActor

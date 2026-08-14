@@ -21,7 +21,7 @@ struct LocalNotificationNavigationCoordinatorTests {
         await hub.publish(
             try openedEvent(
                 id: "last-scene",
-                url: "apptemplate://settings"
+                url: "apptemplate://services"
             )
         )
         await second.waitForCount(1)
@@ -29,7 +29,7 @@ struct LocalNotificationNavigationCoordinatorTests {
         #expect(first.urls.isEmpty)
         #expect(
             second.urls.map(\.absoluteString)
-                == ["apptemplate://settings"]
+                == ["apptemplate://services"]
         )
     }
 
@@ -51,13 +51,13 @@ struct LocalNotificationNavigationCoordinatorTests {
         await hub.publish(
             try openedEvent(
                 id: "reactivated-scene",
-                url: "apptemplate://browse"
+                url: "apptemplate://services"
             )
         )
         await first.waitForCount(1)
 
         #expect(
-            first.urls.map(\.absoluteString) == ["apptemplate://browse"]
+            first.urls.map(\.absoluteString) == ["apptemplate://services"]
         )
         #expect(second.urls.isEmpty)
     }
@@ -83,7 +83,7 @@ struct LocalNotificationNavigationCoordinatorTests {
         await hub.publish(
             try openedEvent(
                 id: "replacement-route",
-                url: "apptemplate://settings"
+                url: "apptemplate://services"
             )
         )
         await hub.publish(
@@ -102,7 +102,7 @@ struct LocalNotificationNavigationCoordinatorTests {
         #expect(first.urls.isEmpty)
         #expect(
             replacement.urls.map(\.absoluteString)
-                == ["apptemplate://settings"]
+                == ["apptemplate://services"]
         )
     }
 
@@ -124,7 +124,7 @@ struct LocalNotificationNavigationCoordinatorTests {
         await hub.publish(
             try openedEvent(
                 id: "after-resign",
-                url: "apptemplate://home"
+                url: "apptemplate://store"
             )
         )
         await first.waitForCount(1)
@@ -135,15 +135,15 @@ struct LocalNotificationNavigationCoordinatorTests {
         await hub.publish(
             try openedEvent(
                 id: "after-unregister",
-                url: "apptemplate://settings"
+                url: "apptemplate://services"
             )
         )
         await first.waitForCount(2)
 
         #expect(
             first.urls.map(\.absoluteString) == [
-                "apptemplate://home",
-                "apptemplate://settings"
+                "apptemplate://store",
+                "apptemplate://services"
             ]
         )
         #expect(second.urls.isEmpty)
@@ -173,14 +173,14 @@ struct LocalNotificationNavigationCoordinatorTests {
         await hub.publish(
             try openedEvent(
                 id: "weak-fallback",
-                url: "apptemplate://projects"
+                url: "apptemplate://services"
             )
         )
         await fallback.waitForCount(1)
 
         #expect(
             fallback.urls.map(\.absoluteString)
-                == ["apptemplate://projects"]
+                == ["apptemplate://services"]
         )
     }
 
@@ -199,9 +199,9 @@ struct LocalNotificationNavigationCoordinatorTests {
         }
 
         for (id, url) in [
-            ("fifo-home", "apptemplate://home"),
-            ("fifo-item", "apptemplate://browse/item/swiftui"),
-            ("fifo-settings", "apptemplate://settings")
+            ("fifo-home", "apptemplate://store"),
+            ("fifo-item", "apptemplate://services"),
+            ("fifo-settings", "apptemplate://services")
         ] {
             await hub.publish(try openedEvent(id: id, url: url))
         }
@@ -225,9 +225,9 @@ struct LocalNotificationNavigationCoordinatorTests {
 
         #expect(
             receiver.urls.map(\.absoluteString) == [
-                "apptemplate://home",
-                "apptemplate://browse/item/swiftui",
-                "apptemplate://settings"
+                "apptemplate://store",
+                "apptemplate://services",
+                "apptemplate://services"
             ]
         )
     }
@@ -244,13 +244,13 @@ struct LocalNotificationNavigationCoordinatorTests {
         await hub.publish(
             try openedEvent(
                 id: "before-start-home",
-                url: "apptemplate://home"
+                url: "apptemplate://store"
             )
         )
         await hub.publish(
             try openedEvent(
                 id: "before-start-settings",
-                url: "apptemplate://settings"
+                url: "apptemplate://services"
             )
         )
         coordinator.start()
@@ -259,8 +259,8 @@ struct LocalNotificationNavigationCoordinatorTests {
 
         #expect(
             receiver.urls.map(\.absoluteString) == [
-                "apptemplate://home",
-                "apptemplate://settings"
+                "apptemplate://store",
+                "apptemplate://services"
             ]
         )
     }
@@ -279,14 +279,14 @@ struct LocalNotificationNavigationCoordinatorTests {
         await hub.publish(
             .opened(
                 notification: notification,
-                deepLink: URL(string: "apptemplate://home")
+                deepLink: URL(string: "apptemplate://store")
             )
         )
         await hub.publish(
             .action(
                 notification: notification,
                 id: try LocalNotificationActionID("open-settings"),
-                deepLink: URL(string: "apptemplate://settings")
+                deepLink: URL(string: "apptemplate://services")
             )
         )
         await hub.publish(
@@ -294,16 +294,16 @@ struct LocalNotificationNavigationCoordinatorTests {
                 notification: notification,
                 id: try LocalNotificationActionID("reply"),
                 text: "private response",
-                deepLink: URL(string: "apptemplate://projects")
+                deepLink: URL(string: "apptemplate://services")
             )
         )
         await receiver.waitForCount(3)
 
         #expect(
             receiver.urls.map(\.absoluteString) == [
-                "apptemplate://home",
-                "apptemplate://settings",
-                "apptemplate://projects"
+                "apptemplate://store",
+                "apptemplate://services",
+                "apptemplate://services"
             ]
         )
     }
@@ -366,13 +366,12 @@ struct LocalNotificationNavigationCoordinatorTests {
         let coordinator = makeCoordinator(hub: hub)
         let router = AppRouter(
             appFlowRouter: AppFlowRouter(flow: .main),
-            appFlowCoordinator: AppFlowCoordinatorSpy(),
-            selectedSection: .settings
+            selectedSection: .services
         )
         let lifecycle = AppSceneNavigationLifecycle(router: router)
         _ = lifecycle.restore(from: nil)
-        router.home.push(HomeRoute.details)
-        router.settings.push(SettingsRoute.about)
+        router.store.push(.cart)
+        router.services.open(.appInfo)
         let snapshotBefore = lifecycle.snapshot
         let receiver = SceneReceiverSpy { url in
             _ = lifecycle.receive(url)
