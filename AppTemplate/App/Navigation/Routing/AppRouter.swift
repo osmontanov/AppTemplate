@@ -32,6 +32,12 @@ final class AppRouter {
         return apply(intent)
     }
 
+    func reconcile(
+        _ presentation: SessionPresentation
+    ) -> ProtectedStoreAction? {
+        store.reconcile(presentation)
+    }
+
     func openDefaultDestination(for section: AppSection) {
         selectedSection = section
         switch section {
@@ -136,8 +142,8 @@ final class AppRouter {
 
     private func apply(_ snapshot: NavigationSnapshot) {
         selectedSection = snapshot.selectedSection
+        store.reset()
         store.path = snapshot.storePath
-        store.presentation = nil
         services.path = snapshot.servicesPath
     }
 

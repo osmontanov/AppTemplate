@@ -5,7 +5,7 @@ import Testing
 @MainActor
 struct SceneNavigationActionsTests {
     @Test
-    func presentationIsAtomicTypedAndPhaseFourHasNoProtectedPendingAction() {
+    func presentationReflectsOnlyWhetherProtectedActionIsPending() {
         let flow = AppFlowRouter(flow: .main)
         let lifecycle = AppSceneNavigationLifecycle(
             router: AppRouter(
@@ -26,6 +26,12 @@ struct SceneNavigationActionsTests {
         #expect(!presentation.hasDeferredLink)
         #expect(!presentation.hasPendingProtectedAction)
         #expect(presentation.deepLinkFailure == nil)
+
+        _ = lifecycle.router.store.requestProtected(.favorite(7), session: .guest)
+        #expect(lifecycle.presentation().hasPendingProtectedAction)
+
+        lifecycle.router.store.cancelAuthentication()
+        #expect(!lifecycle.presentation().hasPendingProtectedAction)
     }
 
     @Test
@@ -135,6 +141,7 @@ struct SceneNavigationActionsTests {
             )
         )
         _ = lifecycle.restore(from: nil)
+        _ = lifecycle.reconcile(.init(state: .guest, revision: 1))
         return lifecycle
     }
 }

@@ -72,12 +72,25 @@ struct AppSceneView: View {
                 let restorationData = navigationPersistencePolicy.restorationData(
                     from: encodedSnapshot
                 )
-                if lifecycle.restore(
+                let shouldPersistRestoration = lifecycle.restore(
                     from: restorationData,
                     applying: appFlowRouter.transition
-                ) != nil {
+                ) != nil
+                _ = lifecycle.reconcile(session)
+                localNotificationRegistration.setNavigationReady(
+                    lifecycle.isNavigationReady
+                )
+                if shouldPersistRestoration || lifecycle.isNavigationReady {
                     persist()
                 }
+            }
+            .onChange(of: session) { _, presentation in
+                guard lifecycle.hasRestored else { return }
+                _ = lifecycle.reconcile(presentation)
+                localNotificationRegistration.setNavigationReady(
+                    lifecycle.isNavigationReady
+                )
+                persist()
             }
             .onChange(of: lifecycle.router.snapshot) { _, _ in
                 guard lifecycle.hasRestored else {
@@ -181,6 +194,7 @@ final class LocalNotificationSceneRegistration {
     private var nextGeneration: UInt64 = 0
     private var activeGeneration: UInt64?
     private var readyGeneration: UInt64?
+    private var isNavigationReady = false
 
     init(coordinator: LocalNotificationNavigationCoordinator) {
         self.coordinator = coordinator
@@ -192,7 +206,16 @@ final class LocalNotificationSceneRegistration {
               readyGeneration == activeGeneration else {
             return
         }
-        coordinator.setEligible(isEligible, id: id)
+        coordinator.setEligible(isEligible && isNavigationReady, id: id)
+    }
+
+    func setNavigationReady(_ isReady: Bool) {
+        isNavigationReady = isReady
+        guard let activeGeneration,
+              readyGeneration == activeGeneration else {
+            return
+        }
+        coordinator.setEligible(currentEligibility && isReady, id: id)
     }
 
     func run(
@@ -223,7 +246,10 @@ final class LocalNotificationSceneRegistration {
             return
         }
         readyGeneration = generation
-        coordinator.setEligible(currentEligibility, id: id)
+        coordinator.setEligible(
+            currentEligibility && isNavigationReady,
+            id: id
+        )
 
         let lifetime = AsyncStream.makeStream(of: Void.self)
         defer { lifetime.continuation.finish() }

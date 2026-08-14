@@ -38,6 +38,48 @@ struct NavigationSnapshotTests {
         #expect(restored.snapshot.schemaVersion == 5)
     }
 
+    @Test
+    func schemaFiveOmitsEveryProtectedTransientValue() throws {
+        let source = makeRouter(selectedSection: .services)
+        source.store.path = [.profile, .favorites, .product(7)]
+        _ = source.store.reconcile(authenticated(userID: 1, revision: 7))
+        _ = source.store.selectProfileSection(
+            .account,
+            session: authenticated(userID: 1, revision: 7).state
+        )
+        source.store.cacheAccountPresentation(
+            ProfileAccountPresentation(
+                userID: 1,
+                displayName: "User 1",
+                availability: .offline(.transport)
+            )
+        )
+        _ = source.store.requestProtected(.favorite(9), session: .guest)
+
+        let data = try NavigationSnapshotCodec.encode(source.snapshot)
+        let object = try #require(
+            JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+        let restored = makeRouter()
+        _ = restored.restore(from: data)
+
+        #expect(
+            Set(object.keys) == Set([
+                "schemaVersion",
+                "selectedSection",
+                "storePath",
+                "servicesPath"
+            ])
+        )
+        #expect(object["schemaVersion"] as? Int == 5)
+        #expect(restored.store.path == [.profile, .favorites, .product(7)])
+        #expect(restored.store.presentation == nil)
+        #expect(restored.store.pendingProtectedAction == nil)
+        #expect(restored.store.profileSection == .overview)
+        #expect(restored.store.cachedAccountPresentation == nil)
+        #expect(restored.store.lastAppliedSessionRevision == nil)
+    }
+
     @Test(arguments: [2, 3])
     func schemasTwoAndThreeDiscardLegacyPaths(schemaVersion: Int) throws {
         let data = Data(#"{"schemaVersion":\#(schemaVersion),"selectedSection":"settings","homePath":{"data":null},"browsePath":{"data":null},"projectsPath":{"data":null},"settingsPath":{"data":null}}"#.utf8)
@@ -123,6 +165,25 @@ struct NavigationSnapshotTests {
 
     private func makeRouter(selectedSection: AppSection = .store) -> AppRouter {
         AppRouter(appFlowRouter: AppFlowRouter(flow: .main), selectedSection: selectedSection)
+    }
+
+    private func authenticated(
+        userID: Int,
+        revision: UInt64
+    ) -> SessionPresentation {
+        SessionPresentation(
+            state: .authenticated(
+                UserProfile(
+                    id: userID,
+                    username: "user\(userID)",
+                    firstName: "User",
+                    lastName: "\(userID)",
+                    imageURL: nil
+                ),
+                availability: .online
+            ),
+            revision: revision
+        )
     }
 }
 

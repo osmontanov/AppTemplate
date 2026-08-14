@@ -7,6 +7,7 @@ import OSLog
 final class AppSceneNavigationLifecycle: ISceneNavigationActions {
     let router: AppRouter
     private(set) var hasRestored = false
+    private(set) var isNavigationReady = false
     private(set) var restorationResult: NavigationRestorationResult = .noState
 
     var snapshot: NavigationSnapshot {
@@ -44,7 +45,7 @@ final class AppSceneNavigationLifecycle: ISceneNavigationActions {
         guard transition.id != lastAppliedTransitionID else { return nil }
         lastAppliedTransitionID = transition.id
         let transitionOutcome = router.apply(transition)
-        guard hasRestored, router.appFlowRouter.flow == .main,
+        guard isNavigationReady, router.appFlowRouter.flow == .main,
               let intent = takeDeferredIntent() else {
             return transitionOutcome
         }
@@ -76,15 +77,6 @@ final class AppSceneNavigationLifecycle: ISceneNavigationActions {
         let appliesTransition = transition.id != lastAppliedTransitionID
         let transitionOutcome = apply(transition)
         hasRestored = true
-
-        var appliedDeferredIntent = false
-        if router.appFlowRouter.flow == .main,
-           let intent = takeDeferredIntent() {
-            applyIntent(intent)
-            appliedDeferredIntent = true
-        }
-
-        if appliedDeferredIntent { return snapshotForPersistence }
         if appliesTransition,
            (transition.historyAction == .reset || transitionOutcome != nil) {
             return snapshotForPersistence
@@ -95,6 +87,28 @@ final class AppSceneNavigationLifecycle: ISceneNavigationActions {
         case .noState, .restored, .preservedFutureSchema:
             return nil
         }
+    }
+
+    @discardableResult
+    func reconcile(
+        _ presentation: SessionPresentation
+    ) -> ProtectedStoreAction? {
+        guard hasRestored else { return nil }
+        let isNewerRevision = router.store.lastAppliedSessionRevision.map {
+            presentation.revision > $0
+        } ?? true
+        let action = router.reconcile(presentation)
+        guard isNewerRevision,
+              presentation.state != .restoring else {
+            return action
+        }
+
+        isNavigationReady = true
+        if router.appFlowRouter.flow == .main,
+           let intent = takeDeferredIntent() {
+            applyIntent(intent)
+        }
+        return action
     }
 
     @discardableResult
@@ -110,7 +124,7 @@ final class AppSceneNavigationLifecycle: ISceneNavigationActions {
             return nil
         }
 
-        guard hasRestored, router.appFlowRouter.flow == .main else {
+        guard isNavigationReady, router.appFlowRouter.flow == .main else {
             deferredIntent = intent
             return nil
         }
@@ -127,7 +141,7 @@ final class AppSceneNavigationLifecycle: ISceneNavigationActions {
             restorationResult: restorationResult,
             checkpoint: lastAppliedTransitionID,
             hasDeferredLink: deferredIntent != nil,
-            hasPendingProtectedAction: false,
+            hasPendingProtectedAction: router.store.pendingProtectedAction != nil,
             deepLinkFailure: deepLinkFailure
         )
     }
