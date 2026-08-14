@@ -12,6 +12,8 @@ struct AppDependencies: Sendable {
     let remote: any IRemoteService
     let appStateStorage: any IAppStateStorage
     let keychain: any IKeychainService
+    let servicesLabUserDefaults: any IUserDefaultsService
+    let servicesLabKeychain: any IKeychainService
     let sessionRepository: SessionRepository
     let clock: AppClock
     let sessionStartupValidationPolicy: SessionStartupValidationPolicy
@@ -65,6 +67,13 @@ struct AppDependencies: Sendable {
             remote: remote,
             appStateStorage: UserDefaultsAppStateStorage(userDefaults: userDefaultsService),
             keychain: keychainService,
+            servicesLabUserDefaults: UserDefaultsService(
+                namespace: "AppTemplate.ServicesLab",
+                userDefaults: .standard
+            ),
+            servicesLabKeychain: KeychainService(
+                service: "AppTemplate.ServicesLab"
+            ),
             sessionRepository: SessionRepository(
                 remote: remote,
                 secureStore: SessionSecureStore(keychain: keychainService),
@@ -132,7 +141,11 @@ struct AppDependencies: Sendable {
             ? UITestConflictOnceCartRepository(base: baseCart)
             : baseCart
         let keychain = InMemoryKeychainService()
-        let preferencesService = InMemoryUserDefaultsService()
+        let preferencesService = InMemoryUserDefaultsService(namespace: "AppTemplate")
+        let servicesLabUserDefaults = InMemoryUserDefaultsService(
+            namespace: "AppTemplate.ServicesLab"
+        )
+        let servicesLabKeychain = InMemoryKeychainService()
         let storePreferences = StorePreferencesRepository(
             userDefaults: preferencesService
         )
@@ -168,6 +181,8 @@ struct AppDependencies: Sendable {
             remote: remote,
             appStateStorage: InMemoryAppStateStorage(initialState: scenario.appState),
             keychain: keychain,
+            servicesLabUserDefaults: servicesLabUserDefaults,
+            servicesLabKeychain: servicesLabKeychain,
             sessionRepository: SessionRepository(
                 remote: remote,
                 secureStore: SessionSecureStore(keychain: keychain),
@@ -210,6 +225,10 @@ struct AppDependencies: Sendable {
     ) -> AppDependencies {
         let database = LocalDatabaseService(configuration: .inMemory())
         let keychain = InMemoryKeychainService()
+        let servicesLabUserDefaults = InMemoryUserDefaultsService(
+            namespace: "AppTemplate.ServicesLab"
+        )
+        let servicesLabKeychain = InMemoryKeychainService()
         let clock = AppClock.live
         let appInfo = AppInfoService(
             displayName: "AppTemplate UI Tests",
@@ -223,13 +242,17 @@ struct AppDependencies: Sendable {
             localDatabase: database,
             favorites: FavoritesRepository(database: database),
             cart: CartRepository(database: database),
-            storePreferences: StorePreferencesRepository(userDefaults: InMemoryUserDefaultsService()),
+            storePreferences: StorePreferencesRepository(userDefaults: InMemoryUserDefaultsService(
+                namespace: "AppTemplate"
+            )),
             products: ProductRepository(remote: remoteService),
             appInfo: appInfo,
             storeUISupport: StoreUISupport(images: imageLoader, clock: clock),
             remote: remoteService,
             appStateStorage: InMemoryAppStateStorage(initialState: initialState),
             keychain: keychain,
+            servicesLabUserDefaults: servicesLabUserDefaults,
+            servicesLabKeychain: servicesLabKeychain,
             sessionRepository: SessionRepository(
                 remote: remoteService,
                 secureStore: SessionSecureStore(keychain: keychain),
@@ -257,12 +280,18 @@ struct AppDependencies: Sendable {
         localDatabaseService: any ILocalDatabaseService = LocalDatabaseService(
             configuration: .inMemory()
         ),
-        storePreferencesService: any IUserDefaultsService = InMemoryUserDefaultsService(),
+        storePreferencesService: any IUserDefaultsService = InMemoryUserDefaultsService(
+            namespace: "AppTemplate"
+        ),
         keychainService: any IKeychainService = InMemoryKeychainService(),
         notificationGraph: AppNotificationGraph? = nil
     ) -> AppDependencies {
         let clock = AppClock.live
         let appInfo = settings.appInfo
+        let servicesLabUserDefaults = InMemoryUserDefaultsService(
+            namespace: "AppTemplate.ServicesLab"
+        )
+        let servicesLabKeychain = InMemoryKeychainService()
         let resolvedNotificationGraph = notificationGraph ?? .inMemory(
             imageLoader: imageLoader,
             clock: clock
@@ -278,6 +307,8 @@ struct AppDependencies: Sendable {
             remote: remoteService,
             appStateStorage: appStateStorage,
             keychain: keychainService,
+            servicesLabUserDefaults: servicesLabUserDefaults,
+            servicesLabKeychain: servicesLabKeychain,
             sessionRepository: SessionRepository(
                 remote: remoteService,
                 secureStore: SessionSecureStore(keychain: keychainService),
@@ -305,10 +336,16 @@ struct AppDependencies: Sendable {
         keychainService: any IKeychainService,
         settings: SettingsDependencies,
         notificationGraph: AppNotificationGraph,
-        storePreferencesService: any IUserDefaultsService = InMemoryUserDefaultsService()
+        storePreferencesService: any IUserDefaultsService = InMemoryUserDefaultsService(
+            namespace: "AppTemplate"
+        )
     ) -> AppDependencies {
         let clock = AppClock.live
         let appInfo = settings.appInfo
+        let servicesLabUserDefaults = InMemoryUserDefaultsService(
+            namespace: "AppTemplate.ServicesLab"
+        )
+        let servicesLabKeychain = InMemoryKeychainService()
         return AppDependencies(
             localDatabase: localDatabaseService,
             favorites: FavoritesRepository(database: localDatabaseService),
@@ -320,6 +357,8 @@ struct AppDependencies: Sendable {
             remote: remoteService,
             appStateStorage: appStateStorage,
             keychain: keychainService,
+            servicesLabUserDefaults: servicesLabUserDefaults,
+            servicesLabKeychain: servicesLabKeychain,
             sessionRepository: SessionRepository(
                 remote: remoteService,
                 secureStore: SessionSecureStore(keychain: keychainService),
@@ -364,7 +403,9 @@ struct AppDependencies: Sendable {
             appFlowCoordinator: appFlowCoordinator,
             appStateStatus: appStateStatus,
             sessionActions: sessionActions,
-            appInfo: appInfo
+            appInfo: appInfo,
+            userDefaultsLab: servicesLabUserDefaults,
+            keychainLab: servicesLabKeychain
         )
     }
 }

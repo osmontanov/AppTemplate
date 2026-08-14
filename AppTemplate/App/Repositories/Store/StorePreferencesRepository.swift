@@ -111,21 +111,3 @@ actor StorePreferencesRepository: IStorePreferencesRepository {
         for waiter in ready { waiter.1.resume() }
     }
 }
-
-nonisolated final class InMemoryUserDefaultsService: IUserDefaultsService, @unchecked Sendable {
-    private var values: [String: UserDefaultsEncodedValue] = [:]
-    private let lock = NSLock()
-
-    func value<Value: Sendable>(for key: UserDefaultsKey<Value>) throws -> Value? {
-        try lock.withLock { try values[key.logicalName].map(key.decode) }
-    }
-
-    func set<Value: Sendable>(_ value: Value, for key: UserDefaultsKey<Value>) throws {
-        let encoded = try key.encode(value)
-        lock.withLock { values[key.logicalName] = encoded }
-    }
-
-    func remove<Value: Sendable>(_ key: UserDefaultsKey<Value>) {
-        lock.withLock { values[key.logicalName] = nil }
-    }
-}

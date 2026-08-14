@@ -35,9 +35,18 @@ struct ServicesFlowView: View {
                 appInfo: dependencies.appInfo,
                 platformName: platformName
             )
-        case .userDefaults,
-             .keychain,
-             .localDatabase,
+        case .userDefaults:
+            UserDefaultsLabView(
+                guide: item.guide,
+                service: dependencies.userDefaultsLab
+            )
+        case .keychain:
+            KeychainLabView(
+                guide: item.guide,
+                service: dependencies.keychainLab,
+                session: dependencies.sessionActions
+            )
+        case .localDatabase,
              .remoteAPI,
              .localNotifications:
             ServiceLabPlaceholderView(item: item)

@@ -370,7 +370,11 @@ private struct ServicesTwoSceneFixture {
             appFlowCoordinator: coordinator,
             appStateStatus: status,
             sessionActions: session,
-            appInfo: AppInfoService(displayName: "Fixture", version: "1")
+            appInfo: AppInfoService(displayName: "Fixture", version: "1"),
+            userDefaultsLab: InMemoryUserDefaultsService(
+                namespace: "AppTemplate.ServicesLab"
+            ),
+            keychainLab: InMemoryKeychainService()
         )
         first = ServicesAppStateViewModel(
             appState: dependencies.appState,
