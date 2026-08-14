@@ -49,9 +49,9 @@ final class KeychainLabViewModel {
                 publishSecret(kind, presentation: codablePresentation(KeychainLabFixtures.codable))
             }
         } catch is CancellationError {
-            fail("The secure-storage operation was cancelled.")
+            fail(StoreServicesText.string("The secure-storage operation was cancelled."))
         } catch {
-            fail("The secure demo value could not be saved.")
+            fail(StoreServicesText.string("The secure demo value could not be saved."))
         }
     }
 
@@ -65,7 +65,7 @@ final class KeychainLabViewModel {
                     return
                 }
                 guard data.count <= Self.maximumDataBytes else {
-                    fail("Secure data exceeds the 4,096-byte display limit.")
+                    fail(StoreServicesText.string("Secure data exceeds the 4,096-byte display limit."))
                     return
                 }
                 publishSecret(kind, presentation: hexPresentation(data))
@@ -75,7 +75,7 @@ final class KeychainLabViewModel {
                     return
                 }
                 guard value.utf8.count <= Self.maximumStringBytes else {
-                    fail("The secure string exceeds the display limit.")
+                    fail(StoreServicesText.string("The secure string exceeds the display limit."))
                     return
                 }
                 publishSecret(kind, presentation: value)
@@ -85,15 +85,15 @@ final class KeychainLabViewModel {
                     return
                 }
                 guard value.label.utf8.count <= Self.maximumStringBytes else {
-                    fail("The secure model exceeds the display limit.")
+                    fail(StoreServicesText.string("The secure model exceeds the display limit."))
                     return
                 }
                 publishSecret(kind, presentation: codablePresentation(value))
             }
         } catch is CancellationError {
-            fail("The secure-storage operation was cancelled.")
+            fail(StoreServicesText.string("The secure-storage operation was cancelled."))
         } catch {
-            fail("The secure demo value could not be read.")
+            fail(StoreServicesText.string("The secure demo value could not be read."))
         }
     }
 
@@ -105,11 +105,11 @@ final class KeychainLabViewModel {
             case .string: _ = try await service.remove(KeychainLabKeys.string)
             case .codable: _ = try await service.remove(KeychainLabKeys.codable)
             }
-            actualResult = .success("Removed \(kind.title).")
+            actualResult = .success(StoreServicesText.string("Removed \(kind.title)."))
         } catch is CancellationError {
-            fail("The secure-storage operation was cancelled.")
+            fail(StoreServicesText.string("The secure-storage operation was cancelled."))
         } catch {
-            fail("The secure demo value could not be removed.")
+            fail(StoreServicesText.string("The secure demo value could not be removed."))
         }
     }
 
@@ -119,11 +119,11 @@ final class KeychainLabViewModel {
             _ = try await service.remove(KeychainLabKeys.data)
             _ = try await service.remove(KeychainLabKeys.string)
             _ = try await service.remove(KeychainLabKeys.codable)
-            actualResult = .success("Reset only the three Keychain demo values.")
+            actualResult = .success(StoreServicesText.string("Reset only the three Keychain demo values."))
         } catch is CancellationError {
-            fail("The secure-storage operation was cancelled.")
+            fail(StoreServicesText.string("The secure-storage operation was cancelled."))
         } catch {
-            fail("The secure demo values could not be reset.")
+            fail(StoreServicesText.string("The secure demo values could not be reset."))
         }
     }
 
@@ -131,7 +131,7 @@ final class KeychainLabViewModel {
         beginOperation()
         actualResult = map(
             await session.validateSession(),
-            operation: "Session validation"
+            operation: StoreServicesText.string("Session validation")
         )
     }
 
@@ -139,7 +139,7 @@ final class KeychainLabViewModel {
         beginOperation()
         actualResult = map(
             await session.refreshSession(),
-            operation: "Session refresh"
+            operation: StoreServicesText.string("Session refresh")
         )
     }
 
@@ -155,14 +155,17 @@ final class KeychainLabViewModel {
     }
 
     private func publishSecret(_ kind: KeychainLabKind, presentation: String) {
-        let masked = "\(kind.title): masked"
+        let masked = StoreServicesText.string("\(kind.title): masked")
         maskedMessage = masked
-        revealedMessage = "\(kind.title): \(presentation)"
+        revealedMessage = StoreServicesText.string(
+            "services.keychain.revealedValue",
+            defaultValue: "\(kind.title): \(presentation)"
+        )
         actualResult = .success(masked)
     }
 
     private func publishMissing(_ kind: KeychainLabKind) {
-        actualResult = .success("\(kind.title): no value stored.")
+        actualResult = .success(StoreServicesText.string("\(kind.title): no value stored."))
     }
 
     private func fail(_ message: String) {
@@ -176,7 +179,10 @@ final class KeychainLabViewModel {
     }
 
     private func codablePresentation(_ value: KeychainLabCodable) -> String {
-        "number \(value.number), label \(value.label)"
+        StoreServicesText.string(
+            "services.keychain.codableValue",
+            defaultValue: "number \(value.number), label \(value.label)"
+        )
     }
 
     private func map(
@@ -185,15 +191,15 @@ final class KeychainLabViewModel {
     ) -> ServiceLabResult {
         switch result {
         case .committed:
-            .success("\(operation) updated the session status.")
+            .success(StoreServicesText.string("\(operation) updated the session status."))
         case .persistenceFailed:
-            .failure("\(operation) completed but could not save secure session data.")
+            .failure(StoreServicesText.string("\(operation) completed but could not save secure session data."))
         case .unchanged:
-            .success("\(operation) completed with no status change.")
+            .success(StoreServicesText.string("\(operation) completed with no status change."))
         case .failed:
-            .failure("\(operation) could not complete.")
+            .failure(StoreServicesText.string("\(operation) could not complete."))
         case .cancelled:
-            .failure("\(operation) was cancelled.")
+            .failure(StoreServicesText.string("\(operation) was cancelled."))
         }
     }
 }

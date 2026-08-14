@@ -9,12 +9,12 @@ struct AuthenticationHelpView: View {
                 Image(systemName: "questionmark.circle")
                     .font(.largeTitle)
                     .accessibilityHidden(true)
-                Text("Authentication Help")
+                Text(StoreServicesText.resource("Authentication Help"))
                     .font(.title)
-                Text("Sign in to continue the protected Store action. Cancel returns to the Store.")
+                Text(StoreServicesText.resource("Sign in to continue the protected Store action. Cancel returns to the Store."))
                     .foregroundStyle(.secondary)
             }
         }
-        .navigationTitle("Help")
+        .navigationTitle(StoreServicesText.resource("Help"))
     }
 }

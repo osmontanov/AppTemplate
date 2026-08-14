@@ -41,7 +41,7 @@ final class RemoteAPILabViewModel {
 
     func tryProductSearch() async {
         guard let search = validatedSearch(searchText) else {
-            publishInvalidInput("Search must contain 1 to 128 characters.")
+            publishInvalidInput(StoreServicesText.string("Search must contain 1 to 128 characters."))
             return
         }
         await perform(.search(search)) {
@@ -52,7 +52,7 @@ final class RemoteAPILabViewModel {
                 skip: 0
             ))
             self.apply(page: page, replacing: true)
-            return .success("Search returned \(page.products.count) products.")
+            return .success(StoreServicesText.string("Search returned \(page.products.count) products."))
         }
     }
 
@@ -60,13 +60,13 @@ final class RemoteAPILabViewModel {
         await perform(.categories) {
             let categories = try await self.remote.categories()
             self.state.categorySlugs = categories.map(\.slug)
-            return .success("Loaded \(categories.count) categories.")
+            return .success(StoreServicesText.string("Loaded \(categories.count) categories."))
         }
     }
 
     func tryCategoryProducts() async {
         guard let slug = validatedCategory(categorySlug) else {
-            publishInvalidInput("Choose a category slug between 1 and 128 characters.")
+            publishInvalidInput(StoreServicesText.string("Choose a category slug between 1 and 128 characters."))
             return
         }
         await perform(.categoryProducts(slug)) {
@@ -77,13 +77,13 @@ final class RemoteAPILabViewModel {
                 skip: 0
             ))
             self.apply(page: page, replacing: true)
-            return .success("Loaded \(page.products.count) products in \(slug).")
+            return .success(StoreServicesText.string("Loaded \(page.products.count) products in \(slug)."))
         }
     }
 
     func tryProductDetail() async {
         guard productID > 0 else {
-            publishInvalidInput("Product ID must be positive.")
+            publishInvalidInput(StoreServicesText.string("Product ID must be positive."))
             return
         }
         let id = productID
@@ -92,7 +92,7 @@ final class RemoteAPILabViewModel {
             self.state.productIDs = [product.id]
             self.state.nextSkip = 0
             self.canLoadMoreProducts = false
-            return .success("Loaded product \(product.id).")
+            return .success(StoreServicesText.string("Loaded product \(product.id)."))
         }
     }
 
@@ -107,19 +107,19 @@ final class RemoteAPILabViewModel {
                 skip: skip
             ))
             self.apply(page: page, replacing: skip == 0)
-            return .success("Loaded \(page.products.count) products.")
+            return .success(StoreServicesText.string("Loaded \(page.products.count) products."))
         }
     }
 
     func runDiagnostic(_ request: HTTPDiagnosticRequest) async {
         guard isAllowedDiagnostic(request) else {
-            publishInvalidInput("Use delay 0...5000 ms or status 400, 401, 404, or 500.")
+            publishInvalidInput(StoreServicesText.string("Use delay 0...5000 ms or status 400, 401, 404, or 500."))
             return
         }
         await perform(.diagnostic(request)) {
             let response = try await self.remote.diagnostic(request)
             self.state.diagnosticEvents = Array(await self.diagnostics.events().suffix(100))
-            return .success("Diagnostic completed with status \(response.statusCode).")
+            return .success(StoreServicesText.string("Diagnostic completed with status \(response.statusCode)."))
         }
     }
 
@@ -128,7 +128,7 @@ final class RemoteAPILabViewModel {
               !password.isEmpty, password.utf8.count <= 4_096
         else {
             password = ""
-            publishInvalidInput("Enter a bounded username and password.")
+            publishInvalidInput(StoreServicesText.string("Enter a bounded username and password."))
             return
         }
         let capturedUsername = username
@@ -141,14 +141,14 @@ final class RemoteAPILabViewModel {
         case .authenticated:
             pendingPersistenceRetryToken = nil
             lastRetryOperation = nil
-            actualResult = .success("Signed in through the session controller.")
+            actualResult = .success(StoreServicesText.string("Signed in through the session controller."))
         case let .failure(.persistenceFailed(token)):
             pendingPersistenceRetryToken = token
             lastRetryOperation = nil
-            actualResult = .failure("Sign in completed but secure session data could not be saved.")
+            actualResult = .failure(StoreServicesText.string("Sign in completed but secure session data could not be saved."))
         case .failure:
             lastRetryOperation = nil
-            actualResult = .failure("Sign in could not complete.")
+            actualResult = .failure(StoreServicesText.string("Sign in could not complete."))
         case .cancelled:
             actualResult = previousResult
         }
@@ -160,7 +160,7 @@ final class RemoteAPILabViewModel {
         applyValidationResult(
             await session.validateSession(),
             retry: .validate,
-            operation: "Session validation",
+            operation: StoreServicesText.string("Session validation"),
             previousResult: previousResult
         )
     }
@@ -171,7 +171,7 @@ final class RemoteAPILabViewModel {
         applyValidationResult(
             await session.refreshSession(),
             retry: .refresh,
-            operation: "Session refresh",
+            operation: StoreServicesText.string("Session refresh"),
             previousResult: previousResult
         )
     }
@@ -183,13 +183,13 @@ final class RemoteAPILabViewModel {
         case .committed:
             pendingPersistenceRetryToken = nil
             lastRetryOperation = nil
-            actualResult = .success("Secure session persistence completed.")
+            actualResult = .success(StoreServicesText.string("Secure session persistence completed."))
         case let .failed(nextToken, _):
             pendingPersistenceRetryToken = nextToken
-            actualResult = .failure("Secure session persistence could not complete.")
+            actualResult = .failure(StoreServicesText.string("Secure session persistence could not complete."))
         case .invalidToken:
             pendingPersistenceRetryToken = nil
-            actualResult = .failure("The persistence retry is no longer available.")
+            actualResult = .failure(StoreServicesText.string("The persistence retry is no longer available."))
         case .cancelled:
             actualResult = previousResult
         }
@@ -198,7 +198,7 @@ final class RemoteAPILabViewModel {
     func discardSessionPersistenceRetry(_ token: SessionPersistenceRetryToken) async {
         await session.discardPersistenceRetry(token)
         pendingPersistenceRetryToken = nil
-        actualResult = .success("Discarded the pending persistence retry.")
+        actualResult = .success(StoreServicesText.string("Discarded the pending persistence retry."))
     }
 
     func signOut() async {
@@ -208,9 +208,9 @@ final class RemoteAPILabViewModel {
         case .guest:
             pendingPersistenceRetryToken = nil
             lastRetryOperation = nil
-            actualResult = .success("Signed out.")
+            actualResult = .success(StoreServicesText.string("Signed out."))
         case .deletionFailed:
-            actualResult = .failure("Sign out could not clear secure session data.")
+            actualResult = .failure(StoreServicesText.string("Sign out could not clear secure session data."))
         case .cancelled:
             actualResult = previousResult
         }
@@ -223,7 +223,7 @@ final class RemoteAPILabViewModel {
     func clearDiagnostics() async {
         await diagnostics.clear()
         state.diagnosticEvents = []
-        actualResult = .success("Cleared network diagnostics.")
+        actualResult = .success(StoreServicesText.string("Cleared network diagnostics."))
     }
 
     func cancelCurrentOperation() {
@@ -313,17 +313,17 @@ final class RemoteAPILabViewModel {
         case .committed:
             pendingPersistenceRetryToken = nil
             lastRetryOperation = nil
-            actualResult = .success("\(operation) updated the session.")
+            actualResult = .success(StoreServicesText.string("\(operation) updated the session."))
         case let .persistenceFailed(token, _):
             pendingPersistenceRetryToken = token
             lastRetryOperation = nil
-            actualResult = .failure("\(operation) completed but secure session data could not be saved.")
+            actualResult = .failure(StoreServicesText.string("\(operation) completed but secure session data could not be saved."))
         case .unchanged:
             lastRetryOperation = nil
-            actualResult = .success("\(operation) completed with no status change.")
+            actualResult = .success(StoreServicesText.string("\(operation) completed with no status change."))
         case .failed:
             lastRetryOperation = retry
-            actualResult = .failure("\(operation) could not complete.")
+            actualResult = .failure(StoreServicesText.string("\(operation) could not complete."))
         case .cancelled:
             actualResult = previousResult
         }
@@ -356,17 +356,17 @@ final class RemoteAPILabViewModel {
 
     private static func safeMessage(for error: any Error) -> String {
         guard let remoteError = error as? RemoteServiceError else {
-            return "The remote operation could not complete."
+            return StoreServicesText.string("The remote operation could not complete.")
         }
         return switch remoteError {
         case .cancelled:
             ""
         case .transport:
-            "The remote service is unavailable."
+            StoreServicesText.string("The remote service is unavailable.")
         case let .status(code, _):
-            "The remote service returned HTTP status \(code)."
+            StoreServicesText.string("The remote service returned HTTP status \(code).")
         case .invalidResponse:
-            "The remote service returned an invalid response."
+            StoreServicesText.string("The remote service returned an invalid response.")
         }
     }
 }

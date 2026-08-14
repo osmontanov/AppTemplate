@@ -27,10 +27,10 @@ struct CatalogView: View {
     var body: some View {
         Group {
             if viewModel.model.products.isEmpty, viewModel.state == .loading {
-                ProgressView("Loading products")
+                ProgressView(StoreServicesText.resource("Loading products"))
             } else if viewModel.model.products.isEmpty {
                 ContentUnavailableView(
-                    viewModel.errorMessage ?? "No products found",
+                    viewModel.errorMessage ?? StoreServicesText.string("No products found"),
                     systemImage: "shippingbox"
                 )
             } else if viewModel.model.preferences.layout == .grid {
@@ -39,8 +39,8 @@ struct CatalogView: View {
                 list
             }
         }
-        .navigationTitle("Catalog")
-        .searchable(text: $searchText, prompt: "Search products")
+        .navigationTitle(StoreServicesText.resource("Catalog"))
+        .searchable(text: $searchText, prompt: StoreServicesText.resource("Search products"))
         .task {
             await viewModel.loadInitial()
             guard !Task.isCancelled else { return }
@@ -55,6 +55,12 @@ struct CatalogView: View {
             Task { await viewModel.selectCategory(value.isEmpty ? nil : value) }
         }
         .toolbar { toolbarContent }
+        .safeAreaInset(edge: .bottom) {
+            Text(StoreServicesText.resource(.demoUSDAssumption))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(8)
+        }
         .accessibilityIdentifier("screen.store.catalog")
     }
 
@@ -88,20 +94,20 @@ struct CatalogView: View {
     @ViewBuilder
     private var loadMore: some View {
         if viewModel.canLoadMore {
-            Button("Load more") { Task { await viewModel.loadNextPage() } }
+            Button(StoreServicesText.resource("Load more")) { Task { await viewModel.loadNextPage() } }
         }
     }
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItemGroup {
-            Picker("Category", selection: $selectedCategory) {
-                Text("All").tag("")
+            Picker(StoreServicesText.resource("Category"), selection: $selectedCategory) {
+                Text(StoreServicesText.resource("All")).tag("")
                 ForEach(viewModel.model.categories) { category in
                     Text(verbatim: category.name).tag(category.slug)
                 }
             }
-            Picker("Sort", selection: Binding(
+            Picker(StoreServicesText.resource("Sort"), selection: Binding(
                 get: { viewModel.model.preferences.sort },
                 set: { value in Task { await viewModel.setSort(value) } }
             )) {
@@ -110,19 +116,19 @@ struct CatalogView: View {
                 }
             }
             .disabled(!viewModel.isSortingEnabled)
-            Menu("Display", systemImage: "slider.horizontal.3") {
-                Picker("Layout", selection: Binding(
+            Menu(StoreServicesText.resource("Display"), systemImage: "slider.horizontal.3") {
+                Picker(StoreServicesText.resource("Layout"), selection: Binding(
                     get: { viewModel.model.preferences.layout },
                     set: { value in Task { await viewModel.setLayout(value) } }
                 )) {
-                    Text("Grid").tag(StoreCatalogLayout.grid)
-                    Text("List").tag(StoreCatalogLayout.list)
+                    Text(StoreServicesText.resource("Grid")).tag(StoreCatalogLayout.grid)
+                    Text(StoreServicesText.resource("List")).tag(StoreCatalogLayout.list)
                 }
-                Picker("Page size", selection: Binding(
+                Picker(StoreServicesText.resource("Page size"), selection: Binding(
                     get: { viewModel.model.preferences.preferredRemotePageSize },
                     set: { value in Task { await viewModel.setPageSize(value) } }
                 )) {
-                    ForEach(CatalogViewModel.pageSizeChoices, id: \.self) { Text("\($0)").tag($0) }
+                    ForEach(CatalogViewModel.pageSizeChoices, id: \.self) { Text(StoreServicesText.resource("\($0)")).tag($0) }
                 }
             }
         }
@@ -132,6 +138,7 @@ struct CatalogView: View {
 private struct ProductCatalogRow: View {
     let product: Product
     let images: any IImageLoader
+    @Environment(\.locale) private var locale
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -140,7 +147,8 @@ private struct ProductCatalogRow: View {
                     .frame(minHeight: 100, maxHeight: 150)
             }
             Text(verbatim: product.title).font(.headline)
-            Text(verbatim: "$\(product.price)").foregroundStyle(.secondary)
+            Text(verbatim: StoreFormatting.priceUSD(product.price, locale: locale))
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(.rect)
@@ -150,11 +158,11 @@ private struct ProductCatalogRow: View {
 extension StoreCatalogSort {
     var title: String {
         switch self {
-        case .featured: "Featured"
-        case .titleAscending: "Title A–Z"
-        case .titleDescending: "Title Z–A"
-        case .priceAscending: "Price low to high"
-        case .priceDescending: "Price high to low"
+        case .featured: StoreServicesText.string("Featured")
+        case .titleAscending: StoreServicesText.string("Title A–Z")
+        case .titleDescending: StoreServicesText.string("Title Z–A")
+        case .priceAscending: StoreServicesText.string("Price low to high")
+        case .priceDescending: StoreServicesText.string("Price high to low")
         }
     }
 }

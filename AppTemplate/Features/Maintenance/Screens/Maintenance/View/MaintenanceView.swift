@@ -14,16 +14,16 @@ struct MaintenanceView: View {
     var body: some View {
         AdaptiveContentContainer {
             VStack(spacing: 16) {
-                Text("Maintenance is in progress")
-                Text("Disable the saved maintenance flag to return to the required app flow.")
+                Text(StoreServicesText.resource("Maintenance is in progress"))
+                Text(StoreServicesText.resource("Disable the saved maintenance flag to return to the required app flow."))
                     .foregroundStyle(.secondary)
-                Button("Return to App") {
+                Button(StoreServicesText.resource("Return to App")) {
                     viewModel.returnToApp()
                 }
                 .buttonStyle(.borderedProminent)
             }
         }
-        .navigationTitle("Maintenance")
+        .navigationTitle(StoreServicesText.resource("Maintenance"))
     }
 }
 

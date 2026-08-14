@@ -23,47 +23,47 @@ struct LocalDatabaseLabView: View {
         ) {
             draftEditor
             HStack {
-                Button("Fetch") { Task { await model.fetchByID() } }
-                Button("Create") { Task { await model.createDraft() } }
-                Button("Refresh") { Task { await model.refresh() } }
+                Button(StoreServicesText.resource("Fetch")) { Task { await model.fetchByID() } }
+                Button(StoreServicesText.resource("Create")) { Task { await model.createDraft() } }
+                Button(StoreServicesText.resource("Refresh")) { Task { await model.refresh() } }
             }
             recordsPresentation
         } advanced: {
             searchAndPaging
             HStack {
-                Button("Update") { Task { await model.updateDraft() } }
-                Button("Upsert") { Task { await model.upsertDraft() } }
-                Button("Batch Upsert") { Task { await model.upsertBatch() } }
+                Button(StoreServicesText.resource("Update")) { Task { await model.updateDraft() } }
+                Button(StoreServicesText.resource("Upsert")) { Task { await model.upsertDraft() } }
+                Button(StoreServicesText.resource("Batch Upsert")) { Task { await model.upsertBatch() } }
             }
             HStack {
-                Button("Delete ID") { Task { await model.deleteByID() } }
-                Button("Delete All", role: .destructive) {
+                Button(StoreServicesText.resource("Delete ID")) { Task { await model.deleteByID() } }
+                Button(StoreServicesText.resource("Delete All"), role: .destructive) {
                     isDeleteAllConfirmationPresented = true
                 }
             }
             operationControls
-            Text("Create rejects an existing ID, Update requires one, and Upsert demonstrates both insert and replacement through the typed repository.")
+            Text(StoreServicesText.resource("Create rejects an existing ID, Update requires one, and Upsert demonstrates both insert and replacement through the typed repository."))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .navigationTitle("Local Database")
+        .navigationTitle(StoreServicesText.resource("Local Database"))
         .accessibilityIdentifier("screen.services.local-database")
-        .alert("Delete all demo records?", isPresented: $isDeleteAllConfirmationPresented) {
-            Button("Delete All", role: .destructive) {
+        .alert(StoreServicesText.resource("Delete all demo records?"), isPresented: $isDeleteAllConfirmationPresented) {
+            Button(StoreServicesText.resource("Delete All"), role: .destructive) {
                 Task { await model.deleteAllConfirmed() }
             }
-            Button("Cancel", role: .cancel) {}
+            Button(StoreServicesText.resource("Cancel"), role: .cancel) {}
         } message: {
-            Text("Only ExampleRecord values owned by this learning lab are deleted.")
+            Text(StoreServicesText.resource("Only ExampleRecord values owned by this learning lab are deleted."))
         }
         .onDisappear { model.cancelCurrentOperation() }
     }
 
     private var draftEditor: some View {
         VStack(alignment: .leading) {
-            TextField("Record ID", text: $model.draftID)
+            TextField(StoreServicesText.resource("Record ID"), text: $model.draftID)
                 .textFieldStyle(.roundedBorder)
-            TextField("Payload", text: $model.draftPayload)
+            TextField(StoreServicesText.resource("Payload"), text: $model.draftPayload)
                 .textFieldStyle(.roundedBorder)
         }
     }
@@ -71,7 +71,7 @@ struct LocalDatabaseLabView: View {
     @ViewBuilder
     private var recordsPresentation: some View {
         if model.state.records.isEmpty {
-            Text("No records in the current result.")
+            Text(StoreServicesText.resource("No records in the current result."))
                 .foregroundStyle(.secondary)
         } else {
             ForEach(model.state.records) { record in
@@ -82,10 +82,10 @@ struct LocalDatabaseLabView: View {
 
     private var searchAndPaging: some View {
         VStack(alignment: .leading) {
-            TextField("Search IDs and payloads", text: $model.searchText)
+            TextField(StoreServicesText.resource("Search IDs and payloads"), text: $model.searchText)
                 .textFieldStyle(.roundedBorder)
             Stepper(
-                "Page size: \(model.state.pageSize)",
+                StoreServicesText.resource("Page size: \(model.state.pageSize)"),
                 value: Binding(
                     get: { model.state.pageSize },
                     set: { value in Task { await model.setPageSize(value) } }
@@ -93,23 +93,26 @@ struct LocalDatabaseLabView: View {
                 in: 1...50
             )
             HStack {
-                Button("Search / First Page") { Task { await model.refresh() } }
-                Button("Load More") { Task { await model.loadMore() } }
+                Button(StoreServicesText.resource("Search / First Page")) { Task { await model.refresh() } }
+                Button(StoreServicesText.resource("Load More")) { Task { await model.loadMore() } }
                     .disabled(!model.state.hasMore)
             }
-            LabeledContent("Next cursor", value: model.state.nextCursor ?? "End")
+            LabeledContent(
+                StoreServicesText.resource("Next cursor"),
+                value: model.state.nextCursor ?? StoreServicesText.string("End")
+            )
         }
     }
 
     @ViewBuilder
     private var operationControls: some View {
         if model.lastRetryOperation != nil {
-            Button("Retry Last Operation") {
+            Button(StoreServicesText.resource("Retry Last Operation")) {
                 Task { await model.retryLastOperation() }
             }
         }
         if model.state.isLoading {
-            Button("Cancel Current Operation") { model.cancelCurrentOperation() }
+            Button(StoreServicesText.resource("Cancel Current Operation")) { model.cancelCurrentOperation() }
         }
     }
 }

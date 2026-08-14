@@ -48,9 +48,9 @@ struct ServiceLabGuideView<TryItContent: View, AdvancedContent: View>: View {
                 case .resetDemoData:
                     Section(section.title) {
                         if let resetDemoData {
-                            Button("Reset Demo Data", action: resetDemoData)
+                            Button(StoreServicesText.resource(.resetDemoData), action: resetDemoData)
                         } else {
-                            Text("No demo data has been created.")
+                            Text(StoreServicesText.resource("No demo data has been created."))
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -67,12 +67,12 @@ struct ServiceLabGuideView<TryItContent: View, AdvancedContent: View>: View {
     private var resultPresentation: some View {
         switch result {
         case .idle:
-            Label("Not run", systemImage: "circle.dashed")
+            Label(StoreServicesText.resource("Not run"), systemImage: "circle.dashed")
                 .foregroundStyle(.secondary)
         case .running:
             HStack {
                 ProgressView()
-                Text("Running")
+                Text(StoreServicesText.resource("Running"))
             }
         case let .success(message):
             Label(message, systemImage: "checkmark.circle.fill")

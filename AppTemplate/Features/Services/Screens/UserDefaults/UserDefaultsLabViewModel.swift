@@ -34,14 +34,18 @@ final class UserDefaultsLabViewModel {
             case .codable:
                 try service.set(UserDefaultsLabFixtures.codable, for: UserDefaultsLabKeys.codable)
             }
-            actualResult = .success("Saved \(kind.title).")
+            actualResult = .success(StoreServicesText.string("Saved \(kind.title)."))
         } catch {
-            actualResult = .failure("The demo value could not be saved.")
+            actualResult = .failure(StoreServicesText.string("The demo value could not be saved."))
             throw error
         }
     }
 
-    func read(_ kind: UserDefaultsLabKind) throws {
+    func read(
+        _ kind: UserDefaultsLabKind,
+        locale: Locale = .current,
+        timeZone: TimeZone = .current
+    ) throws {
         do {
             actualResult = switch kind {
             case .bool:
@@ -57,12 +61,16 @@ final class UserDefaultsLabViewModel {
             case .data:
                 presentData(try service.value(for: UserDefaultsLabKeys.data))
             case .date:
-                presentDate(try service.value(for: UserDefaultsLabKeys.date))
+                presentDate(
+                    try service.value(for: UserDefaultsLabKeys.date),
+                    locale: locale,
+                    timeZone: timeZone
+                )
             case .codable:
                 presentCodable(try service.value(for: UserDefaultsLabKeys.codable))
             }
         } catch {
-            actualResult = .failure("The demo value could not be read.")
+            actualResult = .failure(StoreServicesText.string("The demo value could not be read."))
             throw error
         }
     }
@@ -78,12 +86,12 @@ final class UserDefaultsLabViewModel {
         case .date: service.remove(UserDefaultsLabKeys.date)
         case .codable: service.remove(UserDefaultsLabKeys.codable)
         }
-        actualResult = .success("Removed \(kind.title).")
+        actualResult = .success(StoreServicesText.string("Removed \(kind.title)."))
     }
 
     func resetDemoData() {
         for kind in UserDefaultsLabKind.allCases { removeWithoutPublishing(kind) }
-        actualResult = .success("Reset only the eight UserDefaults demo values.")
+        actualResult = .success(StoreServicesText.string("Reset only the eight UserDefaults demo values."))
     }
 
     private func removeWithoutPublishing(_ kind: UserDefaultsLabKind) {
@@ -100,29 +108,40 @@ final class UserDefaultsLabViewModel {
     }
 
     private func present<Value>(_ value: Value?, label: String) -> ServiceLabResult {
-        guard let value else { return .success("\(label): no value stored.") }
-        return .success("\(label): \(value)")
+        guard let value else { return .success(StoreServicesText.string("\(label): no value stored.")) }
+        return .success(StoreServicesText.string(
+            "services.userDefaults.value",
+            defaultValue: "\(label): \(String(describing: value))"
+        ))
     }
 
     private func presentData(_ data: Data?) -> ServiceLabResult {
-        guard let data else { return .success("Data: no value stored.") }
+        guard let data else { return .success(StoreServicesText.string("Data: no value stored.")) }
         guard data.count <= Self.maximumDataBytes else {
-            return .failure("Data exceeds the 4,096-byte display limit.")
+            return .failure(StoreServicesText.string("Data exceeds the 4,096-byte display limit."))
         }
         let hex = data.map { String(format: "%02x", $0) }.joined()
         guard hex.count <= Self.maximumHexCharacters else {
-            return .failure("Data exceeds the hexadecimal display limit.")
+            return .failure(StoreServicesText.string("Data exceeds the hexadecimal display limit."))
         }
-        return .success("Data (\(data.count) bytes): \(hex)")
+        return .success(StoreServicesText.string("Data (\(data.count) bytes): \(hex)"))
     }
 
-    private func presentDate(_ date: Date?) -> ServiceLabResult {
-        guard let date else { return .success("Date: no value stored.") }
-        return .success("Date: \(date.formatted(.iso8601))")
+    private func presentDate(
+        _ date: Date?,
+        locale: Locale,
+        timeZone: TimeZone
+    ) -> ServiceLabResult {
+        guard let date else { return .success(StoreServicesText.string("Date: no value stored.")) }
+        let formatted = StoreFormatting.dateTime(date, locale: locale, timeZone: timeZone)
+        return .success(StoreServicesText.string(
+            "services.userDefaults.dateValue",
+            defaultValue: "Date: \(formatted)"
+        ))
     }
 
     private func presentCodable(_ value: UserDefaultsLabCodable?) -> ServiceLabResult {
-        guard let value else { return .success("Codable: no value stored.") }
-        return .success("Codable: number \(value.number), label \(value.label)")
+        guard let value else { return .success(StoreServicesText.string("Codable: no value stored.")) }
+        return .success(StoreServicesText.string("Codable: number \(value.number), label \(value.label)"))
     }
 }

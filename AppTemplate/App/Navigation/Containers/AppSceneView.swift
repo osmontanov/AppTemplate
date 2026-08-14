@@ -172,14 +172,14 @@ struct AppSceneView: View {
 
     private var rejectedLinkRecovery: some View {
         VStack(spacing: 8) {
-            Text("That link could not be opened.")
+            Text(StoreServicesText.resource("That link could not be opened."))
                 .font(.headline)
             HStack {
-                Button("Open Store") {
+                Button(StoreServicesText.resource("Open Store")) {
                     lifecycle.recoverRejectedLink(.openStore)
                 }
                 .accessibilityIdentifier("action.deep-link.open-store")
-                Button("Open Services") {
+                Button(StoreServicesText.resource("Open Services")) {
                     lifecycle.recoverRejectedLink(.openServices)
                 }
                 .accessibilityIdentifier("action.deep-link.open-services")

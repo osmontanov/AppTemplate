@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 
 @MainActor
@@ -21,7 +22,7 @@ final class CartViewModel {
         } catch is CancellationError {
             return
         } catch {
-            errorMessage = "The cart is unavailable."
+            errorMessage = StoreServicesText.string("The cart is unavailable.")
         }
     }
 
@@ -29,18 +30,18 @@ final class CartViewModel {
         do {
             cart = try await repository.setQuantity(productID: productID, quantity: quantity)
             errorMessage = nil
-        } catch { errorMessage = "The cart could not be updated." }
+        } catch { errorMessage = StoreServicesText.string("The cart could not be updated.") }
     }
 
     func remove(productID: Int) async {
         do {
             cart = try await repository.remove(productID: productID)
             errorMessage = nil
-        } catch { errorMessage = "The cart could not be updated." }
+        } catch { errorMessage = StoreServicesText.string("The cart could not be updated.") }
     }
 
     func handleRevisionConflict() async {
         await load()
-        errorMessage = "Your cart changed. Review it before trying checkout again."
+        errorMessage = StoreServicesText.string("Your cart changed. Review it before trying checkout again.")
     }
 }

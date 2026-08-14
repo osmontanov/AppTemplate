@@ -4,6 +4,8 @@ struct ServicesAppStateView: View {
     private let guide: ServiceLabGuide
     @State private var model: ServicesAppStateViewModel
     @State private var pendingAppAction: AppWideAction?
+    @Environment(\.locale) private var locale
+    @Environment(\.timeZone) private var timeZone
 
     init(
         guide: ServiceLabGuide,
@@ -33,10 +35,10 @@ struct ServicesAppStateView: View {
         } advanced: {
             sceneSummary
         }
-        .navigationTitle("App State")
+        .navigationTitle(StoreServicesText.resource("App State"))
         .accessibilityIdentifier("screen.services.app-state")
         .confirmationDialog(
-            "Confirm Application-wide Action",
+            StoreServicesText.resource("Confirm Application-wide Action"),
             isPresented: appActionConfirmation,
             titleVisibility: .visible,
             presenting: pendingAppAction
@@ -44,7 +46,7 @@ struct ServicesAppStateView: View {
             Button(action.confirmationLabel, role: action.role) {
                 perform(action)
             }
-            Button("Cancel", role: .cancel) {}
+            Button(StoreServicesText.resource("Cancel"), role: .cancel) {}
         } message: { action in
             Text(action.confirmationMessage)
         }
@@ -52,35 +54,39 @@ struct ServicesAppStateView: View {
 
     private var applicationSummary: some View {
         Group {
-            Text("Application")
+            Text(StoreServicesText.resource("Application"))
                 .font(.headline)
-            LabeledContent("Schema", value: "\(model.application.schemaVersion)")
-            LabeledContent("Persistence", value: persistenceLabel)
-            LabeledContent("Visible Root", value: rootLabel)
+            LabeledContent(StoreServicesText.resource("Schema"), value: "\(model.application.schemaVersion)")
+            LabeledContent(StoreServicesText.resource("Persistence"), value: persistenceLabel)
+            LabeledContent(StoreServicesText.resource("Visible Root"), value: rootLabel)
             LabeledContent(
-                "Onboarding Complete",
-                value: model.application.hasCompletedOnboarding ? "Yes" : "No"
+                StoreServicesText.resource("Onboarding Complete"),
+                value: model.application.hasCompletedOnboarding
+                    ? StoreServicesText.string("Yes")
+                    : StoreServicesText.string("No")
             )
             LabeledContent(
-                "Maintenance",
-                value: model.application.isMaintenanceEnabled ? "Enabled" : "Disabled"
+                StoreServicesText.resource("Maintenance"),
+                value: model.application.isMaintenanceEnabled
+                    ? StoreServicesText.string("Enabled")
+                    : StoreServicesText.string("Disabled")
             )
         }
     }
 
     private var sessionSummary: some View {
         Group {
-            Text("Session")
+            Text(StoreServicesText.resource("Session"))
                 .font(.headline)
-            LabeledContent("State", value: sessionLabel)
-            LabeledContent("Revision", value: "\(model.session.session.revision)")
+            LabeledContent(StoreServicesText.resource("State"), value: sessionLabel)
+            LabeledContent(StoreServicesText.resource("Revision"), value: "\(model.session.session.revision)")
             if let expiry = model.session.expiry {
                 LabeledContent(
-                    "Access Expiry",
+                    StoreServicesText.resource("Access Expiry"),
                     value: dateLabel(expiry.accessExpiresAt)
                 )
                 LabeledContent(
-                    "Refresh Expiry",
+                    StoreServicesText.resource("Refresh Expiry"),
                     value: dateLabel(expiry.refreshExpiresAt)
                 )
             }
@@ -89,15 +95,15 @@ struct ServicesAppStateView: View {
 
     private var windowActions: some View {
         Group {
-            Text("Current Window")
+            Text(StoreServicesText.resource("Current Window"))
                 .font(.headline)
-            Button("Open App Info Sample Link") {
+            Button(StoreServicesText.resource("Open App Info Sample Link")) {
                 model.handleSampleIntent(.openService(.appInfo))
             }
-            Button("Open Store Sample Link") {
+            Button(StoreServicesText.resource("Open Store Sample Link")) {
                 model.handleSampleIntent(.openStoreRoot)
             }
-            Text("Sample links and Reset Demo Data affect only this window.")
+            Text(StoreServicesText.resource("Sample links and Reset Demo Data affect only this window."))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -105,21 +111,22 @@ struct ServicesAppStateView: View {
 
     private var appWideActions: some View {
         Group {
-            Text("Application-wide")
+            Text(StoreServicesText.resource("Application-wide"))
                 .font(.headline)
-            Button("Replay Onboarding") {
+            Button(StoreServicesText.resource("Replay Onboarding")) {
                 pendingAppAction = .replayOnboarding
             }
             Button(model.application.isMaintenanceEnabled
-                ? "Disable Maintenance" : "Enable Maintenance") {
+                ? StoreServicesText.string("Disable Maintenance")
+                : StoreServicesText.string("Enable Maintenance")) {
                 pendingAppAction = .setMaintenance(
                     !model.application.isMaintenanceEnabled
                 )
             }
-            Button("Sign Out", role: .destructive) {
+            Button(StoreServicesText.resource("Sign Out"), role: .destructive) {
                 pendingAppAction = .signOut
             }
-            Text("These commands can change every window and require confirmation.")
+            Text(StoreServicesText.resource(.appWideImpact))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -128,28 +135,34 @@ struct ServicesAppStateView: View {
     private var sceneSummary: some View {
         Group {
             LabeledContent(
-                "Selected Section",
-                value: model.scene.selectedSection == .store ? "Store" : "Services"
+                StoreServicesText.resource("Selected Section"),
+                value: model.scene.selectedSection == .store
+                    ? StoreServicesText.string("Store")
+                    : StoreServicesText.string("Services")
             )
-            LabeledContent("Store Path", value: pathCount(model.scene.storePath.count))
+            LabeledContent(StoreServicesText.resource("Store Path"), value: pathCount(model.scene.storePath.count))
             LabeledContent(
-                "Services Path",
+                StoreServicesText.resource("Services Path"),
                 value: model.scene.servicesPath.isEmpty
-                    ? "Root"
+                    ? StoreServicesText.string("Root")
                     : model.scene.servicesPath.map(\.displayTitle).joined(separator: " → ")
             )
-            LabeledContent("Restoration", value: restorationLabel)
+            LabeledContent(StoreServicesText.resource("Restoration"), value: restorationLabel)
             LabeledContent(
-                "Checkpoint",
-                value: model.scene.checkpoint?.uuidString ?? "None"
+                StoreServicesText.resource("Checkpoint"),
+                value: model.scene.checkpoint?.uuidString ?? StoreServicesText.string("None")
             )
             LabeledContent(
-                "Deferred Link",
-                value: model.scene.hasDeferredLink ? "Waiting" : "None"
+                StoreServicesText.resource("Deferred Link"),
+                value: model.scene.hasDeferredLink
+                    ? StoreServicesText.string("Waiting")
+                    : StoreServicesText.string("None")
             )
             LabeledContent(
-                "Protected Action",
-                value: model.scene.hasPendingProtectedAction ? "Waiting" : "None"
+                StoreServicesText.resource("Protected Action"),
+                value: model.scene.hasPendingProtectedAction
+                    ? StoreServicesText.string("Waiting")
+                    : StoreServicesText.string("None")
             )
         }
     }
@@ -175,46 +188,52 @@ struct ServicesAppStateView: View {
 
     private var persistenceLabel: String {
         switch model.application.persistenceStatus {
-        case .writable: "Writable"
-        case .readOnly: "Read-only"
+        case .writable: StoreServicesText.string("Writable")
+        case .readOnly: StoreServicesText.string("Read-only")
         }
     }
 
     private var rootLabel: String {
         switch model.application.root {
-        case .restoring: "Restoring"
-        case .onboarding: "Onboarding"
-        case .maintenance: "Maintenance"
-        case .main: "Main"
+        case .restoring: StoreServicesText.string("Restoring")
+        case .onboarding: StoreServicesText.string("Onboarding")
+        case .maintenance: StoreServicesText.string("Maintenance")
+        case .main: StoreServicesText.string("Main")
         }
     }
 
     private var sessionLabel: String {
         switch model.session.session.state {
-        case .restoring: "Restoring"
-        case .guest: "Guest"
-        case .unavailable: "Unavailable"
-        case .authenticated: "Authenticated"
+        case .restoring: StoreServicesText.string("Restoring")
+        case .guest: StoreServicesText.string("Guest")
+        case .unavailable: StoreServicesText.string("Unavailable")
+        case .authenticated: StoreServicesText.string("Authenticated")
         }
     }
 
     private var restorationLabel: String {
         switch model.scene.restorationResult {
-        case .noState: "No Saved State"
-        case .restored: "Restored"
-        case .migrated: "Migrated"
-        case .recovered: "Recovered"
-        case .reset: "Reset"
-        case .preservedFutureSchema: "Future State Preserved"
+        case .noState: StoreServicesText.string("No Saved State")
+        case .restored: StoreServicesText.string("Restored")
+        case .migrated: StoreServicesText.string("Migrated")
+        case .recovered: StoreServicesText.string("Recovered")
+        case .reset: StoreServicesText.string("Reset")
+        case .preservedFutureSchema: StoreServicesText.string("Future State Preserved")
         }
     }
 
     private func dateLabel(_ date: Date?) -> String {
-        date?.formatted(date: .abbreviated, time: .standard) ?? "Not provided"
+        date.map { StoreFormatting.dateTime($0, locale: locale, timeZone: timeZone) }
+            ?? StoreServicesText.string("Not provided")
     }
 
     private func pathCount(_ count: Int) -> String {
-        count == 0 ? "Root" : "\(count) typed destination\(count == 1 ? "" : "s")"
+        count == 0
+            ? StoreServicesText.string("Root")
+            : StoreServicesText.string(
+                "services.appState.pathCount",
+                defaultValue: "\(count) typed destinations"
+            )
     }
 }
 
@@ -225,21 +244,23 @@ private enum AppWideAction: Equatable {
 
     var confirmationLabel: String {
         switch self {
-        case .replayOnboarding: "Replay Onboarding"
+        case .replayOnboarding: StoreServicesText.string("Replay Onboarding")
         case let .setMaintenance(enabled):
-            enabled ? "Enable Maintenance" : "Disable Maintenance"
-        case .signOut: "Sign Out"
+            enabled
+                ? StoreServicesText.string("Enable Maintenance")
+                : StoreServicesText.string("Disable Maintenance")
+        case .signOut: StoreServicesText.string("Sign Out")
         }
     }
 
     var confirmationMessage: String {
         switch self {
         case .replayOnboarding:
-            "This replaces the visible root in every window."
+            StoreServicesText.string("This replaces the visible root in every window.")
         case .setMaintenance:
-            "This changes maintenance policy for every window."
+            StoreServicesText.string("This changes maintenance policy for every window.")
         case .signOut:
-            "This signs out the shared application session."
+            StoreServicesText.string("This signs out the shared application session.")
         }
     }
 

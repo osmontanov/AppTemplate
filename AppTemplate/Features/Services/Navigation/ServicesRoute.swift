@@ -50,3 +50,30 @@ enum ServicesRoute: NavigationRoute {
         try container.encode(tag, forKey: .tag)
     }
 }
+
+nonisolated
+extension ServicesRoute {
+    var accessibilityWireValue: String {
+        switch self {
+        case .appState: "app-state"
+        case .appInfo: "app-info"
+        case .userDefaults: "user-defaults"
+        case .keychain: "keychain"
+        case .localDatabase: "local-database"
+        case .remoteAPI: "remote-api"
+        case .localNotifications: "local-notifications"
+        }
+    }
+
+    var displayTitle: String {
+        switch self {
+        case .appState: StoreServicesText.string("App State")
+        case .appInfo: StoreServicesText.string("App Info")
+        case .userDefaults: StoreServicesText.string("UserDefaults")
+        case .keychain: StoreServicesText.string("Keychain")
+        case .localDatabase: StoreServicesText.string("Local Database")
+        case .remoteAPI: StoreServicesText.string("Remote API")
+        case .localNotifications: StoreServicesText.string("Local Notifications")
+        }
+    }
+}

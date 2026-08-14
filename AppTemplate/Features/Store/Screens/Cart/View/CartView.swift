@@ -20,7 +20,7 @@ struct CartView: View {
                     VStack(alignment: .leading) {
                         Text(verbatim: line.product.title).font(.headline)
                         Stepper(
-                            "Quantity: \(line.quantity)",
+                            StoreServicesText.resource("Quantity: \(line.quantity)"),
                             value: Binding(
                                 get: { line.quantity },
                                 set: { quantity in
@@ -29,21 +29,21 @@ struct CartView: View {
                             ),
                             in: 1...99
                         )
-                        Button("Remove", role: .destructive) {
+                        Button(StoreServicesText.resource("Remove"), role: .destructive) {
                             Task { await viewModel.remove(productID: line.product.id) }
                         }
                     }
                 }
                 if cart.lines.isEmpty {
-                    ContentUnavailableView("Your cart is empty", systemImage: "cart")
+                    ContentUnavailableView(StoreServicesText.resource("Your cart is empty"), systemImage: "cart")
                 }
             } else if viewModel.isLoading {
                 ProgressView()
             }
         }
-        .navigationTitle("Cart")
+        .navigationTitle(StoreServicesText.resource("Cart"))
         .safeAreaInset(edge: .bottom) {
-            Button("Demo checkout") {
+            Button(StoreServicesText.resource("Demo checkout")) {
                 checkoutCart = viewModel.cart
             }
             .buttonStyle(.borderedProminent)

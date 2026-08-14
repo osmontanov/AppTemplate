@@ -22,9 +22,9 @@ struct SessionRecoveryView: View {
             VStack(spacing: 16) {
                 Image(systemName: "lock.trianglebadge.exclamationmark")
                     .font(.largeTitle)
-                Text("Session unavailable").font(.title)
+                Text(StoreServicesText.resource("Session unavailable")).font(.title)
                 Text(message).foregroundStyle(.secondary)
-                Button("Retry") { Task { await viewModel.retry() } }
+                Button(StoreServicesText.resource("Retry")) { Task { await viewModel.retry() } }
                     .buttonStyle(.borderedProminent)
                     .disabled(viewModel.isRetrying)
             }
@@ -39,9 +39,9 @@ struct SessionRecoveryView: View {
     private var message: String {
         switch viewModel.reason {
         case .secureStorageReadFailed:
-            "The saved session could not be read safely."
+            StoreServicesText.string("The saved session could not be read safely.")
         case .secureStorageCleanupFailed:
-            "The saved session could not be removed safely."
+            StoreServicesText.string("The saved session could not be removed safely.")
         }
     }
 }

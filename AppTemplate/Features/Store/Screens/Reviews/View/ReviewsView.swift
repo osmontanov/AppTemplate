@@ -12,13 +12,13 @@ struct ReviewsView: View {
             if let product = viewModel.product {
                 ForEach(product.reviews) { review in
                     VStack(alignment: .leading, spacing: 6) {
-                        Label("\(review.rating) out of 5", systemImage: "star.fill")
+                        Label(StoreServicesText.resource("\(review.rating) out of 5"), systemImage: "star.fill")
                         Text(verbatim: review.comment)
                         Text(verbatim: review.reviewerName).font(.caption).foregroundStyle(.secondary)
                     }
                 }
                 if product.reviews.isEmpty {
-                    ContentUnavailableView("No reviews", systemImage: "star.bubble")
+                    ContentUnavailableView(StoreServicesText.resource("No reviews"), systemImage: "star.bubble")
                 }
             } else if let error = viewModel.errorMessage {
                 ContentUnavailableView(error, systemImage: "exclamationmark.triangle")
@@ -26,7 +26,7 @@ struct ReviewsView: View {
                 ProgressView()
             }
         }
-        .navigationTitle("Reviews")
+        .navigationTitle(StoreServicesText.resource("Reviews"))
         .task(id: viewModel.productID) { await viewModel.load() }
         .accessibilityIdentifier("screen.store.reviews")
     }

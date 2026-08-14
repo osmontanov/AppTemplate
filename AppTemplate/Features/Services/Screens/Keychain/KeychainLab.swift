@@ -7,9 +7,9 @@ nonisolated enum KeychainLabKind: String, CaseIterable, Sendable {
 
     var title: String {
         switch self {
-        case .data: "Data"
-        case .string: "String"
-        case .codable: "Codable"
+        case .data: StoreServicesText.string("Data")
+        case .string: StoreServicesText.string("String")
+        case .codable: StoreServicesText.string("Codable")
         }
     }
 }

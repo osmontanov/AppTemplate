@@ -19,16 +19,16 @@ struct ServicesAppInfoView: View {
     var body: some View {
         ServiceLabGuideView(
             guide: guide,
-            result: .success("Read shared application metadata.")
+            result: .success(StoreServicesText.string("Read shared application metadata."))
         ) {
-            LabeledContent("Display Name", value: model.displayName)
-            LabeledContent("Version", value: model.version)
-            LabeledContent("Platform", value: model.platformName)
+            LabeledContent(StoreServicesText.resource("Display Name"), value: model.displayName)
+            LabeledContent(StoreServicesText.resource("Version"), value: model.version)
+            LabeledContent(StoreServicesText.resource("Platform"), value: model.platformName)
         } advanced: {
-            Text("The model receives application metadata and a view-derived platform label. It does not inspect Bundle or platform globals.")
+            Text(StoreServicesText.resource("The model receives application metadata and a view-derived platform label. It does not inspect Bundle or platform globals."))
                 .foregroundStyle(.secondary)
         }
-        .navigationTitle("App Info")
+        .navigationTitle(StoreServicesText.resource("App Info"))
         .accessibilityIdentifier("screen.services.app-info")
     }
 }

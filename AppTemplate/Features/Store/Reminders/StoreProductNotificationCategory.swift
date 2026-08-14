@@ -1,3 +1,5 @@
+import Foundation
+
 nonisolated
 enum StoreProductNotificationCategory {
     static func make() -> LocalNotificationCategory {
@@ -6,17 +8,17 @@ enum StoreProductNotificationCategory {
             actions: [
                 .button(LocalNotificationButtonAction(
                     id: AppNotificationIdentifiers.openProductAction,
-                    title: "Open Product",
+                    title: StoreServicesText.string("Open Product"),
                     options: .foreground
                 )),
                 .button(LocalNotificationButtonAction(
                     id: AppNotificationIdentifiers.favoriteAction,
-                    title: "Favorite",
+                    title: StoreServicesText.string("Favorite"),
                     options: .foreground
                 )),
                 .button(LocalNotificationButtonAction(
                     id: AppNotificationIdentifiers.remindLaterAction,
-                    title: "Remind Later"
+                    title: StoreServicesText.string("Remind Later")
                 ))
             ],
             reportsDismissal: true

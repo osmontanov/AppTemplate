@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 
 @MainActor
@@ -20,7 +21,7 @@ final class ReviewsViewModel {
         } catch is CancellationError {
             return
         } catch {
-            errorMessage = "Reviews are unavailable."
+            errorMessage = StoreServicesText.string("Reviews are unavailable.")
         }
     }
 }

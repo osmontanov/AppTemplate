@@ -34,7 +34,7 @@ struct CheckoutFlowView: View {
                     success
                 }
             }
-            .navigationTitle("Demo checkout")
+            .navigationTitle(StoreServicesText.resource("Demo checkout"))
         }
         .onChange(of: viewModel.invalidField) { _, field in focusedField = field }
         .frame(minWidth: 360, minHeight: 420)
@@ -43,17 +43,17 @@ struct CheckoutFlowView: View {
 
     private func delivery(_ model: CheckoutModel) -> some View {
         Form {
-            Section("Fictional delivery") {
-                TextField("Recipient", text: modelBinding(model, keyPath: \.recipient))
+            Section(StoreServicesText.resource("Fictional delivery")) {
+                TextField(StoreServicesText.resource("Recipient"), text: modelBinding(model, keyPath: \.recipient))
                     .focused($focusedField, equals: .recipient)
-                TextField("Address", text: modelBinding(model, keyPath: \.address))
+                TextField(StoreServicesText.resource("Address"), text: modelBinding(model, keyPath: \.address))
                     .focused($focusedField, equals: .address)
-                TextField("Note", text: modelBinding(model, keyPath: \.note))
+                TextField(StoreServicesText.resource("Note"), text: modelBinding(model, keyPath: \.note))
                     .focused($focusedField, equals: .note)
             }
             Section {
-                Text("No payment or network request is made.").foregroundStyle(.secondary)
-                Button("Review order") { viewModel.continueToReview() }
+                Text(StoreServicesText.resource("No payment or network request is made.")).foregroundStyle(.secondary)
+                Button(StoreServicesText.resource("Review order")) { viewModel.continueToReview() }
                     .buttonStyle(.borderedProminent)
                     .disabled(!viewModel.canContinue)
             }
@@ -62,18 +62,20 @@ struct CheckoutFlowView: View {
 
     private func review(_ model: CheckoutModel, failed: Bool) -> some View {
         Form {
-            Section("Delivery") {
-                LabeledContent("Recipient", value: model.recipient)
-                LabeledContent("Address", value: model.address)
-                if !model.note.isEmpty { LabeledContent("Note", value: model.note) }
+            Section(StoreServicesText.resource("Delivery")) {
+                LabeledContent(StoreServicesText.resource("Recipient"), value: model.recipient)
+                LabeledContent(StoreServicesText.resource("Address"), value: model.address)
+                if !model.note.isEmpty { LabeledContent(StoreServicesText.resource("Note"), value: model.note) }
             }
             if failed {
-                Text("The demo order could not be placed. You can retry safely.")
+                Text(StoreServicesText.resource("The demo order could not be placed. You can retry safely."))
                     .foregroundStyle(.red)
             }
             Section {
-                Button("Edit delivery") { viewModel.editDelivery() }
-                Button(failed ? "Retry demo order" : "Place demo order") {
+                Button(StoreServicesText.resource("Edit delivery")) { viewModel.editDelivery() }
+                Button(failed
+                    ? StoreServicesText.string("Retry demo order")
+                    : StoreServicesText.string("Place demo order")) {
                     Task {
                         if failed { await viewModel.retryPlaceDemoOrder() }
                         else { await viewModel.placeDemoOrder() }
@@ -86,11 +88,11 @@ struct CheckoutFlowView: View {
 
     private var success: some View {
         ContentUnavailableView {
-            Label("Demo order placed", systemImage: "checkmark.circle.fill")
+            Label(StoreServicesText.resource("Demo order placed"), systemImage: "checkmark.circle.fill")
         } description: {
-            Text("This was a fictional local checkout.")
+            Text(StoreServicesText.resource("This was a fictional local checkout."))
         } actions: {
-            Button("Done") { viewModel.done() }.buttonStyle(.borderedProminent)
+            Button(StoreServicesText.resource("Done")) { viewModel.done() }.buttonStyle(.borderedProminent)
         }
     }
 

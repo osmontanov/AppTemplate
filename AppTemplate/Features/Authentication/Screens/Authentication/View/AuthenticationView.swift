@@ -16,13 +16,13 @@ struct AuthenticationView: View {
                 Image(systemName: "person.badge.key")
                     .font(.largeTitle)
                     .accessibilityHidden(true)
-                Text("Sign in")
+                Text(StoreServicesText.resource("Sign in"))
                     .font(.title)
                 content
                 navigationActions
             }
         }
-        .navigationTitle("Authentication")
+        .navigationTitle(StoreServicesText.resource("Authentication"))
         .frame(minWidth: 360, minHeight: 420)
         .accessibilityIdentifier("screen.authentication")
     }
@@ -33,14 +33,14 @@ struct AuthenticationView: View {
         case .editing:
             credentialsForm(message: nil)
         case .invalidCredentials:
-            credentialsForm(message: "Check your username and password.")
+            credentialsForm(message: StoreServicesText.string("Check your username and password."))
         case let .submitting(username):
-            ProgressView("Signing in as \(username)")
+            ProgressView(StoreServicesText.resource("Signing in as \(username)"))
         case let .persistenceFailed(context):
             VStack(spacing: 12) {
-                Text("Signed in as \(context.username), but the session could not be saved.")
+                Text(StoreServicesText.resource("Signed in as \(context.username), but the session could not be saved."))
                     .foregroundStyle(.secondary)
-                Button("Retry saving session") {
+                Button(StoreServicesText.resource("Retry saving session")) {
                     Task { await viewModel.retryPersistence() }
                 }
                 .buttonStyle(.borderedProminent)
@@ -53,13 +53,13 @@ struct AuthenticationView: View {
 
     private func credentialsForm(message: String?) -> some View {
         VStack(spacing: 12) {
-            TextField("Username", text: Binding(
+            TextField(StoreServicesText.resource("Username"), text: Binding(
                 get: { viewModel.username },
                 set: { viewModel.username = $0 }
             ))
             .textContentType(.username)
             .accessibilityIdentifier("authentication.username")
-            SecureField("Password", text: Binding(
+            SecureField(StoreServicesText.resource("Password"), text: Binding(
                 get: { viewModel.password },
                 set: { viewModel.password = $0 }
             ))
@@ -79,10 +79,10 @@ struct AuthenticationView: View {
 
     @ViewBuilder
     private var credentialActions: some View {
-        Button("Use demo credentials") {
+        Button(StoreServicesText.resource("Use demo credentials")) {
             viewModel.fillDemoCredentials()
         }
-        Button("Sign in") {
+        Button(StoreServicesText.resource("Sign in")) {
             Task { await viewModel.submit() }
         }
         .buttonStyle(.borderedProminent)
@@ -97,11 +97,11 @@ struct AuthenticationView: View {
 
     @ViewBuilder
     private var modalActions: some View {
-        Button("Cancel") {
+        Button(StoreServicesText.resource("Cancel")) {
             Task { await viewModel.cancel() }
         }
         .disabled(viewModel.isBusy)
-        NavigationLink("Help", value: AuthenticationRoute.help)
+        NavigationLink(StoreServicesText.resource("Help"), value: AuthenticationRoute.help)
     }
 
     private func failureMessage(
@@ -110,19 +110,22 @@ struct AuthenticationView: View {
     ) -> String {
         switch failure {
         case .transport:
-            "The network is unavailable for \(username)."
+            StoreServicesText.string(
+                "authentication.networkUnavailable",
+                defaultValue: "The network is unavailable for \(username)."
+            )
         case .serverUnavailable:
-            "The sign-in service is unavailable."
+            StoreServicesText.string("The sign-in service is unavailable.")
         case .rateLimited:
-            "Too many attempts. Try again later."
+            StoreServicesText.string("Too many attempts. Try again later.")
         case .responseInvalid:
-            "The sign-in response was invalid."
+            StoreServicesText.string("The sign-in response was invalid.")
         case .concurrentAttempt:
-            "Another sign-in attempt is already running."
+            StoreServicesText.string("Another sign-in attempt is already running.")
         case .invalidCredentials:
-            "Check your username and password."
+            StoreServicesText.string("Check your username and password.")
         case .persistenceFailed:
-            "The session could not be saved."
+            StoreServicesText.string("The session could not be saved.")
         }
     }
 }

@@ -24,15 +24,15 @@ struct StoreFlowView: View {
             )
             .toolbar {
                 ToolbarItem {
-                    Menu("More", systemImage: "ellipsis.circle") {
-                        Button("Profile") { router.push(.profile) }
-                        Button("Cart") { router.push(.cart) }
-                        Button("Favorites") { requestProtected(.openFavorites) }
+                    Menu(StoreServicesText.resource("More"), systemImage: "ellipsis.circle") {
+                        Button(StoreServicesText.resource("Profile")) { router.push(.profile) }
+                        Button(StoreServicesText.resource("Cart")) { router.push(.cart) }
+                        Button(StoreServicesText.resource("Favorites")) { requestProtected(.openFavorites) }
                     }
                 }
             }
         } placeholder: {
-            ContentUnavailableView("Select a Store destination", systemImage: "storefront")
+            ContentUnavailableView(StoreServicesText.resource("Select a Store destination"), systemImage: "storefront")
         } destination: { route in
             destination(route)
         }
@@ -50,9 +50,9 @@ struct StoreFlowView: View {
                 cancellation: router
             ))
         case .filters:
-            ContentUnavailableView("Filters", systemImage: "line.3.horizontal.decrease")
+            ContentUnavailableView(StoreServicesText.resource("Filters"), systemImage: "line.3.horizontal.decrease")
         case .checkout:
-            ContentUnavailableView("Checkout", systemImage: "cart")
+            ContentUnavailableView(StoreServicesText.resource("Checkout"), systemImage: "cart")
         case let .reminder(productID):
             ProductReminderPresentationView(
                 productID: productID,
@@ -86,7 +86,7 @@ struct StoreFlowView: View {
             )
             .toolbar {
                 ToolbarItem {
-                    Button("Favorite", systemImage: "heart") {
+                    Button(StoreServicesText.resource("Favorite"), systemImage: "heart") {
                         Task {
                             await protectedActions.activateHeart(
                                 productID: id,
@@ -107,7 +107,7 @@ struct StoreFlowView: View {
                     userID: profile.id
                 )
             } else {
-                ContentUnavailableView("Favorites require sign in", systemImage: "heart")
+                ContentUnavailableView(StoreServicesText.resource("Favorites require sign in"), systemImage: "heart")
             }
         case .cart:
             CartView(repository: dependencies.cart)
@@ -166,11 +166,11 @@ private struct ProductReminderPresentationView: View {
                 )
             } else if failed {
                 ContentUnavailableView(
-                    "Product unavailable",
+                    StoreServicesText.resource("Product unavailable"),
                     systemImage: "exclamationmark.triangle"
                 )
             } else {
-                ProgressView("Loading reminder")
+                ProgressView(StoreServicesText.resource("Loading reminder"))
             }
         }
         .task(id: productID) {

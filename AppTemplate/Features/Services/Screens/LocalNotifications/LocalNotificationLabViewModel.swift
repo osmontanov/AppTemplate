@@ -47,7 +47,7 @@ final class LocalNotificationLabViewModel {
 
     func refreshSettings() async {
         settings = await lab.settings()
-        actualResult = .success("Refreshed notification settings.")
+        actualResult = .success(StoreServicesText.string("Refreshed notification settings."))
     }
 
     func refreshLabLists() async {
@@ -55,7 +55,7 @@ final class LocalNotificationLabViewModel {
         async let delivered = lab.deliveredLab()
         pendingLab = await pending
         deliveredLab = await delivered
-        actualResult = .success("Refreshed lab-only notifications.")
+        actualResult = .success(StoreServicesText.string("Refreshed lab-only notifications."))
     }
 
     func refreshAppOwnedLists() async {
@@ -63,34 +63,34 @@ final class LocalNotificationLabViewModel {
         async let delivered = appWide.deliveredAppOwned()
         pendingAppOwned = await pending
         deliveredAppOwned = await delivered
-        actualResult = .success("Refreshed app-wide Store and lab notifications.")
+        actualResult = .success(StoreServicesText.string("Refreshed app-wide Store and lab notifications."))
     }
 
     func requestSelectedAuthorization() async {
         guard !authorizationOptions.isEmpty,
               authorizationOptions.subtracting(.allowed).isEmpty else {
-            actualResult = .failure("Select at least one valid authorization option.")
+            actualResult = .failure(StoreServicesText.string("Select at least one valid authorization option."))
             return
         }
-        await perform("Requested exactly the selected authorization options.") {
+        await perform(StoreServicesText.string("Requested exactly the selected authorization options.")) {
             _ = try await self.lab.requestAuthorization(self.authorizationOptions)
         }
     }
 
     func replaceLabCategories(_ categories: [LocalNotificationCategory]) async {
-        await perform("Replaced the Services lab category set.") {
+        await perform(StoreServicesText.string("Replaced the Services lab category set.")) {
             try await self.lab.replaceLabCategories(categories)
         }
     }
 
     func resetLabCategories() async {
-        await perform("Reset only the Services lab categories.") {
+        await perform(StoreServicesText.string("Reset only the Services lab categories.")) {
             try await self.lab.resetLabCategories()
         }
     }
 
     func scheduleLab(_ request: LocalNotificationRequest) async {
-        await perform("Scheduled a Services lab notification.") {
+        await perform(StoreServicesText.string("Scheduled a Services lab notification.")) {
             try await self.lab.scheduleLab(request)
         }
     }
@@ -98,17 +98,17 @@ final class LocalNotificationLabViewModel {
     func removeSelectedPending(_ ids: Set<LocalNotificationID>) async {
         await lab.removeLabPending(ids)
         pendingLab.removeAll { ids.contains($0.id) }
-        actualResult = .success("Removed selected lab-only pending notifications.")
+        actualResult = .success(StoreServicesText.string("Removed selected lab-only pending notifications."))
     }
 
     func removeSelectedDelivered(_ ids: Set<LocalNotificationID>) async {
         await lab.removeLabDelivered(ids)
         deliveredLab.removeAll { ids.contains($0.id) }
-        actualResult = .success("Removed selected lab-only delivered notifications.")
+        actualResult = .success(StoreServicesText.string("Removed selected lab-only delivered notifications."))
     }
 
     func resetLabData() async {
-        await perform("Reset only Services lab categories and notifications.") {
+        await perform(StoreServicesText.string("Reset only Services lab categories and notifications.")) {
             try await self.lab.resetLabData()
             self.pendingLab = []
             self.deliveredLab = []
@@ -119,24 +119,24 @@ final class LocalNotificationLabViewModel {
         await appWide.removeAllPending()
         pendingAppOwned = []
         pendingLab = []
-        actualResult = .success("Removed all app-owned pending notifications after confirmation.")
+        actualResult = .success(StoreServicesText.string("Removed all app-owned pending notifications after confirmation."))
     }
 
     func removeAllAppOwnedDeliveredConfirmed() async {
         await appWide.removeAllDelivered()
         deliveredAppOwned = []
         deliveredLab = []
-        actualResult = .success("Removed all app-owned delivered notifications after confirmation.")
+        actualResult = .success(StoreServicesText.string("Removed all app-owned delivered notifications after confirmation."))
     }
 
     func setBadgeCount(_ count: Int) async {
-        await perform("Set the app badge count.") {
+        await perform(StoreServicesText.string("Set the app badge count.")) {
             try await self.appWide.setBadgeCount(count)
         }
     }
 
     func clearBadge() async {
-        await perform("Cleared the app badge.") {
+        await perform(StoreServicesText.string("Cleared the app badge.")) {
             try await self.appWide.clearBadge()
         }
     }
@@ -178,7 +178,7 @@ final class LocalNotificationLabViewModel {
     func clearEventHistory() async {
         await history.clear()
         eventRecords = []
-        actualResult = .success("Cleared the shared safe notification history.")
+        actualResult = .success(StoreServicesText.string("Cleared the shared safe notification history."))
     }
 
     private func perform(
@@ -199,11 +199,11 @@ final class LocalNotificationLabViewModel {
     private static func safeMessage(for error: Error) -> String {
         switch error {
         case is LocalNotificationServiceError:
-            "The notification operation was rejected safely."
+            StoreServicesText.string("The notification operation was rejected safely.")
         case is LocalNotificationLabAssetError:
-            "The bundled notification demo asset is unavailable."
+            StoreServicesText.string("The bundled notification demo asset is unavailable.")
         default:
-            "The notification lab operation could not complete."
+            StoreServicesText.string("The notification lab operation could not complete.")
         }
     }
 }

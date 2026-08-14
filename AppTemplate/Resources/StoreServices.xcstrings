@@ -1,0 +1,5132 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "Apple Platform": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple Platform"
+          }
+        }
+      }
+    },
+    "iOS": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOS"
+          }
+        }
+      }
+    },
+    "Read shared application metadata.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read shared application metadata."
+          }
+        }
+      }
+    },
+    "%@ completed but could not save secure session data.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ completed but could not save secure session data."
+          }
+        }
+      }
+    },
+    "%@ completed but secure session data could not be saved.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ completed but secure session data could not be saved."
+          }
+        }
+      }
+    },
+    "%@ completed with no status change.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ completed with no status change."
+          }
+        }
+      }
+    },
+    "%@ could not complete.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ could not complete."
+          }
+        }
+      }
+    },
+    "%@ updated the session status.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ updated the session status."
+          }
+        }
+      }
+    },
+    "%@ updated the session.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ updated the session."
+          }
+        }
+      }
+    },
+    "%@ was cancelled.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ was cancelled."
+          }
+        }
+      }
+    },
+    "%@ • %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ • %@"
+          }
+        }
+      }
+    },
+    "%@ • status class %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ • status class %@"
+          }
+        }
+      }
+    },
+    "%@: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@: %@"
+          }
+        }
+      }
+    },
+    "%@: masked": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@: masked"
+          }
+        }
+      }
+    },
+    "%@: no value stored.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@: no value stored."
+          }
+        }
+      }
+    },
+    "%lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld"
+          }
+        }
+      }
+    },
+    "%lld out of 5": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld out of 5"
+          }
+        }
+      }
+    },
+    "%lld typed destinations": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld typed destinations"
+          }
+        }
+      }
+    },
+    "%u lab notifications": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%u lab notifications"
+          }
+        }
+      }
+    },
+    "A later task will add bounded secure-storage operations.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A later task will add bounded secure-storage operations."
+          }
+        }
+      }
+    },
+    "A later task will add safe read, write, and reset controls.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A later task will add safe read, write, and reset controls."
+          }
+        }
+      }
+    },
+    "A safe local notification demo.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A safe local notification demo."
+          }
+        }
+      }
+    },
+    "About": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "About"
+          }
+        }
+      }
+    },
+    "Access Expiry": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Access Expiry"
+          }
+        }
+      }
+    },
+    "Account": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Account"
+          }
+        }
+      }
+    },
+    "Add to cart": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add to cart"
+          }
+        }
+      }
+    },
+    "Address": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Address"
+          }
+        }
+      }
+    },
+    "Alert": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alert"
+          }
+        }
+      }
+    },
+    "Alert: %@ • Sound: %@ • Badge: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alert: %@ • Sound: %@ • Badge: %@"
+          }
+        }
+      }
+    },
+    "All": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All"
+          }
+        }
+      }
+    },
+    "Another sign-in attempt is already running.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Another sign-in attempt is already running."
+          }
+        }
+      }
+    },
+    "App": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App"
+          }
+        }
+      }
+    },
+    "App Info": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App Info"
+          }
+        }
+      }
+    },
+    "App State": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App State"
+          }
+        }
+      }
+    },
+    "App flow updated.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App flow updated."
+          }
+        }
+      }
+    },
+    "App state could not be saved.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App state could not be saved."
+          }
+        }
+      }
+    },
+    "App state updated.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App state updated."
+          }
+        }
+      }
+    },
+    "App state was already set.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App state was already set."
+          }
+        }
+      }
+    },
+    "App-wide Badge": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App-wide Badge"
+          }
+        }
+      }
+    },
+    "App-wide Controls — Store + Lab": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App-wide Controls — Store + Lab"
+          }
+        }
+      }
+    },
+    "App-wide Owned Delivered (Store + Lab)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App-wide Owned Delivered (Store + Lab)"
+          }
+        }
+      }
+    },
+    "App-wide Owned Pending (Store + Lab)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App-wide Owned Pending (Store + Lab)"
+          }
+        }
+      }
+    },
+    "Application": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application"
+          }
+        }
+      }
+    },
+    "Application Session": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application Session"
+          }
+        }
+      }
+    },
+    "Application-wide": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application-wide"
+          }
+        }
+      }
+    },
+    "Application-wide commands update policy or session once; window commands affect only this window.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Application-wide commands update policy or session once; window commands affect only this window."
+          }
+        }
+      }
+    },
+    "Attachment": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attachment"
+          }
+        }
+      }
+    },
+    "Audio": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio"
+          }
+        }
+      }
+    },
+    "Authenticated": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Authenticated"
+          }
+        }
+      }
+    },
+    "Authenticated as %@ (%@)": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Authenticated as %@ (%@)"
+          }
+        }
+      }
+    },
+    "Authentication": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Authentication"
+          }
+        }
+      }
+    },
+    "Authentication Help": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Authentication Help"
+          }
+        }
+      }
+    },
+    "Authorization Options": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Authorization Options"
+          }
+        }
+      }
+    },
+    "Authorization: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Authorization: %@"
+          }
+        }
+      }
+    },
+    "Badge": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Badge"
+          }
+        }
+      }
+    },
+    "Badge count: %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Badge count: %lld"
+          }
+        }
+      }
+    },
+    "Batch Upsert": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Batch Upsert"
+          }
+        }
+      }
+    },
+    "Bool": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bool"
+          }
+        }
+      }
+    },
+    "Bundled Attachments and Sound": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bundled Attachments and Sound"
+          }
+        }
+      }
+    },
+    "Button action title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Button action title"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
+          }
+        }
+      }
+    },
+    "Cancel Current Operation": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel Current Operation"
+          }
+        }
+      }
+    },
+    "Cancel reminder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel reminder"
+          }
+        }
+      }
+    },
+    "Cart": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cart"
+          }
+        }
+      }
+    },
+    "Catalog": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Catalog"
+          }
+        }
+      }
+    },
+    "Categories": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Categories"
+          }
+        }
+      }
+    },
+    "Categories are unavailable.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Categories are unavailable."
+          }
+        }
+      }
+    },
+    "Category": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category"
+          }
+        }
+      }
+    },
+    "Category slug": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category slug"
+          }
+        }
+      }
+    },
+    "Check your username and password.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check your username and password."
+          }
+        }
+      }
+    },
+    "Checkout": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checkout"
+          }
+        }
+      }
+    },
+    "Checkpoint": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checkpoint"
+          }
+        }
+      }
+    },
+    "Choose a category slug between 1 and 128 characters.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a category slug between 1 and 128 characters."
+          }
+        }
+      }
+    },
+    "Choose a future date within one year.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a future date within one year."
+          }
+        }
+      }
+    },
+    "Clear Badge": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear Badge"
+          }
+        }
+      }
+    },
+    "Clear Diagnostics": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear Diagnostics"
+          }
+        }
+      }
+    },
+    "Clear Event History": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear Event History"
+          }
+        }
+      }
+    },
+    "Cleared network diagnostics.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cleared network diagnostics."
+          }
+        }
+      }
+    },
+    "Cleared the app badge.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cleared the app badge."
+          }
+        }
+      }
+    },
+    "Cleared the shared safe notification history.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cleared the shared safe notification history."
+          }
+        }
+      }
+    },
+    "Codable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codable"
+          }
+        }
+      }
+    },
+    "Codable: no value stored.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codable: no value stored."
+          }
+        }
+      }
+    },
+    "Codable: number %lld, label %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codable: number %lld, label %@"
+          }
+        }
+      }
+    },
+    "Completion is saved and the next required app flow opens automatically.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Completion is saved and the next required app flow opens automatically."
+          }
+        }
+      }
+    },
+    "Confirm Application-wide Action": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm Application-wide Action"
+          }
+        }
+      }
+    },
+    "Content and Metadata": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Content and Metadata"
+          }
+        }
+      }
+    },
+    "Create": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create"
+          }
+        }
+      }
+    },
+    "Create rejects an existing ID, Update requires one, and Upsert demonstrates both insert and replacement through the typed repository.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create rejects an existing ID, Update requires one, and Upsert demonstrates both insert and replacement through the typed repository."
+          }
+        }
+      }
+    },
+    "Create requires an ID that does not already exist.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create requires an ID that does not already exist."
+          }
+        }
+      }
+    },
+    "Create, update, upsert, batch, search, paging, delete, and reset stay behind the typed repository facade.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create, update, upsert, batch, search, paging, delete, and reset stay behind the typed repository facade."
+          }
+        }
+      }
+    },
+    "Created %@ and reloaded the first page.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Created %@ and reloaded the first page."
+          }
+        }
+      }
+    },
+    "Created %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Created %@."
+          }
+        }
+      }
+    },
+    "Current Window": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current Window"
+          }
+        }
+      }
+    },
+    "Current window navigation reset.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Current window navigation reset."
+          }
+        }
+      }
+    },
+    "Data": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data"
+          }
+        }
+      }
+    },
+    "Data (%lld bytes): %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data (%lld bytes): %@"
+          }
+        }
+      }
+    },
+    "Data exceeds the 4,096-byte display limit.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data exceeds the 4,096-byte display limit."
+          }
+        }
+      }
+    },
+    "Data exceeds the hexadecimal display limit.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data exceeds the hexadecimal display limit."
+          }
+        }
+      }
+    },
+    "Data: no value stored.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data: no value stored."
+          }
+        }
+      }
+    },
+    "Date": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date"
+          }
+        }
+      }
+    },
+    "Date and time": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date and time"
+          }
+        }
+      }
+    },
+    "Date: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date: %@"
+          }
+        }
+      }
+    },
+    "Date: no value stored.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date: no value stored."
+          }
+        }
+      }
+    },
+    "Deferred Link": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deferred Link"
+          }
+        }
+      }
+    },
+    "Delay 0 ms": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delay 0 ms"
+          }
+        }
+      }
+    },
+    "Delay 5000 ms": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delay 5000 ms"
+          }
+        }
+      }
+    },
+    "Delete All": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete All"
+          }
+        }
+      }
+    },
+    "Delete ID": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete ID"
+          }
+        }
+      }
+    },
+    "Delete all demo records?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete all demo records?"
+          }
+        }
+      }
+    },
+    "Deleted %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deleted %@."
+          }
+        }
+      }
+    },
+    "Deleted %lld demo records.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deleted %lld demo records."
+          }
+        }
+      }
+    },
+    "Delivery": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delivery"
+          }
+        }
+      }
+    },
+    "Demo checkout": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demo checkout"
+          }
+        }
+      }
+    },
+    "Demo order placed": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demo order placed"
+          }
+        }
+      }
+    },
+    "Diagnostic completed with status %lld.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diagnostic completed with status %lld."
+          }
+        }
+      }
+    },
+    "Disable Maintenance": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disable Maintenance"
+          }
+        }
+      }
+    },
+    "Disable the saved maintenance flag to return to the required app flow.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disable the saved maintenance flag to return to the required app flow."
+          }
+        }
+      }
+    },
+    "Disabled": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disabled"
+          }
+        }
+      }
+    },
+    "Discard Persistence Retry": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discard Persistence Retry"
+          }
+        }
+      }
+    },
+    "Discarded the pending persistence retry.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discarded the pending persistence retry."
+          }
+        }
+      }
+    },
+    "Discover Categories": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discover Categories"
+          }
+        }
+      }
+    },
+    "Display": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display"
+          }
+        }
+      }
+    },
+    "Display Name": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display Name"
+          }
+        }
+      }
+    },
+    "Display name and version come from the retained application dependency; platform comes from the view.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Display name and version come from the retained application dependency; platform comes from the view."
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
+          }
+        }
+      }
+    },
+    "Double": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Double"
+          }
+        }
+      }
+    },
+    "Each key is typed and scoped to the dedicated Services lab namespace.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Each key is typed and scoped to the dedicated Services lab namespace."
+          }
+        }
+      }
+    },
+    "Edit delivery": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edit delivery"
+          }
+        }
+      }
+    },
+    "Enable Maintenance": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable Maintenance"
+          }
+        }
+      }
+    },
+    "Enabled": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enabled"
+          }
+        }
+      }
+    },
+    "End": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End"
+          }
+        }
+      }
+    },
+    "Enter a bounded ID and payload before creating.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a bounded ID and payload before creating."
+          }
+        }
+      }
+    },
+    "Enter a bounded ID and payload before updating.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a bounded ID and payload before updating."
+          }
+        }
+      }
+    },
+    "Enter a bounded ID and payload before upserting.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a bounded ID and payload before upserting."
+          }
+        }
+      }
+    },
+    "Enter a bounded username and password.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a bounded username and password."
+          }
+        }
+      }
+    },
+    "Enter a valid reminder interval.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a valid reminder interval."
+          }
+        }
+      }
+    },
+    "Enter an ID between 1 and 128 characters.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter an ID between 1 and 128 characters."
+          }
+        }
+      }
+    },
+    "Expiry dates are server-provided status hints, not local JWT verification or a guaranteed lifetime.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expiry dates are server-provided status hints, not local JWT verification or a guaranteed lifetime."
+          }
+        }
+      }
+    },
+    "Explore secure storage through a narrow service boundary.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Explore secure storage through a narrow service boundary."
+          }
+        }
+      }
+    },
+    "Favorite": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favorite"
+          }
+        }
+      }
+    },
+    "Favorites": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favorites"
+          }
+        }
+      }
+    },
+    "Favorites are unavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favorites are unavailable"
+          }
+        }
+      }
+    },
+    "Favorites require sign in": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favorites require sign in"
+          }
+        }
+      }
+    },
+    "Featured": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Featured"
+          }
+        }
+      }
+    },
+    "Fetch": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fetch"
+          }
+        }
+      }
+    },
+    "Fetched %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fetched %@."
+          }
+        }
+      }
+    },
+    "Fictional delivery": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fictional delivery"
+          }
+        }
+      }
+    },
+    "Filters": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filters"
+          }
+        }
+      }
+    },
+    "Finish Onboarding": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finish Onboarding"
+          }
+        }
+      }
+    },
+    "Float": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Float"
+          }
+        }
+      }
+    },
+    "Future State Preserved": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Future State Preserved"
+          }
+        }
+      }
+    },
+    "Grid": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grid"
+          }
+        }
+      }
+    },
+    "Guest": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Guest"
+          }
+        }
+      }
+    },
+    "HTTP Diagnostics": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HTTP Diagnostics"
+          }
+        }
+      }
+    },
+    "Help": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Help"
+          }
+        }
+      }
+    },
+    "Hide Value": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide Value"
+          }
+        }
+      }
+    },
+    "Image": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Image"
+          }
+        }
+      }
+    },
+    "Int": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Int"
+          }
+        }
+      }
+    },
+    "Interval": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interval"
+          }
+        }
+      }
+    },
+    "Interval and Calendar Scheduling": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interval and Calendar Scheduling"
+          }
+        }
+      }
+    },
+    "Keychain": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keychain"
+          }
+        }
+      }
+    },
+    "Lab Category, Button, and Text Input": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lab Category, Button, and Text Input"
+          }
+        }
+      }
+    },
+    "Lab reset preserves Store data; explicitly labelled app-wide controls are confirmed separately.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lab reset preserves Store data; explicitly labelled app-wide controls are confirmed separately."
+          }
+        }
+      }
+    },
+    "Lab-only Delivered Notifications": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lab-only Delivered Notifications"
+          }
+        }
+      }
+    },
+    "Lab-only Pending Notifications": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lab-only Pending Notifications"
+          }
+        }
+      }
+    },
+    "Layout": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Layout"
+          }
+        }
+      }
+    },
+    "Learn typed local persistence without exposing the database implementation to the view.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Learn typed local persistence without exposing the database implementation to the view."
+          }
+        }
+      }
+    },
+    "List": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "List"
+          }
+        }
+      }
+    },
+    "Load Detail": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load Detail"
+          }
+        }
+      }
+    },
+    "Load More": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load More"
+          }
+        }
+      }
+    },
+    "Load Products Page": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load Products Page"
+          }
+        }
+      }
+    },
+    "Load more": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Load more"
+          }
+        }
+      }
+    },
+    "Loaded %lld categories.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loaded %lld categories."
+          }
+        }
+      }
+    },
+    "Loaded %lld products in %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loaded %lld products in %@."
+          }
+        }
+      }
+    },
+    "Loaded %lld products.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loaded %lld products."
+          }
+        }
+      }
+    },
+    "Loaded %lld records.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loaded %lld records."
+          }
+        }
+      }
+    },
+    "Loaded product %lld.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loaded product %lld."
+          }
+        }
+      }
+    },
+    "Loading favorites": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading favorites"
+          }
+        }
+      }
+    },
+    "Loading product": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading product"
+          }
+        }
+      }
+    },
+    "Loading products": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading products"
+          }
+        }
+      }
+    },
+    "Loading reminder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading reminder"
+          }
+        }
+      }
+    },
+    "Local Database": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local Database"
+          }
+        }
+      }
+    },
+    "Local Notifications": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Local Notifications"
+          }
+        }
+      }
+    },
+    "Login": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Login"
+          }
+        }
+      }
+    },
+    "Main": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Main"
+          }
+        }
+      }
+    },
+    "Maintenance": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maintenance"
+          }
+        }
+      }
+    },
+    "Maintenance is in progress": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maintenance is in progress"
+          }
+        }
+      }
+    },
+    "Metadata value": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metadata value"
+          }
+        }
+      }
+    },
+    "Migrated": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Migrated"
+          }
+        }
+      }
+    },
+    "More": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More"
+          }
+        }
+      }
+    },
+    "Name": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name"
+          }
+        }
+      }
+    },
+    "Next cursor": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next cursor"
+          }
+        }
+      }
+    },
+    "Next reminder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Next reminder"
+          }
+        }
+      }
+    },
+    "No": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No"
+          }
+        }
+      }
+    },
+    "No Saved State": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No Saved State"
+          }
+        }
+      }
+    },
+    "No app-owned delivered notifications.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No app-owned delivered notifications."
+          }
+        }
+      }
+    },
+    "No app-owned pending notifications.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No app-owned pending notifications."
+          }
+        }
+      }
+    },
+    "No demo data has been created.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No demo data has been created."
+          }
+        }
+      }
+    },
+    "No favorites": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No favorites"
+          }
+        }
+      }
+    },
+    "No lab-only delivered notifications.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No lab-only delivered notifications."
+          }
+        }
+      }
+    },
+    "No lab-only pending notifications.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No lab-only pending notifications."
+          }
+        }
+      }
+    },
+    "No matching record to delete.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No matching record to delete."
+          }
+        }
+      }
+    },
+    "No matching record.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No matching record."
+          }
+        }
+      }
+    },
+    "No payment or network request is made.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No payment or network request is made."
+          }
+        }
+      }
+    },
+    "No product IDs in the current result.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No product IDs in the current result."
+          }
+        }
+      }
+    },
+    "No products found": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No products found"
+          }
+        }
+      }
+    },
+    "No records in the current result.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No records in the current result."
+          }
+        }
+      }
+    },
+    "No reviews": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No reviews"
+          }
+        }
+      }
+    },
+    "No safe event summaries.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No safe event summaries."
+          }
+        }
+      }
+    },
+    "None": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "None"
+          }
+        }
+      }
+    },
+    "Not provided": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not provided"
+          }
+        }
+      }
+    },
+    "Not run": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not run"
+          }
+        }
+      }
+    },
+    "Not scheduled": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not scheduled"
+          }
+        }
+      }
+    },
+    "Note": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Note"
+          }
+        }
+      }
+    },
+    "Notification Settings": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notification Settings"
+          }
+        }
+      }
+    },
+    "Notification body": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notification body"
+          }
+        }
+      }
+    },
+    "Notification title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notification title"
+          }
+        }
+      }
+    },
+    "Notifications are not allowed. You can enable them in system settings.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notifications are not allowed. You can enable them in system settings."
+          }
+        }
+      }
+    },
+    "Observe a remote request through a safe, diagnostic service facade.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Observe a remote request through a safe, diagnostic service facade."
+          }
+        }
+      }
+    },
+    "Onboarding": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Onboarding"
+          }
+        }
+      }
+    },
+    "Onboarding Complete": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Onboarding Complete"
+          }
+        }
+      }
+    },
+    "Only ExampleRecord values owned by this learning lab are deleted.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only ExampleRecord values owned by this learning lab are deleted."
+          }
+        }
+      }
+    },
+    "Only allowlisted diagnostics and safe results are visible; credentials and tokens never cross the session boundary.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only allowlisted diagnostics and safe results are visible; credentials and tokens never cross the session boundary."
+          }
+        }
+      }
+    },
+    "Open App Info Sample Link": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open App Info Sample Link"
+          }
+        }
+      }
+    },
+    "Open Lab": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Lab"
+          }
+        }
+      }
+    },
+    "Open Product": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Product"
+          }
+        }
+      }
+    },
+    "Open Services": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Services"
+          }
+        }
+      }
+    },
+    "Open Store": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Store"
+          }
+        }
+      }
+    },
+    "Open Store Sample Link": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Store Sample Link"
+          }
+        }
+      }
+    },
+    "Overview": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Overview"
+          }
+        }
+      }
+    },
+    "Page size": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Page size"
+          }
+        }
+      }
+    },
+    "Page size: %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Page size: %lld"
+          }
+        }
+      }
+    },
+    "Password": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Password"
+          }
+        }
+      }
+    },
+    "Payload": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Payload"
+          }
+        }
+      }
+    },
+    "Persistence": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Persistence"
+          }
+        }
+      }
+    },
+    "Place demo order": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Place demo order"
+          }
+        }
+      }
+    },
+    "Platform": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Platform"
+          }
+        }
+      }
+    },
+    "Practice scoped preference persistence without coupling screens to global defaults.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Practice scoped preference persistence without coupling screens to global defaults."
+          }
+        }
+      }
+    },
+    "Preferences": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preferences"
+          }
+        }
+      }
+    },
+    "Preferences could not be saved.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preferences could not be saved."
+          }
+        }
+      }
+    },
+    "Price": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Price"
+          }
+        }
+      }
+    },
+    "Price high to low": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Price high to low"
+          }
+        }
+      }
+    },
+    "Price low to high": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Price low to high"
+          }
+        }
+      }
+    },
+    "Product": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Product"
+          }
+        }
+      }
+    },
+    "Product Detail": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Product Detail"
+          }
+        }
+      }
+    },
+    "Product ID": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Product ID"
+          }
+        }
+      }
+    },
+    "Product ID must be positive.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Product ID must be positive."
+          }
+        }
+      }
+    },
+    "Product IDs: %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Product IDs: %@"
+          }
+        }
+      }
+    },
+    "Product details are unavailable.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Product details are unavailable."
+          }
+        }
+      }
+    },
+    "Product reminder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Product reminder"
+          }
+        }
+      }
+    },
+    "Product search": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Product search"
+          }
+        }
+      }
+    },
+    "Product unavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Product unavailable"
+          }
+        }
+      }
+    },
+    "Products are unavailable.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Products are unavailable."
+          }
+        }
+      }
+    },
+    "Products in Category": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Products in Category"
+          }
+        }
+      }
+    },
+    "Profile": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profile"
+          }
+        }
+      }
+    },
+    "Profile section": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profile section"
+          }
+        }
+      }
+    },
+    "Protected Action": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Protected Action"
+          }
+        }
+      }
+    },
+    "Provisional": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provisional"
+          }
+        }
+      }
+    },
+    "Quantity: %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quantity: %lld"
+          }
+        }
+      }
+    },
+    "Quick test": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quick test"
+          }
+        }
+      }
+    },
+    "Read": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read"
+          }
+        }
+      }
+    },
+    "Read product identity from one app-owned service so Store, Settings, and Services agree.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read product identity from one app-owned service so Store, Settings, and Services agree."
+          }
+        }
+      }
+    },
+    "Read-only": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Read-only"
+          }
+        }
+      }
+    },
+    "Recipient": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recipient"
+          }
+        }
+      }
+    },
+    "Record ID": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record ID"
+          }
+        }
+      }
+    },
+    "Recovered": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recovered"
+          }
+        }
+      }
+    },
+    "Refresh": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh"
+          }
+        }
+      }
+    },
+    "Refresh App-wide Owned Lists": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh App-wide Owned Lists"
+          }
+        }
+      }
+    },
+    "Refresh Diagnostics": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh Diagnostics"
+          }
+        }
+      }
+    },
+    "Refresh Expiry": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh Expiry"
+          }
+        }
+      }
+    },
+    "Refresh Lab-only Lists": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh Lab-only Lists"
+          }
+        }
+      }
+    },
+    "Refresh Session": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh Session"
+          }
+        }
+      }
+    },
+    "Refresh Settings": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh Settings"
+          }
+        }
+      }
+    },
+    "Refreshed app-wide Store and lab notifications.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refreshed app-wide Store and lab notifications."
+          }
+        }
+      }
+    },
+    "Refreshed lab-only notifications.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refreshed lab-only notifications."
+          }
+        }
+      }
+    },
+    "Refreshed notification settings.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refreshed notification settings."
+          }
+        }
+      }
+    },
+    "Related products": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Related products"
+          }
+        }
+      }
+    },
+    "Remind Later": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remind Later"
+          }
+        }
+      }
+    },
+    "Remind me": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remind me"
+          }
+        }
+      }
+    },
+    "Reminder scheduled": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reminder scheduled"
+          }
+        }
+      }
+    },
+    "Reminder scheduled without a product image.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reminder scheduled without a product image."
+          }
+        }
+      }
+    },
+    "Reminder scheduled.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reminder scheduled."
+          }
+        }
+      }
+    },
+    "Reminder type": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reminder type"
+          }
+        }
+      }
+    },
+    "Remote API": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remote API"
+          }
+        }
+      }
+    },
+    "Remote page size": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remote page size"
+          }
+        }
+      }
+    },
+    "Remove": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove"
+          }
+        }
+      }
+    },
+    "Remove %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove %@"
+          }
+        }
+      }
+    },
+    "Remove All App-owned Delivered": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove All App-owned Delivered"
+          }
+        }
+      }
+    },
+    "Remove All App-owned Delivered…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove All App-owned Delivered…"
+          }
+        }
+      }
+    },
+    "Remove All App-owned Pending": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove All App-owned Pending"
+          }
+        }
+      }
+    },
+    "Remove All App-owned Pending…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove All App-owned Pending…"
+          }
+        }
+      }
+    },
+    "Remove Selected Lab-only Delivered": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove Selected Lab-only Delivered"
+          }
+        }
+      }
+    },
+    "Remove Selected Lab-only Pending": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove Selected Lab-only Pending"
+          }
+        }
+      }
+    },
+    "Remove every app-owned delivered notification?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove every app-owned delivered notification?"
+          }
+        }
+      }
+    },
+    "Remove every app-owned pending notification?": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove every app-owned pending notification?"
+          }
+        }
+      }
+    },
+    "Removed %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Removed %@."
+          }
+        }
+      }
+    },
+    "Removed all app-owned delivered notifications after confirmation.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Removed all app-owned delivered notifications after confirmation."
+          }
+        }
+      }
+    },
+    "Removed all app-owned pending notifications after confirmation.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Removed all app-owned pending notifications after confirmation."
+          }
+        }
+      }
+    },
+    "Removed selected lab-only delivered notifications.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Removed selected lab-only delivered notifications."
+          }
+        }
+      }
+    },
+    "Removed selected lab-only pending notifications.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Removed selected lab-only pending notifications."
+          }
+        }
+      }
+    },
+    "Repeat": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Repeat"
+          }
+        }
+      }
+    },
+    "Replace Lab Category Set": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replace Lab Category Set"
+          }
+        }
+      }
+    },
+    "Replaced the Services lab category set.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replaced the Services lab category set."
+          }
+        }
+      }
+    },
+    "Replay Onboarding": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replay Onboarding"
+          }
+        }
+      }
+    },
+    "Reply": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reply"
+          }
+        }
+      }
+    },
+    "Request Selected Authorization": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Request Selected Authorization"
+          }
+        }
+      }
+    },
+    "Requested exactly the selected authorization options.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Requested exactly the selected authorization options."
+          }
+        }
+      }
+    },
+    "Reset": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset"
+          }
+        }
+      }
+    },
+    "Reset Demo Data": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset Demo Data"
+          }
+        }
+      }
+    },
+    "Reset Lab Category Set": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset Lab Category Set"
+          }
+        }
+      }
+    },
+    "Reset only Services lab categories and notifications.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset only Services lab categories and notifications."
+          }
+        }
+      }
+    },
+    "Reset only the Services lab categories.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset only the Services lab categories."
+          }
+        }
+      }
+    },
+    "Reset only the eight UserDefaults demo values.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset only the eight UserDefaults demo values."
+          }
+        }
+      }
+    },
+    "Reset only the three Keychain demo values.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset only the three Keychain demo values."
+          }
+        }
+      }
+    },
+    "Reset the three local database demo records.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset the three local database demo records."
+          }
+        }
+      }
+    },
+    "Resolved date": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resolved date"
+          }
+        }
+      }
+    },
+    "Resolved time": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resolved time"
+          }
+        }
+      }
+    },
+    "Resolved time zone": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resolved time zone"
+          }
+        }
+      }
+    },
+    "Restoration": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restoration"
+          }
+        }
+      }
+    },
+    "Restored": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restored"
+          }
+        }
+      }
+    },
+    "Restoring": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restoring"
+          }
+        }
+      }
+    },
+    "Restoring session": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restoring session"
+          }
+        }
+      }
+    },
+    "Result": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Result"
+          }
+        }
+      }
+    },
+    "Retried delete for %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retried delete for %@."
+          }
+        }
+      }
+    },
+    "Retry": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry"
+          }
+        }
+      }
+    },
+    "Retry Last Operation": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry Last Operation"
+          }
+        }
+      }
+    },
+    "Retry Secure Persistence": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry Secure Persistence"
+          }
+        }
+      }
+    },
+    "Retry demo order": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry demo order"
+          }
+        }
+      }
+    },
+    "Retry saving session": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry saving session"
+          }
+        }
+      }
+    },
+    "Return to App": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Return to App"
+          }
+        }
+      }
+    },
+    "Reveal Value": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reveal Value"
+          }
+        }
+      }
+    },
+    "Reveal affects only the current result. Session actions use the session controller and never inspect its stored token data.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reveal affects only the current result. Session actions use the session controller and never inspect its stored token data."
+          }
+        }
+      }
+    },
+    "Review order": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Review order"
+          }
+        }
+      }
+    },
+    "Reviews": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reviews"
+          }
+        }
+      }
+    },
+    "Reviews are unavailable.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reviews are unavailable."
+          }
+        }
+      }
+    },
+    "Revision": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revision"
+          }
+        }
+      }
+    },
+    "Root": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Root"
+          }
+        }
+      }
+    },
+    "Running": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Running"
+          }
+        }
+      }
+    },
+    "Safe Notification Event History": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Safe Notification Event History"
+          }
+        }
+      }
+    },
+    "Safe text": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Safe text"
+          }
+        }
+      }
+    },
+    "Sample link handled in this window.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sample link handled in this window."
+          }
+        }
+      }
+    },
+    "Sample links and Reset Demo Data affect only this window.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sample links and Reset Demo Data affect only this window."
+          }
+        }
+      }
+    },
+    "Save": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save"
+          }
+        }
+      }
+    },
+    "Saved %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved %@."
+          }
+        }
+      }
+    },
+    "Schedule 5-second Interval": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schedule 5-second Interval"
+          }
+        }
+      }
+    },
+    "Schedule Advanced Content": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schedule Advanced Content"
+          }
+        }
+      }
+    },
+    "Schedule Calendar Demo": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schedule Calendar Demo"
+          }
+        }
+      }
+    },
+    "Schedule Immediate Lab Notification": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schedule Immediate Lab Notification"
+          }
+        }
+      }
+    },
+    "Schedule reminder": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schedule reminder"
+          }
+        }
+      }
+    },
+    "Scheduled": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scheduled"
+          }
+        }
+      }
+    },
+    "Scheduled a Services lab notification.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scheduled a Services lab notification."
+          }
+        }
+      }
+    },
+    "Schedules a one-time reminder in five seconds.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schedules a one-time reminder in five seconds."
+          }
+        }
+      }
+    },
+    "Scheduling reminder…": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scheduling reminder…"
+          }
+        }
+      }
+    },
+    "Schema": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schema"
+          }
+        }
+      }
+    },
+    "Search": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search"
+          }
+        }
+      }
+    },
+    "Search / First Page": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search / First Page"
+          }
+        }
+      }
+    },
+    "Search IDs and payloads": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search IDs and payloads"
+          }
+        }
+      }
+    },
+    "Search must contain 1 to 128 characters.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search must contain 1 to 128 characters."
+          }
+        }
+      }
+    },
+    "Search products": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search products"
+          }
+        }
+      }
+    },
+    "Search returned %lld products.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search returned %lld products."
+          }
+        }
+      }
+    },
+    "Search text must be at most 128 characters.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search text must be at most 128 characters."
+          }
+        }
+      }
+    },
+    "Seconds": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seconds"
+          }
+        }
+      }
+    },
+    "Secure data exceeds the 4,096-byte display limit.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Secure data exceeds the 4,096-byte display limit."
+          }
+        }
+      }
+    },
+    "Secure session persistence completed.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Secure session persistence completed."
+          }
+        }
+      }
+    },
+    "Secure session persistence could not complete.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Secure session persistence could not complete."
+          }
+        }
+      }
+    },
+    "See how persisted application policy selects the visible root while each window keeps its own navigation.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See how persisted application policy selects the visible root while each window keeps its own navigation."
+          }
+        }
+      }
+    },
+    "Select a Service": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a Service"
+          }
+        }
+      }
+    },
+    "Select a Store destination": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a Store destination"
+          }
+        }
+      }
+    },
+    "Select at least one valid authorization option.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select at least one valid authorization option."
+          }
+        }
+      }
+    },
+    "Selected Lab-only Removal": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selected Lab-only Removal"
+          }
+        }
+      }
+    },
+    "Selected Section": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selected Section"
+          }
+        }
+      }
+    },
+    "Send": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send"
+          }
+        }
+      }
+    },
+    "Services": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Services"
+          }
+        }
+      }
+    },
+    "Services Path": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Services Path"
+          }
+        }
+      }
+    },
+    "Services lab": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Services lab"
+          }
+        }
+      }
+    },
+    "Services lab notification": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Services lab notification"
+          }
+        }
+      }
+    },
+    "Session": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session"
+          }
+        }
+      }
+    },
+    "Session Actions": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session Actions"
+          }
+        }
+      }
+    },
+    "Session refresh": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session refresh"
+          }
+        }
+      }
+    },
+    "Session unavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session unavailable"
+          }
+        }
+      }
+    },
+    "Session validation": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Session validation"
+          }
+        }
+      }
+    },
+    "Set Badge Count": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set Badge Count"
+          }
+        }
+      }
+    },
+    "Set the app badge count.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set the app badge count."
+          }
+        }
+      }
+    },
+    "Settings have not been loaded.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings have not been loaded."
+          }
+        }
+      }
+    },
+    "Sign Out": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign Out"
+          }
+        }
+      }
+    },
+    "Sign in": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in"
+          }
+        }
+      }
+    },
+    "Sign in completed but secure session data could not be saved.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in completed but secure session data could not be saved."
+          }
+        }
+      }
+    },
+    "Sign in could not complete.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in could not complete."
+          }
+        }
+      }
+    },
+    "Sign in to continue the protected Store action. Cancel returns to the Store.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign in to continue the protected Store action. Cancel returns to the Store."
+          }
+        }
+      }
+    },
+    "Sign out could not clear secure session data.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign out could not clear secure session data."
+          }
+        }
+      }
+    },
+    "Sign out was cancelled.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sign out was cancelled."
+          }
+        }
+      }
+    },
+    "Signed in as %@, but the session could not be saved.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signed in as %@, but the session could not be saved."
+          }
+        }
+      }
+    },
+    "Signed in through the session controller.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signed in through the session controller."
+          }
+        }
+      }
+    },
+    "Signed out.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signed out."
+          }
+        }
+      }
+    },
+    "Signing in as %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signing in as %@"
+          }
+        }
+      }
+    },
+    "Sort": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sort"
+          }
+        }
+      }
+    },
+    "Sound": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sound"
+          }
+        }
+      }
+    },
+    "State": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "State"
+          }
+        }
+      }
+    },
+    "Status": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status"
+          }
+        }
+      }
+    },
+    "Status %lld": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Status %lld"
+          }
+        }
+      }
+    },
+    "Store": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Store"
+          }
+        }
+      }
+    },
+    "Store Path": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Store Path"
+          }
+        }
+      }
+    },
+    "String": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "String"
+          }
+        }
+      }
+    },
+    "Take another look at %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Take another look at %@."
+          }
+        }
+      }
+    },
+    "Text input action title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Text input action title"
+          }
+        }
+      }
+    },
+    "That link could not be opened.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "That link could not be opened."
+          }
+        }
+      }
+    },
+    "The Basic preset runs bounded product search; Advanced adds fixed product, diagnostic, and semantic session actions.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Basic preset runs bounded product search; Advanced adds fixed product, diagnostic, and semantic session actions."
+          }
+        }
+      }
+    },
+    "The Basic preset schedules one namespaced immediate notification and observes only safe history summaries.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Basic preset schedules one namespaced immediate notification and observes only safe history summaries."
+          }
+        }
+      }
+    },
+    "The Basic preset uses three bounded ExampleRecord values and lookahead-backed paging.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Basic preset uses three bounded ExampleRecord values and lookahead-backed paging."
+          }
+        }
+      }
+    },
+    "The batch must contain 1 to 50 bounded records with unique IDs.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The batch must contain 1 to 50 bounded records with unique IDs."
+          }
+        }
+      }
+    },
+    "The bundled notification demo asset is unavailable.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The bundled notification demo asset is unavailable."
+          }
+        }
+      }
+    },
+    "The cart could not be updated.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The cart could not be updated."
+          }
+        }
+      }
+    },
+    "The cart is unavailable.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The cart is unavailable."
+          }
+        }
+      }
+    },
+    "The demo order could not be placed. You can retry safely.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The demo order could not be placed. You can retry safely."
+          }
+        }
+      }
+    },
+    "The demo value could not be read.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The demo value could not be read."
+          }
+        }
+      }
+    },
+    "The demo value could not be saved.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The demo value could not be saved."
+          }
+        }
+      }
+    },
+    "The displayed identity matches the rest of the app without creating another bundle reader.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The displayed identity matches the rest of the app without creating another bundle reader."
+          }
+        }
+      }
+    },
+    "The lab receives a token-free remote facade. Login, validation, refresh, persistence recovery, and sign out remain semantic session-controller actions.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The lab receives a token-free remote facade. Login, validation, refresh, persistence recovery, and sign out remain semantic session-controller actions."
+          }
+        }
+      }
+    },
+    "The lab uses the running app state, session, and this window's navigation checkpoint.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The lab uses the running app state, session, and this window's navigation checkpoint."
+          }
+        }
+      }
+    },
+    "The local database input was invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The local database input was invalid."
+          }
+        }
+      }
+    },
+    "The local database operation could not complete.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The local database operation could not complete."
+          }
+        }
+      }
+    },
+    "The model receives application metadata and a view-derived platform label. It does not inspect Bundle or platform globals.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The model receives application metadata and a view-derived platform label. It does not inspect Bundle or platform globals."
+          }
+        }
+      }
+    },
+    "The mutation completed, but the first page could not reload.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The mutation completed, but the first page could not reload."
+          }
+        }
+      }
+    },
+    "The network is unavailable for %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The network is unavailable for %@."
+          }
+        }
+      }
+    },
+    "The notification lab operation could not complete.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The notification lab operation could not complete."
+          }
+        }
+      }
+    },
+    "The notification operation was rejected safely.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The notification operation was rejected safely."
+          }
+        }
+      }
+    },
+    "The persistence retry is no longer available.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The persistence retry is no longer available."
+          }
+        }
+      }
+    },
+    "The reminder could not be scheduled. Try again.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The reminder could not be scheduled. Try again."
+          }
+        }
+      }
+    },
+    "The reminder was scheduled without a product image.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The reminder was scheduled without a product image."
+          }
+        }
+      }
+    },
+    "The remote operation could not complete.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The remote operation could not complete."
+          }
+        }
+      }
+    },
+    "The remote service is unavailable.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The remote service is unavailable."
+          }
+        }
+      }
+    },
+    "The remote service returned HTTP status %lld.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The remote service returned HTTP status %lld."
+          }
+        }
+      }
+    },
+    "The remote service returned an invalid response.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The remote service returned an invalid response."
+          }
+        }
+      }
+    },
+    "The saved session could not be read safely.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The saved session could not be read safely."
+          }
+        }
+      }
+    },
+    "The saved session could not be removed safely.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The saved session could not be removed safely."
+          }
+        }
+      }
+    },
+    "The saved session could not be removed.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The saved session could not be removed."
+          }
+        }
+      }
+    },
+    "The secure demo value could not be read.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The secure demo value could not be read."
+          }
+        }
+      }
+    },
+    "The secure demo value could not be removed.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The secure demo value could not be removed."
+          }
+        }
+      }
+    },
+    "The secure demo value could not be saved.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The secure demo value could not be saved."
+          }
+        }
+      }
+    },
+    "The secure demo values could not be reset.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The secure demo values could not be reset."
+          }
+        }
+      }
+    },
+    "The secure model exceeds the display limit.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The secure model exceeds the display limit."
+          }
+        }
+      }
+    },
+    "The secure string exceeds the display limit.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The secure string exceeds the display limit."
+          }
+        }
+      }
+    },
+    "The secure-storage operation was cancelled.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The secure-storage operation was cancelled."
+          }
+        }
+      }
+    },
+    "The session could not be saved.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The session could not be saved."
+          }
+        }
+      }
+    },
+    "The sign-in response was invalid.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The sign-in response was invalid."
+          }
+        }
+      }
+    },
+    "The sign-in service is unavailable.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The sign-in service is unavailable."
+          }
+        }
+      }
+    },
+    "These commands can change every window and require confirmation.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These commands can change every window and require confirmation."
+          }
+        }
+      }
+    },
+    "This changes maintenance policy for every window.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This changes maintenance policy for every window."
+          }
+        }
+      }
+    },
+    "This guided lab will use a dedicated demo key.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This guided lab will use a dedicated demo key."
+          }
+        }
+      }
+    },
+    "This guided lab will use isolated demo values.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This guided lab will use isolated demo values."
+          }
+        }
+      }
+    },
+    "This replaces the visible root in every window.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This replaces the visible root in every window."
+          }
+        }
+      }
+    },
+    "This signs out the shared application session.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This signs out the shared application session."
+          }
+        }
+      }
+    },
+    "This was a fictional local checkout.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This was a fictional local checkout."
+          }
+        }
+      }
+    },
+    "Time zone": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time zone"
+          }
+        }
+      }
+    },
+    "Title A–Z": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Title A–Z"
+          }
+        }
+      }
+    },
+    "Title Z–A": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Title Z–A"
+          }
+        }
+      }
+    },
+    "Too many attempts. Try again later.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Too many attempts. Try again later."
+          }
+        }
+      }
+    },
+    "Unavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unavailable"
+          }
+        }
+      }
+    },
+    "Understand authorization, scheduling, and cleanup through app-owned notification services.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Understand authorization, scheduling, and cleanup through app-owned notification services."
+          }
+        }
+      }
+    },
+    "Update": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update"
+          }
+        }
+      }
+    },
+    "Update requires an existing ID.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Update requires an existing ID."
+          }
+        }
+      }
+    },
+    "Updated %@ and reloaded the first page.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updated %@ and reloaded the first page."
+          }
+        }
+      }
+    },
+    "Updated %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updated %@."
+          }
+        }
+      }
+    },
+    "Upsert": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upsert"
+          }
+        }
+      }
+    },
+    "Upserted %@ and reloaded the first page.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upserted %@ and reloaded the first page."
+          }
+        }
+      }
+    },
+    "Upserted %@.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upserted %@."
+          }
+        }
+      }
+    },
+    "Upserted %lld records and reloaded the first page.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upserted %lld records and reloaded the first page."
+          }
+        }
+      }
+    },
+    "Upserted %lld records.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upserted %lld records."
+          }
+        }
+      }
+    },
+    "Use 1 to 604,800 seconds. Repeating reminders require at least 60 seconds.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use 1 to 604,800 seconds. Repeating reminders require at least 60 seconds."
+          }
+        }
+      }
+    },
+    "Use delay 0...5000 ms or status 400, 401, 404, or 500.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use delay 0...5000 ms or status 400, 401, 404, or 500."
+          }
+        }
+      }
+    },
+    "Use demo credentials": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use demo credentials"
+          }
+        }
+      }
+    },
+    "Use named notification sound": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use named notification sound"
+          }
+        }
+      }
+    },
+    "UserDefaults": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "UserDefaults"
+          }
+        }
+      }
+    },
+    "Username": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Username"
+          }
+        }
+      }
+    },
+    "Validate": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Validate"
+          }
+        }
+      }
+    },
+    "Validate Session": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Validate Session"
+          }
+        }
+      }
+    },
+    "Version": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version"
+          }
+        }
+      }
+    },
+    "Video": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Video"
+          }
+        }
+      }
+    },
+    "Visible Root": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Visible Root"
+          }
+        }
+      }
+    },
+    "Waiting": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting"
+          }
+        }
+      }
+    },
+    "Welcome to AppTemplate": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Welcome to AppTemplate"
+          }
+        }
+      }
+    },
+    "Welcome, %@ %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Welcome, %@ %@"
+          }
+        }
+      }
+    },
+    "When": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When"
+          }
+        }
+      }
+    },
+    "Writable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Writable"
+          }
+        }
+      }
+    },
+    "Yes": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yes"
+          }
+        }
+      }
+    },
+    "You are browsing as a guest.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You are browsing as a guest."
+          }
+        }
+      }
+    },
+    "Your cart changed. Review it before trying checkout again.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your cart changed. Review it before trying checkout again."
+          }
+        }
+      }
+    },
+    "Your cart is empty": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your cart is empty"
+          }
+        }
+      }
+    },
+    "actual": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Actual"
+          }
+        }
+      }
+    },
+    "advanced": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Advanced"
+          }
+        }
+      }
+    },
+    "appWideImpact": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This action affects the entire app."
+          }
+        }
+      }
+    },
+    "authentication.networkUnavailable": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The network is unavailable for %@."
+          }
+        }
+      }
+    },
+    "demoUSDAssumption": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demo prices are shown in USD."
+          }
+        }
+      }
+    },
+    "expected": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expected"
+          }
+        }
+      }
+    },
+    "macOS": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS"
+          }
+        }
+      }
+    },
+    "number %lld, label %@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "number %lld, label %@"
+          }
+        }
+      }
+    },
+    "offline": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "offline"
+          }
+        }
+      }
+    },
+    "online": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "online"
+          }
+        }
+      }
+    },
+    "preset": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preset"
+          }
+        }
+      }
+    },
+    "resetDemoData": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset Demo Data"
+          }
+        }
+      }
+    },
+    "services.appState.pathCount": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld typed destinations"
+          }
+        }
+      }
+    },
+    "services.keychain.authenticated": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Authenticated as %@ (%@)"
+          }
+        }
+      }
+    },
+    "services.keychain.codableValue": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "number %lld, label %@"
+          }
+        }
+      }
+    },
+    "services.keychain.revealedValue": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@: %@"
+          }
+        }
+      }
+    },
+    "services.userDefaults.dateValue": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date: %@"
+          }
+        }
+      }
+    },
+    "services.userDefaults.value": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@: %@"
+          }
+        }
+      }
+    },
+    "servicesTitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Services"
+          }
+        }
+      }
+    },
+    "store.reminder.body": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Take another look at %@."
+          }
+        }
+      }
+    },
+    "storeTitle": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المتجر"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Store"
+          }
+        }
+      }
+    },
+    "tryIt": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Try It"
+          }
+        }
+      }
+    },
+    "validating": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "validating"
+          }
+        }
+      }
+    },
+    "why": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Why"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

@@ -1,3 +1,5 @@
+import Foundation
+
 nonisolated
 struct ServiceLabGuide: Equatable, Sendable {
     let why: String
@@ -39,13 +41,13 @@ enum ServiceLabGuideSection: String, CaseIterable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .why: "Why"
-        case .preset: "Preset"
-        case .tryIt: "Try It"
-        case .expected: "Expected"
-        case .actual: "Actual"
-        case .resetDemoData: "Reset Demo Data"
-        case .advanced: "Advanced"
+        case .why: StoreServicesText.string(.why)
+        case .preset: StoreServicesText.string(.preset)
+        case .tryIt: StoreServicesText.string(.tryIt)
+        case .expected: StoreServicesText.string(.expected)
+        case .actual: StoreServicesText.string(.actual)
+        case .resetDemoData: StoreServicesText.string(.resetDemoData)
+        case .advanced: StoreServicesText.string(.advanced)
         }
     }
 }

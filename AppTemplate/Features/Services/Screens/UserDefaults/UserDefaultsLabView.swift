@@ -3,6 +3,8 @@ import SwiftUI
 struct UserDefaultsLabView: View {
     private let guide: ServiceLabGuide
     @State private var model: UserDefaultsLabViewModel
+    @Environment(\.locale) private var locale
+    @Environment(\.timeZone) private var timeZone
 
     init(guide: ServiceLabGuide, service: any IUserDefaultsService) {
         self.guide = guide
@@ -21,11 +23,11 @@ struct UserDefaultsLabView: View {
             ForEach(UserDefaultsLabKind.allCases.filter { $0 != .bool && $0 != .string }, id: \.self) {
                 operationRow($0)
             }
-            Text("Each key is typed and scoped to the dedicated Services lab namespace.")
+            Text(StoreServicesText.resource("Each key is typed and scoped to the dedicated Services lab namespace."))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .navigationTitle("UserDefaults")
+        .navigationTitle(StoreServicesText.resource("UserDefaults"))
         .accessibilityIdentifier("screen.services.user-defaults")
     }
 
@@ -33,9 +35,11 @@ struct UserDefaultsLabView: View {
         VStack(alignment: .leading) {
             Text(kind.title).font(.headline)
             HStack {
-                Button("Save") { perform { try model.save(kind) } }
-                Button("Read") { perform { try model.read(kind) } }
-                Button("Remove") { model.remove(kind) }
+                Button(StoreServicesText.resource("Save")) { perform { try model.save(kind) } }
+                Button(StoreServicesText.resource("Read")) {
+                    perform { try model.read(kind, locale: locale, timeZone: timeZone) }
+                }
+                Button(StoreServicesText.resource("Remove")) { model.remove(kind) }
             }
         }
     }

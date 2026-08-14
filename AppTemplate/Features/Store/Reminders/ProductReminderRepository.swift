@@ -80,9 +80,12 @@ actor ProductReminderRepository: IProductReminderRepository {
         let request = LocalNotificationRequest(
             id: requestID,
             content: LocalNotificationContent(
-                title: "Product reminder",
+                title: StoreServicesText.string("Product reminder"),
                 subtitle: product.title,
-                body: "Take another look at \(product.title).",
+                body: StoreServicesText.string(
+                    "store.reminder.body",
+                    defaultValue: "Take another look at \(product.title)."
+                ),
                 sound: .default,
                 categoryID: AppNotificationIdentifiers.storeCategory,
                 attachments: stagedAttachment.map { [$0.attachment] } ?? [],

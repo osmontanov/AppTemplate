@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 
 @MainActor
@@ -37,7 +38,7 @@ final class ProductDetailViewModel {
         } catch {
             guard generation == currentGeneration else { return }
             state = .failed
-            errorMessage = "Product details are unavailable."
+            errorMessage = StoreServicesText.string("Product details are unavailable.")
         }
     }
 
@@ -47,7 +48,7 @@ final class ProductDetailViewModel {
             _ = try await cart.add(product.snapshot, quantity: 1)
             errorMessage = nil
         } catch {
-            errorMessage = "The cart could not be updated."
+            errorMessage = StoreServicesText.string("The cart could not be updated.")
         }
     }
 }

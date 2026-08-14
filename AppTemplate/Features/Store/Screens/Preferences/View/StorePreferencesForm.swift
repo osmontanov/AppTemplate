@@ -7,24 +7,24 @@ struct StorePreferencesForm: View {
 
     var body: some View {
         Group {
-            Picker("Layout", selection: Binding(
+            Picker(StoreServicesText.resource("Layout"), selection: Binding(
                 get: { preferences.layout },
                 set: { value in Task { await setLayout(value) } }
             )) {
-                Text("Grid").tag(StoreCatalogLayout.grid)
-                Text("List").tag(StoreCatalogLayout.list)
+                Text(StoreServicesText.resource("Grid")).tag(StoreCatalogLayout.grid)
+                Text(StoreServicesText.resource("List")).tag(StoreCatalogLayout.list)
             }
-            Picker("Sort", selection: Binding(
+            Picker(StoreServicesText.resource("Sort"), selection: Binding(
                 get: { preferences.sort },
                 set: { value in Task { await setSort(value) } }
             )) {
                 ForEach(StoreCatalogSort.allCases, id: \.self) { Text($0.title).tag($0) }
             }
-            Picker("Remote page size", selection: Binding(
+            Picker(StoreServicesText.resource("Remote page size"), selection: Binding(
                 get: { preferences.preferredRemotePageSize },
                 set: { value in Task { await setPageSize(value) } }
             )) {
-                ForEach(CatalogViewModel.pageSizeChoices, id: \.self) { Text("\($0)").tag($0) }
+                ForEach(CatalogViewModel.pageSizeChoices, id: \.self) { Text(StoreServicesText.resource("\($0)")).tag($0) }
             }
             if let errorMessage {
                 Text(verbatim: errorMessage).foregroundStyle(.red)
@@ -41,14 +41,14 @@ struct StorePreferencesForm: View {
 
     private func setLayout(_ value: StoreCatalogLayout) async {
         do { try await repository.setLayout(value) }
-        catch { errorMessage = "Preferences could not be saved." }
+        catch { errorMessage = StoreServicesText.string("Preferences could not be saved.") }
     }
     private func setSort(_ value: StoreCatalogSort) async {
         do { try await repository.setSort(value) }
-        catch { errorMessage = "Preferences could not be saved." }
+        catch { errorMessage = StoreServicesText.string("Preferences could not be saved.") }
     }
     private func setPageSize(_ value: Int) async {
         do { try await repository.setPreferredRemotePageSize(value) }
-        catch { errorMessage = "Preferences could not be saved." }
+        catch { errorMessage = StoreServicesText.string("Preferences could not be saved.") }
     }
 }

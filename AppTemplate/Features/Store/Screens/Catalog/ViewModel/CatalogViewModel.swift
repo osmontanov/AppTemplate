@@ -38,7 +38,7 @@ final class CatalogViewModel {
             } catch is CancellationError {
                 return
             } catch {
-                errorMessage = "Categories are unavailable."
+                errorMessage = StoreServicesText.string("Categories are unavailable.")
             }
         }
         await reload(mode: .all)
@@ -77,19 +77,19 @@ final class CatalogViewModel {
 
     func setLayout(_ layout: StoreCatalogLayout) async {
         do { try await preferences.setLayout(layout) }
-        catch { errorMessage = "Preferences could not be saved." }
+        catch { errorMessage = StoreServicesText.string("Preferences could not be saved.") }
     }
 
     func setSort(_ sort: StoreCatalogSort) async {
         guard isSortingEnabled else { return }
         do { try await preferences.setSort(sort) }
-        catch { errorMessage = "Preferences could not be saved." }
+        catch { errorMessage = StoreServicesText.string("Preferences could not be saved.") }
     }
 
     func setPageSize(_ size: Int) async {
         guard Self.pageSizeChoices.contains(size) else { return }
         do { try await preferences.setPreferredRemotePageSize(size) }
-        catch { errorMessage = "Preferences could not be saved." }
+        catch { errorMessage = StoreServicesText.string("Preferences could not be saved.") }
     }
 
     private func reload(mode: ProductQueryMode) async {
@@ -123,7 +123,7 @@ final class CatalogViewModel {
         } catch {
             guard generation == currentGeneration else { return }
             state = .failed
-            errorMessage = "Products are unavailable."
+            errorMessage = StoreServicesText.string("Products are unavailable.")
         }
     }
 

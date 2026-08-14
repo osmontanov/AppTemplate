@@ -19,11 +19,11 @@ struct FavoritesView: View {
         Group {
             switch viewModel.state {
             case .idle, .loading:
-                ProgressView("Loading favorites")
+                ProgressView(StoreServicesText.resource("Loading favorites"))
             case .empty:
-                ContentUnavailableView("No favorites", systemImage: "heart")
+                ContentUnavailableView(StoreServicesText.resource("No favorites"), systemImage: "heart")
             case .failed:
-                ContentUnavailableView("Favorites are unavailable", systemImage: "exclamationmark.triangle")
+                ContentUnavailableView(StoreServicesText.resource("Favorites are unavailable"), systemImage: "exclamationmark.triangle")
             case let .loaded(model):
                 List(model.items) { favorite in
                     HStack {
@@ -31,7 +31,7 @@ struct FavoritesView: View {
                             router.push(.product(favorite.product.id))
                         }
                         Spacer()
-                        Button("Remove", systemImage: "heart.slash") {
+                        Button(StoreServicesText.resource("Remove"), systemImage: "heart.slash") {
                             Task {
                                 await viewModel.remove(
                                     productID: favorite.product.id,
@@ -40,12 +40,12 @@ struct FavoritesView: View {
                             }
                         }
                         .labelStyle(.iconOnly)
-                        .accessibilityLabel("Remove \(favorite.product.title)")
+                        .accessibilityLabel(StoreServicesText.resource("Remove \(favorite.product.title)"))
                     }
                 }
             }
         }
-        .navigationTitle("Favorites")
+        .navigationTitle(StoreServicesText.resource("Favorites"))
         .task(id: userID) { await viewModel.load(userID: userID) }
         .accessibilityIdentifier("screen.store.favorites")
     }

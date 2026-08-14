@@ -5,6 +5,7 @@ struct ProductDetailView: View {
     let productID: Product.ID
     let images: any IImageLoader
     @State private var viewModel: ProductDetailViewModel
+    @Environment(\.locale) private var locale
 
     init(
         productID: Product.ID,
@@ -31,14 +32,15 @@ struct ProductDetailView: View {
                                 .frame(maxWidth: .infinity, minHeight: 180, maxHeight: 320)
                         }
                         Text(verbatim: model.product.title).font(.largeTitle.bold())
-                        Text(verbatim: "$\(model.product.price)").font(.title2)
+                        Text(verbatim: StoreFormatting.priceUSD(model.product.price, locale: locale))
+                            .font(.title2)
                         Text(verbatim: model.product.description)
                         ViewThatFits(in: .horizontal) {
                             HStack { actions(product: model.product) }
                             VStack { actions(product: model.product) }
                         }
                         if !model.related.isEmpty {
-                            Text("Related products").font(.headline)
+                            Text(StoreServicesText.resource("Related products")).font(.headline)
                             ForEach(model.related) { product in
                                 Button(product.title) { router.push(.product(product.id)) }
                             }
@@ -49,21 +51,21 @@ struct ProductDetailView: View {
             } else if let error = viewModel.errorMessage {
                 ContentUnavailableView(error, systemImage: "exclamationmark.triangle")
             } else {
-                ProgressView("Loading product")
+                ProgressView(StoreServicesText.resource("Loading product"))
             }
         }
-        .navigationTitle("Product")
+        .navigationTitle(StoreServicesText.resource("Product"))
         .task(id: productID) { await viewModel.load(productID: productID) }
         .accessibilityIdentifier("screen.store.product")
     }
 
     @ViewBuilder
     private func actions(product: Product) -> some View {
-        Button("Add to cart") { Task { await viewModel.addToCart() } }
+        Button(StoreServicesText.resource("Add to cart")) { Task { await viewModel.addToCart() } }
             .buttonStyle(.borderedProminent)
             .disabled(product.stock == 0)
-        Button("Reviews") { router.push(.reviews(product.id)) }
-        Button("Remind me", systemImage: "bell") {
+        Button(StoreServicesText.resource("Reviews")) { router.push(.reviews(product.id)) }
+        Button(StoreServicesText.resource("Remind me"), systemImage: "bell") {
             router.presentation = .reminder(product.id)
         }
         .accessibilityIdentifier("action.store.reminder")

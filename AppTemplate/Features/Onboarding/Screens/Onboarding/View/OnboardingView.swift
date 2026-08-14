@@ -14,16 +14,16 @@ struct OnboardingView: View {
     var body: some View {
         AdaptiveContentContainer {
             VStack(spacing: 16) {
-                Text("Welcome to AppTemplate")
-                Text("Completion is saved and the next required app flow opens automatically.")
+                Text(StoreServicesText.resource("Welcome to AppTemplate"))
+                Text(StoreServicesText.resource("Completion is saved and the next required app flow opens automatically."))
                     .foregroundStyle(.secondary)
-                Button("Finish Onboarding") {
+                Button(StoreServicesText.resource("Finish Onboarding")) {
                     viewModel.finish()
                 }
                 .buttonStyle(.borderedProminent)
             }
         }
-        .navigationTitle("Onboarding")
+        .navigationTitle(StoreServicesText.resource("Onboarding"))
         .accessibilityIdentifier("screen.onboarding")
     }
 }
