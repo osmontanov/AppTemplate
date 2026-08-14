@@ -46,9 +46,19 @@ struct ServicesFlowView: View {
                 service: dependencies.keychainLab,
                 session: dependencies.sessionActions
             )
-        case .localDatabase,
-             .remoteAPI,
-             .localNotifications:
+        case .localDatabase:
+            LocalDatabaseLabView(
+                guide: item.guide,
+                repository: dependencies.localDatabase
+            )
+        case .remoteAPI:
+            RemoteAPILabView(
+                guide: item.guide,
+                remote: dependencies.remoteAPI,
+                session: dependencies.sessionActions,
+                diagnostics: dependencies.diagnostics
+            )
+        case .localNotifications:
             ServiceLabPlaceholderView(item: item)
         }
     }

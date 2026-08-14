@@ -931,6 +931,64 @@ struct ServicesDependenciesCompositionTests {
         #expect(appInfo.displayNameReads == 2)
         #expect(appInfo.versionReads == 2)
     }
+
+    @Test
+    func servicesFactoryReusesTheGraphOwnedDatabaseRemoteAndRecorderFacades() async throws {
+        let database = Task3DatabaseCompositionSpy()
+        let remote = Task3RemoteCompositionSpy()
+        let diagnostics = NetworkDiagnosticRecorder()
+        let dependencies = AppDependencies.preview(
+            settings: SettingsDependencies(
+                appInfo: AppInfoService(displayName: "Task 3", version: "1")
+            ),
+            remoteService: remote,
+            diagnostics: diagnostics,
+            imageLoader: InjectedImageLoader(),
+            localDatabaseService: database
+        )
+        let store = AppStateStore(storage: InMemoryAppStateStorage())
+        let services = dependencies.makeServicesDependencies(
+            appState: AppStateInspector(store: store, router: AppFlowRouter(flow: .main)),
+            appFlowCoordinator: AppFlowCoordinatorSpy(),
+            sessionActions: CompositionSessionActionsSpy(),
+            appStateStatus: ServicesAppStateStatus()
+        )
+
+        #expect(services.localDatabase as AnyObject === dependencies.localDatabaseExamples as AnyObject)
+        #expect(services.remoteAPI is RemoteAPILabService)
+        #expect(dependencies.remoteAPILab is RemoteAPILabService)
+        #expect(services.diagnostics === diagnostics)
+
+        try await services.localDatabase.create(id: "composition", payload: "value")
+        _ = try await services.remoteAPI.products(ProductPageRequest(
+            mode: .all, sort: nil, limit: 1, skip: 0
+        ))
+
+        #expect(await database.upsertedExampleIDs == ["composition"])
+        #expect(await remote.productRequests == [
+            ProductPageRequest(mode: .all, sort: nil, limit: 1, skip: 0)
+        ])
+    }
+
+    @Test
+    func failClosedScenarioServicesFacadeUsesItsScriptedRemoteAndRecorder() async throws {
+        let dependencies = AppDependencies.uiTesting(
+            scenario: try UITestScenario.named("services-basic")
+        )
+        let store = AppStateStore(storage: InMemoryAppStateStorage())
+        let services = dependencies.makeServicesDependencies(
+            appState: AppStateInspector(store: store, router: AppFlowRouter(flow: .main)),
+            appFlowCoordinator: AppFlowCoordinatorSpy(),
+            sessionActions: CompositionSessionActionsSpy(),
+            appStateStatus: ServicesAppStateStatus()
+        )
+
+        #expect(services.localDatabase as AnyObject === dependencies.localDatabaseExamples as AnyObject)
+        #expect(services.diagnostics === dependencies.diagnostics)
+        await #expect(throws: RemoteServiceError.self) {
+            _ = try await services.remoteAPI.categories()
+        }
+    }
 }
 
 @MainActor
@@ -1104,6 +1162,62 @@ private actor InjectedLocalDatabaseService: ILocalDatabaseService {
     func deleteAll<Model: LocalDatabaseModel>(
         _ type: Model.Type
     ) async throws -> Int { 0 }
+}
+
+private actor Task3DatabaseCompositionSpy: ILocalDatabaseService {
+    private(set) var records: [String: ExampleRecord] = [:]
+    private(set) var upsertedExampleIDs: [String] = []
+
+    func fetch<Model: LocalDatabaseModel>(_ type: Model.Type, id: Model.ID) async throws -> Model? {
+        guard type == ExampleRecord.self,
+              let stringID = id as? String,
+              let value = records[stringID]
+        else { return nil }
+        return value as? Model
+    }
+
+    func fetch<Model: LocalDatabaseModel>(_ type: Model.Type, matching query: Model.Query) async throws -> [Model] {
+        guard type == ExampleRecord.self else { return [] }
+        return records.values.sorted { $0.id < $1.id }.compactMap { $0 as? Model }
+    }
+
+    func upsert<Model: LocalDatabaseModel>(_ value: Model) async throws {
+        guard let example = value as? ExampleRecord else { return }
+        records[example.id] = example
+        upsertedExampleIDs.append(example.id)
+    }
+
+    func upsert<Model: LocalDatabaseModel>(_ values: [Model]) async throws {
+        for value in values { try await upsert(value) }
+    }
+
+    func delete<Model: LocalDatabaseModel>(_ type: Model.Type, id: Model.ID) async throws -> Bool {
+        guard type == ExampleRecord.self, let stringID = id as? String else { return false }
+        return records.removeValue(forKey: stringID) != nil
+    }
+
+    func deleteAll<Model: LocalDatabaseModel>(_ type: Model.Type) async throws -> Int {
+        guard type == ExampleRecord.self else { return 0 }
+        let count = records.count
+        records.removeAll()
+        return count
+    }
+}
+
+private actor Task3RemoteCompositionSpy: IRemoteService {
+    private(set) var productRequests: [ProductPageRequest] = []
+
+    func fetchExample(_ request: ExampleRequest) async throws -> ExampleResponse { throw RemoteServiceError.invalidResponse }
+    func products(_ request: ProductPageRequest) async throws -> ProductPageDTO {
+        productRequests.append(request)
+        return ProductPageDTO(products: [], total: 0, skip: request.skip, limit: request.limit)
+    }
+    func categories() async throws -> [ProductCategoryDTO] { [] }
+    func product(id: Int) async throws -> ProductDTO { throw RemoteServiceError.invalidResponse }
+    func login(_ request: LoginRequestDTO) async throws -> AuthSessionDTO { throw RemoteServiceError.invalidResponse }
+    func me(accessToken: String) async throws -> UserProfileDTO { throw RemoteServiceError.invalidResponse }
+    func refresh(_ request: RefreshRequestDTO) async throws -> AuthTokensDTO { throw RemoteServiceError.invalidResponse }
+    func diagnostic(_ request: HTTPDiagnosticRequest) async throws -> HTTPDiagnosticDTO { HTTPDiagnosticDTO(statusCode: 200) }
 }
 private actor InjectedRemoteService: IRemoteService {
     func fetchExample(

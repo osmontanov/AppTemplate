@@ -37,16 +37,16 @@ enum ServicesCatalogViewModel {
             route: .localDatabase,
             guide: ServiceLabGuide(
                 why: "Learn typed local persistence without exposing the database implementation to the view.",
-                preset: "This guided lab will use isolated demo records.",
-                expected: "A later task will add typed create, query, and reset operations."
+                preset: "The Basic preset uses three bounded ExampleRecord values and lookahead-backed paging.",
+                expected: "Create, update, upsert, batch, search, paging, delete, and reset stay behind the typed repository facade."
             )
         ),
         ServicesCatalogItem(
             route: .remoteAPI,
             guide: ServiceLabGuide(
                 why: "Observe a remote request through a safe, diagnostic service facade.",
-                preset: "This guided lab will use a bounded example request.",
-                expected: "A later task will add explicit loading, success, and safe failure states."
+                preset: "The Basic preset runs bounded product search; Advanced adds fixed product, diagnostic, and semantic session actions.",
+                expected: "Only allowlisted diagnostics and safe results are visible; credentials and tokens never cross the session boundary."
             )
         ),
         ServicesCatalogItem(

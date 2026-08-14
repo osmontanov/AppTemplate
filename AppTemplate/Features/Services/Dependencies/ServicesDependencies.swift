@@ -7,4 +7,7 @@ struct ServicesDependencies {
     let appInfo: any IAppInfoService
     let userDefaultsLab: any IUserDefaultsService
     let keychainLab: any IKeychainService
+    let localDatabase: any ILocalDatabaseExampleRepository
+    let remoteAPI: any IRemoteAPILabService
+    let diagnostics: NetworkDiagnosticRecorder
 }

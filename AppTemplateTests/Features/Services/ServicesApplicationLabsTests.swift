@@ -374,7 +374,12 @@ private struct ServicesTwoSceneFixture {
             userDefaultsLab: InMemoryUserDefaultsService(
                 namespace: "AppTemplate.ServicesLab"
             ),
-            keychainLab: InMemoryKeychainService()
+            keychainLab: InMemoryKeychainService(),
+            localDatabase: LocalDatabaseExampleRepository(
+                database: LocalDatabaseService(configuration: .inMemory())
+            ),
+            remoteAPI: RemoteAPILabService(remote: FailClosedRemoteService()),
+            diagnostics: NetworkDiagnosticRecorder()
         )
         first = ServicesAppStateViewModel(
             appState: dependencies.appState,

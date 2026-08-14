@@ -3,6 +3,7 @@ import Foundation
 nonisolated
 struct AppDependencies: Sendable {
     let localDatabase: any ILocalDatabaseService
+    let localDatabaseExamples: any ILocalDatabaseExampleRepository
     let favorites: any IFavoritesRepository
     let cart: any ICartRepository
     let storePreferences: any IStorePreferencesRepository
@@ -10,6 +11,7 @@ struct AppDependencies: Sendable {
     let appInfo: any IAppInfoService
     let storeUISupport: StoreUISupport
     let remote: any IRemoteService
+    let remoteAPILab: any IRemoteAPILabService
     let appStateStorage: any IAppStateStorage
     let keychain: any IKeychainService
     let servicesLabUserDefaults: any IUserDefaultsService
@@ -49,6 +51,8 @@ struct AppDependencies: Sendable {
             configuration: .live(locationResolver: localDatabaseStoreLocationResolver)
         )
         let remote = RemoteService(diagnosticRecorder: diagnostics)
+        let localDatabaseExamples = LocalDatabaseExampleRepository(database: database)
+        let remoteAPILab = RemoteAPILabService(remote: remote)
         let clock = AppClock.live
         let appInfo = AppInfoService()
         let resolvedNotificationGraph = notificationGraph ?? .live(
@@ -58,6 +62,7 @@ struct AppDependencies: Sendable {
         )
         return AppDependencies(
             localDatabase: database,
+            localDatabaseExamples: localDatabaseExamples,
             favorites: FavoritesRepository(database: database),
             cart: CartRepository(database: database),
             storePreferences: StorePreferencesRepository(userDefaults: userDefaultsService),
@@ -65,6 +70,7 @@ struct AppDependencies: Sendable {
             appInfo: appInfo,
             storeUISupport: StoreUISupport(images: imageLoader, clock: clock),
             remote: remote,
+            remoteAPILab: remoteAPILab,
             appStateStorage: UserDefaultsAppStateStorage(userDefaults: userDefaultsService),
             keychain: keychainService,
             servicesLabUserDefaults: UserDefaultsService(
@@ -136,6 +142,8 @@ struct AppDependencies: Sendable {
             tracker: tracker
         )
         let database = LocalDatabaseService(configuration: .inMemory())
+        let localDatabaseExamples = LocalDatabaseExampleRepository(database: database)
+        let remoteAPILab = RemoteAPILabService(remote: remote)
         let baseCart = CartRepository(database: database)
         let cart: any ICartRepository = scenario.id == .guestStore
             ? UITestConflictOnceCartRepository(base: baseCart)
@@ -172,6 +180,7 @@ struct AppDependencies: Sendable {
         )
         return AppDependencies(
             localDatabase: database,
+            localDatabaseExamples: localDatabaseExamples,
             favorites: FavoritesRepository(database: database),
             cart: cart,
             storePreferences: storePreferences,
@@ -179,6 +188,7 @@ struct AppDependencies: Sendable {
             appInfo: appInfo,
             storeUISupport: StoreUISupport(images: imageLoader, clock: fixedClock),
             remote: remote,
+            remoteAPILab: remoteAPILab,
             appStateStorage: InMemoryAppStateStorage(initialState: scenario.appState),
             keychain: keychain,
             servicesLabUserDefaults: servicesLabUserDefaults,
@@ -224,6 +234,8 @@ struct AppDependencies: Sendable {
         notificationGraph: AppNotificationGraph? = nil
     ) -> AppDependencies {
         let database = LocalDatabaseService(configuration: .inMemory())
+        let localDatabaseExamples = LocalDatabaseExampleRepository(database: database)
+        let remoteAPILab = RemoteAPILabService(remote: remoteService)
         let keychain = InMemoryKeychainService()
         let servicesLabUserDefaults = InMemoryUserDefaultsService(
             namespace: "AppTemplate.ServicesLab"
@@ -240,6 +252,7 @@ struct AppDependencies: Sendable {
         )
         return AppDependencies(
             localDatabase: database,
+            localDatabaseExamples: localDatabaseExamples,
             favorites: FavoritesRepository(database: database),
             cart: CartRepository(database: database),
             storePreferences: StorePreferencesRepository(userDefaults: InMemoryUserDefaultsService(
@@ -249,6 +262,7 @@ struct AppDependencies: Sendable {
             appInfo: appInfo,
             storeUISupport: StoreUISupport(images: imageLoader, clock: clock),
             remote: remoteService,
+            remoteAPILab: remoteAPILab,
             appStateStorage: InMemoryAppStateStorage(initialState: initialState),
             keychain: keychain,
             servicesLabUserDefaults: servicesLabUserDefaults,
@@ -296,8 +310,13 @@ struct AppDependencies: Sendable {
             imageLoader: imageLoader,
             clock: clock
         )
+        let localDatabaseExamples = LocalDatabaseExampleRepository(
+            database: localDatabaseService
+        )
+        let remoteAPILab = RemoteAPILabService(remote: remoteService)
         return AppDependencies(
             localDatabase: localDatabaseService,
+            localDatabaseExamples: localDatabaseExamples,
             favorites: FavoritesRepository(database: localDatabaseService),
             cart: CartRepository(database: localDatabaseService),
             storePreferences: StorePreferencesRepository(userDefaults: storePreferencesService),
@@ -305,6 +324,7 @@ struct AppDependencies: Sendable {
             appInfo: appInfo,
             storeUISupport: StoreUISupport(images: imageLoader, clock: clock),
             remote: remoteService,
+            remoteAPILab: remoteAPILab,
             appStateStorage: appStateStorage,
             keychain: keychainService,
             servicesLabUserDefaults: servicesLabUserDefaults,
@@ -346,8 +366,13 @@ struct AppDependencies: Sendable {
             namespace: "AppTemplate.ServicesLab"
         )
         let servicesLabKeychain = InMemoryKeychainService()
+        let localDatabaseExamples = LocalDatabaseExampleRepository(
+            database: localDatabaseService
+        )
+        let remoteAPILab = RemoteAPILabService(remote: remoteService)
         return AppDependencies(
             localDatabase: localDatabaseService,
+            localDatabaseExamples: localDatabaseExamples,
             favorites: FavoritesRepository(database: localDatabaseService),
             cart: CartRepository(database: localDatabaseService),
             storePreferences: StorePreferencesRepository(userDefaults: storePreferencesService),
@@ -355,6 +380,7 @@ struct AppDependencies: Sendable {
             appInfo: appInfo,
             storeUISupport: StoreUISupport(images: imageLoader, clock: clock),
             remote: remoteService,
+            remoteAPILab: remoteAPILab,
             appStateStorage: appStateStorage,
             keychain: keychainService,
             servicesLabUserDefaults: servicesLabUserDefaults,
@@ -405,7 +431,10 @@ struct AppDependencies: Sendable {
             sessionActions: sessionActions,
             appInfo: appInfo,
             userDefaultsLab: servicesLabUserDefaults,
-            keychainLab: servicesLabKeychain
+            keychainLab: servicesLabKeychain,
+            localDatabase: localDatabaseExamples,
+            remoteAPI: remoteAPILab,
+            diagnostics: diagnostics
         )
     }
 }
