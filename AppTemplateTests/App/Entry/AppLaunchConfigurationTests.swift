@@ -272,6 +272,54 @@ struct AppLaunchConfigurationTests {
         #expect(await iterator.next() == .exhausted)
     }
 
+    @MainActor
+    @Test
+    func productReminderLaunchUsesOnlyOrderedInMemoryDependencies() async throws {
+        let configuration = AppLaunchConfiguration(arguments: [
+            "AppTemplate", "--ui-testing", "--ui-test-scenario", "product-reminder"
+        ])
+        let scenario = try #require({
+            if case let .uiTesting(value) = configuration { return value }
+            return nil
+        }())
+
+        #expect(scenario.networkPolicy == .failClosed)
+        #expect(scenario.notificationSeed.authorizationStatus == .authorized)
+        #expect(scenario.notificationSeed.pendingRequests.isEmpty)
+        #expect(scenario.remoteSteps.count == 5)
+        #expect(scenario.imageSeed.steps.count == 3)
+
+        let dependencies = AppDependencies.uiTesting(scenario: scenario)
+        try await dependencies.bootstrap()
+        #expect(await dependencies.localNotifications.service.settings()
+            .authorizationStatus == .authorized)
+        #expect(try await dependencies.products.categories().map(\.slug) == ["phones"])
+        #expect(try await dependencies.products.page(ProductQuery(
+            mode: .all,
+            sort: nil,
+            limit: 10,
+            skip: 0
+        )).products.map(\.id) == [7])
+        let detail = try await dependencies.products.product(id: 7)
+        #expect(try await dependencies.products.related(to: detail, limit: 6).isEmpty)
+        let reminderProduct = try await dependencies.products.product(id: 7)
+
+        for step in scenario.imageSeed.steps.prefix(2) {
+            _ = try await dependencies.imageLoader.load(step.url, policy: .product)
+        }
+        _ = try await dependencies.notificationGraph.reminders.schedule(
+            product: reminderProduct,
+            selection: .quickTest
+        )
+        await dependencies.notificationGraph.reminders.cancel(productID: detail.id)
+        #expect(await dependencies.notificationGraph.reminders.status(productID: detail.id)
+            == .notScheduled)
+
+        let tracker = try #require(dependencies.uiTestScriptTracker)
+        var iterator = await tracker.updates().makeAsyncIterator()
+        #expect(await iterator.next() == .exhausted)
+    }
+
     private func guestStoreLaunchScenario() throws -> UITestScenario {
         let configuration = AppLaunchConfiguration(arguments: [
             "AppTemplate", "--ui-testing", "--ui-test-scenario", "guest-store"

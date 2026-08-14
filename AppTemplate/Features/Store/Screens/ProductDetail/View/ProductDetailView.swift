@@ -63,5 +63,9 @@ struct ProductDetailView: View {
             .buttonStyle(.borderedProminent)
             .disabled(product.stock == 0)
         Button("Reviews") { router.push(.reviews(product.id)) }
+        Button("Remind me", systemImage: "bell") {
+            router.presentation = .reminder(product.id)
+        }
+        .accessibilityIdentifier("action.store.reminder")
     }
 }

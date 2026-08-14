@@ -54,9 +54,11 @@ struct StoreFlowView: View {
         case .checkout:
             ContentUnavailableView("Checkout", systemImage: "cart")
         case let .reminder(productID):
-            ContentUnavailableView(
-                "Reminder for product \(productID)",
-                systemImage: "bell"
+            ProductReminderPresentationView(
+                productID: productID,
+                products: dependencies.products,
+                reminders: dependencies.reminders,
+                clock: uiSupport.clock
             )
         case let .sessionRecovery(reason):
             SessionRecoveryView(
@@ -143,5 +145,46 @@ struct StoreFlowView: View {
         #else
         false
         #endif
+    }
+}
+
+private struct ProductReminderPresentationView: View {
+    let productID: Product.ID
+    let products: any IProductRepository
+    let reminders: any IProductReminderRepository
+    let clock: AppClock
+    @State private var product: Product?
+    @State private var failed = false
+
+    var body: some View {
+        Group {
+            if let product {
+                ProductReminderView(
+                    product: product,
+                    reminders: reminders,
+                    clock: clock
+                )
+            } else if failed {
+                ContentUnavailableView(
+                    "Product unavailable",
+                    systemImage: "exclamationmark.triangle"
+                )
+            } else {
+                ProgressView("Loading reminder")
+            }
+        }
+        .task(id: productID) {
+            do {
+                let resolved = try await products.product(id: productID)
+                try Task.checkCancellation()
+                product = resolved
+                failed = false
+            } catch is CancellationError {
+                return
+            } catch {
+                product = nil
+                failed = true
+            }
+        }
     }
 }

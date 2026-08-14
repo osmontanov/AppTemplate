@@ -38,6 +38,21 @@ struct StoreRobot {
         try appRobot.activate(app.buttons["Add to cart"])
     }
 
+    func openCurrentProductReminder() throws {
+        try appRobot.activate(appRobot.element("action.store.reminder"))
+        _ = try appRobot.require("screen.store.product-reminder")
+    }
+
+    func scheduleQuickReminder() throws {
+        try appRobot.activate(appRobot.element("action.product-reminder.schedule"))
+        _ = try appRobot.require("result.product-reminder.scheduled")
+    }
+
+    func cancelCurrentProductReminder() throws {
+        try appRobot.activate(appRobot.element("action.product-reminder.cancel"))
+        _ = try appRobot.require("status.product-reminder.not-scheduled")
+    }
+
     func openMoreDestination(_ title: String) throws {
         try appRobot.activate(app.buttons["More"])
         try appRobot.activate(app.buttons[title])

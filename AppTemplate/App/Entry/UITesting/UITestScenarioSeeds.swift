@@ -86,10 +86,112 @@ nonisolated extension UITestScenario {
             GuestStoreUITestFixture.scenario
         case .protectedFavorite:
             ProtectedFavoriteUITestFixture.scenario
-        case .productReminder, .servicesBasic, .accessibilitySmoke:
+        case .productReminder:
+            ProductReminderUITestFixture.scenario
+        case .servicesBasic, .accessibilitySmoke:
             self
         }
     }
+}
+
+private nonisolated enum ProductReminderUITestFixture {
+    static var scenario: UITestScenario {
+        UITestScenario(
+            id: .productReminder,
+            appState: AppState(
+                hasCompletedOnboarding: true,
+                isMaintenanceEnabled: false
+            ),
+            sessionSeed: UITestSessionSeed(keychainData: nil),
+            localDatabaseSeed: UITestLocalDatabaseSeed(
+                examples: [],
+                cart: CartAggregate(
+                    id: CartAggregate.singletonID,
+                    revision: 0,
+                    lines: []
+                )
+            ),
+            preferencesSeed: UITestPreferencesSeed(encodedValues: [
+                "Store.CatalogLayout": Data(#""list""#.utf8),
+                "Store.CatalogSort": Data(#""featured""#.utf8),
+                "Store.RemotePageSize": Data("10".utf8)
+            ]),
+            notificationSeed: UITestNotificationSeed(
+                authorizationStatus: .authorized,
+                pendingRequests: []
+            ),
+            imageSeed: UITestImageSeed(
+                steps: Array(repeating: imageStep, count: 3)
+            ),
+            networkPolicy: .failClosed,
+            remoteSteps: [
+                jsonStep(
+                    path: "/products/categories",
+                    body: #"[{"slug":"phones","name":"Phones","url":"https://dummyjson.com/products/category/phones"}]"#
+                ),
+                jsonStep(
+                    path: "/products",
+                    queryItems: pageQuery,
+                    body: pageJSON
+                ),
+                jsonStep(path: "/products/7", body: productJSON),
+                jsonStep(
+                    path: "/products/category/phones",
+                    queryItems: relatedQuery,
+                    body: pageJSON
+                ),
+                jsonStep(path: "/products/7", body: productJSON)
+            ]
+        )
+    }
+
+    private static var imageStep: ScriptedImageStep {
+        ScriptedImageStep(
+            url: URL(string: "https://dummyjson.com/image/reminder-phone.png")!,
+            result: .success(LoadedImage(
+                data: Data(base64Encoded:
+                    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+                )!,
+                mimeType: "image/png",
+                pixelWidth: 1,
+                pixelHeight: 1
+            ))
+        )
+    }
+
+    private static func jsonStep(
+        path: String,
+        queryItems: [URLQueryItem] = [],
+        body: String
+    ) -> ScriptedNetworkStep {
+        ScriptedNetworkStep(
+            origin: RemoteService.defaultDummyJSONBaseURL,
+            method: .get,
+            path: path,
+            queryItems: queryItems,
+            headers: [:],
+            shouldHandleCookies: true,
+            body: .none,
+            result: .response(
+                statusCode: 200,
+                headers: ["Content-Type": "application/json"],
+                body: Data(body.utf8)
+            )
+        )
+    }
+
+    private static let pageQuery = [
+        URLQueryItem(name: "limit", value: "10"),
+        URLQueryItem(name: "skip", value: "0")
+    ]
+    private static let relatedQuery = [
+        URLQueryItem(name: "limit", value: "26"),
+        URLQueryItem(name: "skip", value: "0")
+    ]
+    private static let productJSON =
+        #"{"id":7,"title":"Reminder Phone","description":"A scripted reminder product","category":"phones","price":49,"rating":4.5,"stock":5,"brand":"Demo","availabilityStatus":"In Stock","reviews":[],"images":[],"thumbnail":"https://dummyjson.com/image/reminder-phone.png"}"#
+    private static let pageJSON =
+        #"{"products":["# + productJSON + #"],"total":1,"skip":0,"limit":10}"#
 }
 
 private nonisolated enum ProtectedFavoriteUITestFixture {

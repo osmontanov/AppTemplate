@@ -12,6 +12,10 @@ struct AppRobot {
         try launch(scenario: "protected-favorite")
     }
 
+    static func launchProductReminder() throws -> AppRobot {
+        try launch(scenario: "product-reminder")
+    }
+
     private static func launch(scenario: String) throws -> AppRobot {
         let app = XCUIApplication()
         #if os(macOS)
