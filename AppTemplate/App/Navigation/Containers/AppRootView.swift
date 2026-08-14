@@ -6,6 +6,8 @@ struct AppRootView: View {
     let onboardingRouter: FlowRouter
     let maintenanceRouter: FlowRouter
     let session: SessionPresentation
+    let storeDependencies: StoreDependencies
+    let storeUISupport: StoreUISupport
 
     var body: some View {
         Group {
@@ -15,7 +17,12 @@ struct AppRootView: View {
             case .onboarding:
                 OnboardingFlowView(router: onboardingRouter)
             case .main:
-                AppShellView(router: router, session: session)
+                AppShellView(
+                    router: router,
+                    session: session,
+                    storeDependencies: storeDependencies,
+                    storeUISupport: storeUISupport
+                )
             case .maintenance:
                 MaintenanceFlowView(router: maintenanceRouter)
             }

@@ -4,6 +4,8 @@ import SwiftUI
 struct MacSidebarAppShellView: View {
     @Bindable var router: AppRouter
     let session: SessionPresentation
+    let storeDependencies: StoreDependencies
+    let storeUISupport: StoreUISupport
 
     var body: some View {
         NavigationSplitView {
@@ -20,7 +22,9 @@ struct MacSidebarAppShellView: View {
                 section: router.selectedSection,
                 storeRouter: router.store,
                 servicesRouter: router.services,
-                session: session
+                session: session,
+                storeDependencies: storeDependencies,
+                storeUISupport: storeUISupport
             )
         }
     }

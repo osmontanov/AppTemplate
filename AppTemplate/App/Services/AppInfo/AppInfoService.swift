@@ -1,7 +1,7 @@
 import Foundation
 
 nonisolated
-struct AppInfoService: IAppInfoService {
+final class AppInfoService: IAppInfoService, Sendable {
     let displayName: String
     let version: String
 

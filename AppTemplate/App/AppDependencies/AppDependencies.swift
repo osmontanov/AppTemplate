@@ -6,6 +6,9 @@ struct AppDependencies: Sendable {
     let favorites: any IFavoritesRepository
     let cart: any ICartRepository
     let storePreferences: any IStorePreferencesRepository
+    let products: any IProductRepository
+    let appInfo: any IAppInfoService
+    let storeUISupport: StoreUISupport
     let remote: any IRemoteService
     let appStateStorage: any IAppStateStorage
     let keychain: any IKeychainService
@@ -41,11 +44,15 @@ struct AppDependencies: Sendable {
         )
         let remote = RemoteService(diagnosticRecorder: diagnostics)
         let clock = AppClock.live
+        let appInfo = AppInfoService()
         return AppDependencies(
             localDatabase: database,
             favorites: FavoritesRepository(database: database),
             cart: CartRepository(database: database),
             storePreferences: StorePreferencesRepository(userDefaults: userDefaultsService),
+            products: ProductRepository(remote: remote),
+            appInfo: appInfo,
+            storeUISupport: StoreUISupport(images: imageLoader, clock: clock),
             remote: remote,
             appStateStorage: UserDefaultsAppStateStorage(userDefaults: userDefaultsService),
             keychain: keychainService,
@@ -57,7 +64,7 @@ struct AppDependencies: Sendable {
             clock: clock,
             sessionStartupValidationPolicy: .automatic,
             sessionRefreshSchedulePolicy: .automatic,
-            settings: SettingsDependencies(appInfo: AppInfoService()),
+            settings: SettingsDependencies(appInfo: appInfo),
             localNotifications: localNotifications ?? .live(
                 runtimeResolver: localNotificationRuntimeResolver
             ),
@@ -128,11 +135,18 @@ struct AppDependencies: Sendable {
             authorizationResult: [.authorized, .provisional, .ephemeral]
                 .contains(scenario.notificationSeed.authorizationStatus)
         )
+        let appInfo = AppInfoService(
+            displayName: "AppTemplate UI Tests",
+            version: "1.0"
+        )
         return AppDependencies(
             localDatabase: database,
             favorites: FavoritesRepository(database: database),
             cart: CartRepository(database: database),
             storePreferences: StorePreferencesRepository(userDefaults: InMemoryUserDefaultsService()),
+            products: ProductRepository(remote: remote),
+            appInfo: appInfo,
+            storeUISupport: StoreUISupport(images: imageLoader, clock: fixedClock),
             remote: remote,
             appStateStorage: InMemoryAppStateStorage(initialState: scenario.appState),
             keychain: keychain,
@@ -145,12 +159,7 @@ struct AppDependencies: Sendable {
             sessionStartupValidationPolicy: scenario.sessionSeed.validationMode == .scripted
                 ? .automatic : .disabled,
             sessionRefreshSchedulePolicy: .disabled,
-            settings: SettingsDependencies(
-                appInfo: AppInfoService(
-                    displayName: "AppTemplate UI Tests",
-                    version: "1.0"
-                )
-            ),
+            settings: SettingsDependencies(appInfo: appInfo),
             localNotifications: notifications,
             diagnostics: diagnostics,
             imageLoader: imageLoader,
@@ -178,11 +187,18 @@ struct AppDependencies: Sendable {
         let database = LocalDatabaseService(configuration: .inMemory())
         let keychain = InMemoryKeychainService()
         let clock = AppClock.live
+        let appInfo = AppInfoService(
+            displayName: "AppTemplate UI Tests",
+            version: "1.0"
+        )
         return AppDependencies(
             localDatabase: database,
             favorites: FavoritesRepository(database: database),
             cart: CartRepository(database: database),
             storePreferences: StorePreferencesRepository(userDefaults: InMemoryUserDefaultsService()),
+            products: ProductRepository(remote: remoteService),
+            appInfo: appInfo,
+            storeUISupport: StoreUISupport(images: imageLoader, clock: clock),
             remote: remoteService,
             appStateStorage: InMemoryAppStateStorage(initialState: initialState),
             keychain: keychain,
@@ -194,12 +210,7 @@ struct AppDependencies: Sendable {
             clock: clock,
             sessionStartupValidationPolicy: .disabled,
             sessionRefreshSchedulePolicy: .disabled,
-            settings: SettingsDependencies(
-                appInfo: AppInfoService(
-                    displayName: "AppTemplate UI Tests",
-                    version: "1.0"
-                )
-            ),
+            settings: SettingsDependencies(appInfo: appInfo),
             localNotifications: localNotifications ?? .inMemory(),
             diagnostics: diagnostics,
             imageLoader: imageLoader,
@@ -223,11 +234,15 @@ struct AppDependencies: Sendable {
         localNotifications: LocalNotificationDependencies? = nil
     ) -> AppDependencies {
         let clock = AppClock.live
+        let appInfo = settings.appInfo
         return AppDependencies(
             localDatabase: localDatabaseService,
             favorites: FavoritesRepository(database: localDatabaseService),
             cart: CartRepository(database: localDatabaseService),
             storePreferences: StorePreferencesRepository(userDefaults: storePreferencesService),
+            products: ProductRepository(remote: remoteService),
+            appInfo: appInfo,
+            storeUISupport: StoreUISupport(images: imageLoader, clock: clock),
             remote: remoteService,
             appStateStorage: appStateStorage,
             keychain: keychainService,
@@ -261,11 +276,15 @@ struct AppDependencies: Sendable {
         storePreferencesService: any IUserDefaultsService = InMemoryUserDefaultsService()
     ) -> AppDependencies {
         let clock = AppClock.live
+        let appInfo = settings.appInfo
         return AppDependencies(
             localDatabase: localDatabaseService,
             favorites: FavoritesRepository(database: localDatabaseService),
             cart: CartRepository(database: localDatabaseService),
             storePreferences: StorePreferencesRepository(userDefaults: storePreferencesService),
+            products: ProductRepository(remote: remoteService),
+            appInfo: appInfo,
+            storeUISupport: StoreUISupport(images: imageLoader, clock: clock),
             remote: remoteService,
             appStateStorage: appStateStorage,
             keychain: keychainService,
@@ -283,6 +302,16 @@ struct AppDependencies: Sendable {
             imageLoader: imageLoader,
             uiTestScriptTracker: nil,
             bootstrap: {}
+        )
+    }
+
+    @MainActor
+    func makeStoreDependencies() -> StoreDependencies {
+        StoreDependencies(
+            products: products,
+            cart: cart,
+            preferences: storePreferences,
+            appInfo: appInfo
         )
     }
 }

@@ -2,34 +2,67 @@ import SwiftUI
 
 struct StoreFlowView: View {
     @Bindable var router: StoreRouter
-    let session: SessionPresentation
+    let dependencies: StoreDependencies
+    let uiSupport: StoreUISupport
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
         AdaptiveFlowNavigationContainer(
             path: $router.path,
-            layout: AdaptiveFlowLayoutPolicy.resolve(horizontalSizeClass: horizontalSizeClass, isMacOS: isMacOS)
+            layout: AdaptiveFlowLayoutPolicy.resolve(
+                horizontalSizeClass: horizontalSizeClass,
+                isMacOS: isMacOS
+            )
         ) {
-            List {
-                Section("Store") {
-                    NavigationLink("Catalog", value: StoreRoute.product(1))
-                    NavigationLink("Cart", value: StoreRoute.cart)
-                }
-            }
-            .navigationTitle("Store")
+            CatalogView(
+                router: router,
+                products: dependencies.products,
+                preferences: dependencies.preferences,
+                images: uiSupport.images,
+                clock: uiSupport.clock
+            )
             .toolbar {
                 ToolbarItem {
                     Menu("More", systemImage: "ellipsis.circle") {
-                        Button("Favorites") { router.push(.favorites) }
                         Button("Profile") { router.push(.profile) }
                         Button("Cart") { router.push(.cart) }
+                        Button("Favorites") { router.push(.favorites) }
                     }
                 }
             }
         } placeholder: {
             ContentUnavailableView("Select a Store destination", systemImage: "storefront")
         } destination: { route in
-            StorePlaceholderDestination(route: route)
+            destination(route)
+        }
+    }
+
+    @ViewBuilder
+    private func destination(_ route: StoreRoute) -> some View {
+        switch route {
+        case let .product(id):
+            ProductDetailView(
+                productID: id,
+                router: router,
+                products: dependencies.products,
+                cart: dependencies.cart,
+                images: uiSupport.images
+            )
+        case let .reviews(id):
+            ReviewsView(productID: id, products: dependencies.products)
+        case .favorites:
+            ContentUnavailableView(
+                "Favorites require sign in",
+                systemImage: "heart"
+            )
+            .navigationTitle("Favorites")
+        case .cart:
+            CartView(repository: dependencies.cart)
+        case .profile:
+            ProfileView(
+                appInfo: dependencies.appInfo,
+                preferences: dependencies.preferences
+            )
         }
     }
 
@@ -39,33 +72,5 @@ struct StoreFlowView: View {
         #else
         false
         #endif
-    }
-}
-
-private struct StorePlaceholderDestination: View {
-    let route: StoreRoute
-
-    var body: some View {
-        ContentUnavailableView(title, systemImage: symbol).navigationTitle(title)
-    }
-
-    private var title: LocalizedStringKey {
-        switch route {
-        case .product: "Product"
-        case .reviews: "Reviews"
-        case .favorites: "Favorites"
-        case .cart: "Cart"
-        case .profile: "Profile"
-        }
-    }
-
-    private var symbol: String {
-        switch route {
-        case .product: "shippingbox"
-        case .reviews: "star.bubble"
-        case .favorites: "heart"
-        case .cart: "cart"
-        case .profile: "person.crop.circle"
-        }
     }
 }

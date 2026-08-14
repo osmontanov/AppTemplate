@@ -6,12 +6,15 @@ enum PreviewFixtures {
         state: AppState,
         isLocalSessionBootstrapResolved: Bool = false
     ) -> ContentView {
-        ContentView(
+        let dependencies = failClosedDependencies()
+        return ContentView(
             appFlowCoordinator: appFlowCoordinator(
                 state: state,
                 isLocalSessionBootstrapResolved: isLocalSessionBootstrapResolved
             ),
-            session: SessionPresentation(state: .guest, revision: 1)
+            session: SessionPresentation(state: .guest, revision: 1),
+            storeDependencies: dependencies.makeStoreDependencies(),
+            storeUISupport: dependencies.storeUISupport
         )
     }
 
@@ -92,6 +95,15 @@ enum PreviewFixtures {
                 displayName: "AppTemplate Preview",
                 version: "1.0"
             )
+        )
+    }
+
+    static func failClosedDependencies() -> AppDependencies {
+        AppDependencies.preview(
+            settings: settingsDependencies(),
+            remoteService: FailClosedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: FailClosedImageLoader()
         )
     }
 

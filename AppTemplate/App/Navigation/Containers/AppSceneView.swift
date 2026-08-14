@@ -5,6 +5,8 @@ struct AppSceneView: View {
     let appFlowCoordinator: AppFlowCoordinator
     let session: SessionPresentation
     let localNotifications: LocalNotificationDependencies
+    let storeDependencies: StoreDependencies
+    let storeUISupport: StoreUISupport
     private let navigationPersistencePolicy:
         AppSceneNavigationPersistencePolicy
 
@@ -27,12 +29,16 @@ struct AppSceneView: View {
         appFlowCoordinator: AppFlowCoordinator,
         session: SessionPresentation,
         localNotifications: LocalNotificationDependencies,
+        storeDependencies: StoreDependencies,
+        storeUISupport: StoreUISupport,
         navigationPersistencePolicy:
             AppSceneNavigationPersistencePolicy = .restored
     ) {
         self.appFlowCoordinator = appFlowCoordinator
         self.session = session
         self.localNotifications = localNotifications
+        self.storeDependencies = storeDependencies
+        self.storeUISupport = storeUISupport
         self.navigationPersistencePolicy = navigationPersistencePolicy
         _lifecycle = State(
             initialValue: AppSceneNavigationLifecycle(
@@ -58,7 +64,9 @@ struct AppSceneView: View {
             router: lifecycle.router,
             onboardingRouter: onboardingRouter,
             maintenanceRouter: maintenanceRouter,
-            session: session
+            session: session,
+            storeDependencies: storeDependencies,
+            storeUISupport: storeUISupport
         )
             .task {
                 let restorationData = navigationPersistencePolicy.restorationData(

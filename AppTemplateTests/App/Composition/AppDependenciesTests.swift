@@ -292,10 +292,10 @@ struct AppDependenciesTests {
         await bootstrap.waitUntilReturned()
 
         await graph.eventHub.publish(
-            try LocalNotificationFixtures.openedFixture(url: "apptemplate://settings")
+            try LocalNotificationFixtures.openedFixture(url: "apptemplate://store")
         )
         await receiver.waitForCount(1)
-        #expect(receiver.urls == [URL(string: "apptemplate://settings")!])
+        #expect(receiver.urls == [URL(string: "apptemplate://store")!])
 
         runTask.cancel()
         await runTask.value
@@ -317,10 +317,10 @@ struct AppDependenciesTests {
         }
 
         await graph.eventHub.publish(
-            try LocalNotificationFixtures.openedFixture(url: "apptemplate://home")
+            try LocalNotificationFixtures.openedFixture(url: "apptemplate://store")
         )
         await receiver.waitForCount(1)
-        #expect(receiver.urls == [URL(string: "apptemplate://home")!])
+        #expect(receiver.urls == [URL(string: "apptemplate://store")!])
 
         runTask.cancel()
         await runTask.value
@@ -338,14 +338,14 @@ struct AppDependenciesTests {
             await registration.run(receiver: first, bootstrap: {})
         }
         await graph.eventHub.publish(
-            try LocalNotificationFixtures.openedFixture(url: "apptemplate://home")
+            try LocalNotificationFixtures.openedFixture(url: "apptemplate://store")
         )
         await first.waitForCount(1)
 
         runTask.cancel()
         await runTask.value
         await graph.eventHub.publish(
-            try LocalNotificationFixtures.openedFixture(url: "apptemplate://browse")
+            try LocalNotificationFixtures.openedFixture(url: "apptemplate://services")
         )
 
         let second = NotificationSceneReceiver()
@@ -353,8 +353,8 @@ struct AppDependenciesTests {
         graph.navigationCoordinator.register(id: secondID, receiver: second)
         graph.navigationCoordinator.setEligible(true, id: secondID)
         await second.waitForCount(1)
-        #expect(first.urls == [URL(string: "apptemplate://home")!])
-        #expect(second.urls == [URL(string: "apptemplate://browse")!])
+        #expect(first.urls == [URL(string: "apptemplate://store")!])
+        #expect(second.urls == [URL(string: "apptemplate://services")!])
     }
 
     @Test
@@ -377,20 +377,20 @@ struct AppDependenciesTests {
             await registration.run(receiver: receiver, bootstrap: {})
         }
         await graph.eventHub.publish(
-            try LocalNotificationFixtures.openedFixture(url: "apptemplate://home")
+            try LocalNotificationFixtures.openedFixture(url: "apptemplate://store")
         )
         await receiver.waitForCount(1)
 
         await firstBootstrap.resume()
         await firstTask.value
         await graph.eventHub.publish(
-            try LocalNotificationFixtures.openedFixture(url: "apptemplate://projects")
+            try LocalNotificationFixtures.openedFixture(url: "apptemplate://services")
         )
         await receiver.waitForCount(2)
         #expect(
             receiver.urls == [
-                URL(string: "apptemplate://home")!,
-                URL(string: "apptemplate://projects")!
+                URL(string: "apptemplate://store")!,
+                URL(string: "apptemplate://services")!
             ]
         )
 
@@ -767,6 +767,47 @@ struct AppDependenciesTests {
         #expect(dependencies.favorites as AnyObject === dependencies.favorites as AnyObject)
         #expect(dependencies.cart as AnyObject === dependencies.cart as AnyObject)
         #expect(dependencies.storePreferences as AnyObject === dependencies.storePreferences as AnyObject)
+    }
+
+    @Test
+    func storeFactoryReusesRetainedProductsCartPreferencesAppInfoAndUISupport() {
+        let remote = InjectedRemoteService()
+        let imageLoader = InjectedImageLoader()
+        let appInfo = AppInfoService(displayName: "Shared", version: "4.2")
+        let dependencies = AppDependencies.preview(
+            settings: SettingsDependencies(appInfo: appInfo),
+            remoteService: remote,
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: imageLoader
+        )
+
+        let first = dependencies.makeStoreDependencies()
+        let second = dependencies.makeStoreDependencies()
+
+        #expect(first.products as AnyObject === dependencies.products as AnyObject)
+        #expect(first.products as AnyObject === second.products as AnyObject)
+        #expect(first.cart as AnyObject === dependencies.cart as AnyObject)
+        #expect(first.preferences as AnyObject === dependencies.storePreferences as AnyObject)
+        #expect(first.appInfo as AnyObject === dependencies.appInfo as AnyObject)
+        #expect(first.appInfo as AnyObject === dependencies.settings.appInfo as AnyObject)
+        #expect(dependencies.storeUISupport.images as AnyObject === imageLoader)
+    }
+
+    @Test
+    func productRepositoryUsesTheExactGraphRemoteWithoutEagerTransport() async {
+        let remote = InjectedRemoteService()
+        let dependencies = AppDependencies.preview(
+            settings: SettingsDependencies(
+                appInfo: AppInfoService(displayName: "Preview", version: "1")
+            ),
+            remoteService: remote,
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: InjectedImageLoader()
+        )
+
+        await #expect(throws: RemoteServiceError.self) {
+            _ = try await dependencies.products.categories()
+        }
     }
 
     @Test

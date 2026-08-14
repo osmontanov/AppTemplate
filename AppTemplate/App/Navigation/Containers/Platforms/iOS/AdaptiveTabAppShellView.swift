@@ -4,6 +4,8 @@ import SwiftUI
 struct AdaptiveTabAppShellView: View {
     @Bindable var router: AppRouter
     let session: SessionPresentation
+    let storeDependencies: StoreDependencies
+    let storeUISupport: StoreUISupport
 
     var body: some View {
         TabView(selection: $router.selectedSection) {
@@ -13,7 +15,9 @@ struct AdaptiveTabAppShellView: View {
                         section: section,
                         storeRouter: router.store,
                         servicesRouter: router.services,
-                        session: session
+                        session: session,
+                        storeDependencies: storeDependencies,
+                        storeUISupport: storeUISupport
                     )
                     .background {
                         TabAccessibilityIdentifierInstaller()

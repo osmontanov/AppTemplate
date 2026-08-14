@@ -11,6 +11,8 @@ import SwiftUI
 @main
 struct AppTemplateApp: App {
     private let dependencies: AppDependencies?
+    private let storeDependencies: StoreDependencies?
+    private let storeUISupport: StoreUISupport?
     private let sceneNavigationPersistencePolicy: AppSceneNavigationPersistencePolicy
     @State private var appFlowCoordinator: AppFlowCoordinator?
     @State private var sessionController: SessionController?
@@ -30,6 +32,8 @@ struct AppTemplateApp: App {
         }
 
         dependencies = resolved
+        storeDependencies = resolved?.makeStoreDependencies()
+        storeUISupport = resolved?.storeUISupport
         sceneNavigationPersistencePolicy = configuration.sceneNavigationPersistencePolicy
         if let resolved {
             let store = AppStateStore(storage: resolved.appStateStorage)
@@ -60,9 +64,15 @@ struct AppTemplateApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if let dependencies, let appFlowCoordinator, let sessionController {
+            if let dependencies,
+               let storeDependencies,
+               let storeUISupport,
+               let appFlowCoordinator,
+               let sessionController {
                 ConfiguredAppRootView(
                     dependencies: dependencies,
+                    storeDependencies: storeDependencies,
+                    storeUISupport: storeUISupport,
                     appFlowCoordinator: appFlowCoordinator,
                     sessionController: sessionController,
                     navigationPersistencePolicy: sceneNavigationPersistencePolicy
@@ -77,8 +87,8 @@ struct AppTemplateApp: App {
 
         #if os(macOS)
         Settings {
-            if let dependencies {
-                AppSettingsView(dependencies: dependencies.settings)
+            if let storeDependencies {
+                StoreSettingsSceneView(dependencies: storeDependencies)
             } else {
                 InvalidUITestDependenciesView()
             }
@@ -89,6 +99,8 @@ struct AppTemplateApp: App {
 
 private struct ConfiguredAppRootView: View {
     let dependencies: AppDependencies
+    let storeDependencies: StoreDependencies
+    let storeUISupport: StoreUISupport
     let appFlowCoordinator: AppFlowCoordinator
     let sessionController: SessionController
     let navigationPersistencePolicy: AppSceneNavigationPersistencePolicy
@@ -99,11 +111,15 @@ private struct ConfiguredAppRootView: View {
 
     init(
         dependencies: AppDependencies,
+        storeDependencies: StoreDependencies,
+        storeUISupport: StoreUISupport,
         appFlowCoordinator: AppFlowCoordinator,
         sessionController: SessionController,
         navigationPersistencePolicy: AppSceneNavigationPersistencePolicy
     ) {
         self.dependencies = dependencies
+        self.storeDependencies = storeDependencies
+        self.storeUISupport = storeUISupport
         self.appFlowCoordinator = appFlowCoordinator
         self.sessionController = sessionController
         self.navigationPersistencePolicy = navigationPersistencePolicy
@@ -120,6 +136,8 @@ private struct ConfiguredAppRootView: View {
                     appFlowCoordinator: appFlowCoordinator,
                     session: sessionController.presentation,
                     localNotifications: dependencies.localNotifications,
+                    storeDependencies: storeDependencies,
+                    storeUISupport: storeUISupport,
                     navigationPersistencePolicy: navigationPersistencePolicy
                 )
             } else {

@@ -46,25 +46,48 @@ struct ProjectConfigurationTests {
                 version: "1.0"
             )
         )
+        let dependencies = AppDependencies.preview(
+            settings: settings,
+            remoteService: FailClosedRemoteService(),
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: FailClosedImageLoader()
+        )
+        let storeDependencies = dependencies.makeStoreDependencies()
+        let storeUISupport = dependencies.storeUISupport
 
         _ = ContentView(
             appFlowCoordinator: appFlowCoordinator,
-            session: session
+            session: session,
+            storeDependencies: storeDependencies,
+            storeUISupport: storeUISupport
         )
         _ = AppSceneView(
             appFlowCoordinator: appFlowCoordinator,
             session: session,
-            localNotifications: .inMemory()
+            localNotifications: .inMemory(),
+            storeDependencies: storeDependencies,
+            storeUISupport: storeUISupport
         )
         _ = AppRootView(
             appFlowRouter: appFlowRouter,
             router: router,
             onboardingRouter: onboardingRouter,
             maintenanceRouter: maintenanceRouter,
-            session: session
+            session: session,
+            storeDependencies: storeDependencies,
+            storeUISupport: storeUISupport
         )
-        _ = AppShellView(router: router, session: session)
-        _ = StoreFlowView(router: router.store, session: session)
+        _ = AppShellView(
+            router: router,
+            session: session,
+            storeDependencies: storeDependencies,
+            storeUISupport: storeUISupport
+        )
+        _ = StoreFlowView(
+            router: router.store,
+            dependencies: storeDependencies,
+            uiSupport: storeUISupport
+        )
         _ = ServicesFlowView(router: router.services, session: session)
         _ = AuthenticationFlowView(
             router: legacyRouter,
