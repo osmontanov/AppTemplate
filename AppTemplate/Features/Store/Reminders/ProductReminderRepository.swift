@@ -1,0 +1,176 @@
+import Foundation
+
+actor ProductReminderRepository: IProductReminderRepository {
+    private static let maximumInterval: TimeInterval = 604_800
+    private static let minimumRepeatingInterval: TimeInterval = 60
+    private static let quickTestInterval: TimeInterval = 5
+    private static let remindLaterDelay: Duration = .seconds(600)
+
+    private let service: any ILocalNotificationService
+    private let imageLoader: any IImageLoader
+    private let attachmentStager: ReminderAttachmentStager
+    private let clock: AppClock
+
+    init(
+        service: any ILocalNotificationService,
+        imageLoader: any IImageLoader,
+        attachmentStager: ReminderAttachmentStager,
+        clock: AppClock
+    ) {
+        self.service = service
+        self.imageLoader = imageLoader
+        self.attachmentStager = attachmentStager
+        self.clock = clock
+    }
+
+    func status(productID: Product.ID) async -> ProductReminderStatus {
+        guard let requestID = try? AppNotificationIdentifiers.productRequest(productID) else {
+            return .notScheduled
+        }
+        guard let snapshot = await service.pending().first(where: { $0.id == requestID }) else {
+            return .notScheduled
+        }
+        return .scheduled(nextTriggerDate: snapshot.nextTriggerDate)
+    }
+
+    func schedule(
+        product: Product,
+        selection: ProductReminderSelection
+    ) async throws -> ProductReminderScheduleResult {
+        guard product.id > 0 else { throw ProductReminderError.invalidProductID }
+        let trigger = try trigger(for: selection, now: clock.now())
+        let requestID = try AppNotificationIdentifiers.productRequest(product.id)
+        let metadata = try ProductReminderMetadata(productID: product.id)
+        let deepLink = try AppNotificationIdentifiers.productDeepLink(product.id)
+
+        try Task.checkCancellation()
+        try await authorizeIfNeeded()
+        try Task.checkCancellation()
+
+        var stagedAttachment: StagedReminderAttachment?
+        var usesTextOnlyFallback = product.thumbnailURL == nil
+        if let thumbnailURL = product.thumbnailURL {
+            do {
+                let image = try await imageLoader.load(thumbnailURL, policy: .product)
+                stagedAttachment = try await attachmentStager.stage(
+                    image,
+                    productID: product.id
+                )
+            } catch ImageLoaderError.cancelled {
+                throw CancellationError()
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                usesTextOnlyFallback = true
+            }
+        }
+        defer { stagedAttachment?.cleanup() }
+
+        let request = LocalNotificationRequest(
+            id: requestID,
+            content: LocalNotificationContent(
+                title: "Product reminder",
+                subtitle: product.title,
+                body: "Take another look at \(product.title).",
+                sound: .default,
+                categoryID: AppNotificationIdentifiers.storeCategory,
+                attachments: stagedAttachment.map { [$0.attachment] } ?? [],
+                metadata: metadata.notificationValues,
+                deepLink: deepLink,
+                foregroundPresentation: [.banner, .sound]
+            ),
+            trigger: trigger
+        )
+        try await service.schedule(request)
+        return usesTextOnlyFallback
+            ? .scheduledWithWarning(.textOnlyAttachmentFallback)
+            : .scheduled
+    }
+
+    func remindLater(
+        from source: ProductReminderRescheduleSource,
+        after delay: Duration
+    ) async throws {
+        guard delay == Self.remindLaterDelay,
+              source.requestID == (try AppNotificationIdentifiers.productRequest(
+                source.metadata.productID
+              )) else {
+            throw ProductReminderError.invalidRescheduleSource
+        }
+
+        let request = LocalNotificationRequest(
+            id: source.requestID,
+            content: LocalNotificationContent(
+                title: source.title,
+                subtitle: source.subtitle,
+                body: source.body,
+                sound: source.sound,
+                categoryID: AppNotificationIdentifiers.storeCategory,
+                metadata: source.metadata.notificationValues,
+                deepLink: try AppNotificationIdentifiers.productDeepLink(
+                    source.metadata.productID
+                )
+            ),
+            trigger: .timeInterval(seconds: 600, repeats: false)
+        )
+        try await service.schedule(request)
+    }
+
+    func cancel(productID: Product.ID) async {
+        guard let requestID = try? AppNotificationIdentifiers.productRequest(productID) else {
+            return
+        }
+        await service.removePending([requestID])
+    }
+
+    private func authorizeIfNeeded() async throws {
+        switch (await service.settings()).authorizationStatus {
+        case .authorized, .provisional, .ephemeral:
+            return
+        case .notDetermined:
+            guard try await service.requestAuthorization([.alert, .sound]) else {
+                throw ProductReminderError.authorizationDenied
+            }
+        case .denied, .notSupported, .unknown:
+            throw ProductReminderError.authorizationDenied
+        }
+    }
+
+    private func trigger(
+        for selection: ProductReminderSelection,
+        now: Date
+    ) throws -> LocalNotificationTrigger {
+        switch selection {
+        case .quickTest:
+            return .timeInterval(seconds: Self.quickTestInterval, repeats: false)
+        case let .interval(seconds, repeats):
+            guard seconds.isFinite,
+                  (1...Self.maximumInterval).contains(seconds) else {
+                throw ProductReminderError.intervalOutOfRange
+            }
+            guard !repeats || seconds >= Self.minimumRepeatingInterval else {
+                throw ProductReminderError.repeatingIntervalBelowMinimum
+            }
+            return .timeInterval(seconds: seconds, repeats: repeats)
+        case let .calendar(date, timeZone):
+            guard date > now else { throw ProductReminderError.calendarNotInFuture }
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = timeZone
+            guard let maximum = calendar.date(byAdding: .year, value: 1, to: now),
+                  date <= maximum else {
+                throw ProductReminderError.calendarBeyondOneYear
+            }
+            var components = calendar.dateComponents(
+                [.year, .month, .day, .hour, .minute, .second],
+                from: date
+            )
+            components.calendar = calendar
+            components.timeZone = timeZone
+            guard let resolvedDate = calendar.date(from: components),
+                  resolvedDate > now else {
+                throw ProductReminderError.calendarNotInFuture
+            }
+            return .calendar(components, repeats: false)
+        }
+    }
+}
