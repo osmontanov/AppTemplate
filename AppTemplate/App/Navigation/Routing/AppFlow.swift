@@ -2,10 +2,10 @@ import Foundation
 
 nonisolated
 enum AppFlow: String, Codable, Equatable, Sendable {
-    case authentication
+    case restoring
     case onboarding
-    case main
     case maintenance
+    case main
 }
 
 enum NavigationOutcome: Equatable, Sendable {

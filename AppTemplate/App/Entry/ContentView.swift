@@ -42,6 +42,6 @@ struct ContentView: View {
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: false
         ),
-        isAuthenticated: true
+        isLocalSessionBootstrapResolved: true
     )
 }

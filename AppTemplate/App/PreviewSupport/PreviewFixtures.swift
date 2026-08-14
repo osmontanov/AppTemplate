@@ -4,12 +4,12 @@ import SwiftUI
 enum PreviewFixtures {
     static func appComposition(
         state: AppState,
-        isAuthenticated: Bool = false
+        isLocalSessionBootstrapResolved: Bool = false
     ) -> ContentView {
         ContentView(
             appFlowCoordinator: appFlowCoordinator(
                 state: state,
-                isAuthenticated: isAuthenticated
+                isLocalSessionBootstrapResolved: isLocalSessionBootstrapResolved
             ),
             settings: settingsDependencies()
         )
@@ -45,25 +45,25 @@ enum PreviewFixtures {
 
     static func homeFlow() -> HomeFlowView {
         HomeFlowView(
-            router: flowRouter(state: mainState, isAuthenticated: true)
+            router: flowRouter(state: mainState, isLocalSessionBootstrapResolved: true)
         )
     }
 
     static func browseFlow() -> BrowseFlowView {
         BrowseFlowView(
-            router: flowRouter(state: mainState, isAuthenticated: true)
+            router: flowRouter(state: mainState, isLocalSessionBootstrapResolved: true)
         )
     }
 
     static func projectsFlow() -> ProjectsFlowView {
         ProjectsFlowView(
-            router: flowRouter(state: mainState, isAuthenticated: true)
+            router: flowRouter(state: mainState, isLocalSessionBootstrapResolved: true)
         )
     }
 
     static func settingsFlow() -> SettingsFlowView {
         SettingsFlowView(
-            router: flowRouter(state: mainState, isAuthenticated: true),
+            router: flowRouter(state: mainState, isLocalSessionBootstrapResolved: true),
             dependencies: settingsDependencies()
         )
     }
@@ -75,7 +75,7 @@ enum PreviewFixtures {
                     hasCompletedOnboarding: true,
                     isMaintenanceEnabled: true
                 ),
-                isAuthenticated: true
+                isLocalSessionBootstrapResolved: true
             )
         )
     }
@@ -84,7 +84,7 @@ enum PreviewFixtures {
         CreateProjectFlowView(
             appFlowCoordinator: appFlowCoordinator(
                 state: mainState,
-                isAuthenticated: true
+                isLocalSessionBootstrapResolved: true
             )
         )
     }
@@ -100,35 +100,32 @@ enum PreviewFixtures {
 
     static func flowRouter(
         state: AppState,
-        isAuthenticated: Bool = false
+        isLocalSessionBootstrapResolved: Bool = false
     ) -> FlowRouter {
         FlowRouter(
             appFlowCoordinator: appFlowCoordinator(
                 state: state,
-                isAuthenticated: isAuthenticated
+                isLocalSessionBootstrapResolved: isLocalSessionBootstrapResolved
             )
         )
     }
 
     static func appFlowCoordinator(
         state: AppState,
-        isAuthenticated: Bool = false
+        isLocalSessionBootstrapResolved: Bool = false
     ) -> AppFlowCoordinator {
-        let legacyAuthentication = LegacyAuthenticationState(
-            isAuthenticated: isAuthenticated
-        )
         let storage = InMemoryAppStateStorage(initialState: state)
         let store = AppStateStore(storage: storage)
         let appFlowRouter = AppFlowRouter(
             flow: AppFlowPolicy.resolve(
                 store.state,
-                legacyAuthentication: legacyAuthentication
+                isLocalSessionBootstrapResolved: isLocalSessionBootstrapResolved
             )
         )
         return AppFlowCoordinator(
             store: store,
             appFlowRouter: appFlowRouter,
-            legacyAuthentication: legacyAuthentication
+            isLocalSessionBootstrapResolved: isLocalSessionBootstrapResolved
         )
     }
 

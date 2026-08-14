@@ -28,16 +28,6 @@ final class FlowRouter:
     }
 
     @discardableResult
-    func signIn() -> AppFlowActionResult {
-        appFlowCoordinator.signIn()
-    }
-
-    @discardableResult
-    func signOut() -> AppFlowActionResult {
-        appFlowCoordinator.signOut()
-    }
-
-    @discardableResult
     func setMaintenanceEnabled(_ isEnabled: Bool) -> AppFlowActionResult {
         appFlowCoordinator.setMaintenanceEnabled(isEnabled)
     }

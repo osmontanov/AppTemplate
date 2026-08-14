@@ -136,7 +136,7 @@ struct AppSceneNavigationLifecycleTests {
 
     @Test
     func authenticationGatedColdLaunchIntentRemainsPending() throws {
-        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let appFlowRouter = AppFlowRouter(flow: .restoring)
         let lifecycle = AppSceneNavigationLifecycle(
             appFlowRouter: appFlowRouter,
             appFlowCoordinator: AppFlowCoordinatorSpy()
@@ -154,7 +154,7 @@ struct AppSceneNavigationLifecycleTests {
     @Test
     func authenticationGatedProjectTaskColdLaunchReplaysCanonicalProjectsPath()
         throws {
-        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let appFlowRouter = AppFlowRouter(flow: .restoring)
         let lifecycle = AppSceneNavigationLifecycle(
             appFlowRouter: appFlowRouter,
             appFlowCoordinator: AppFlowCoordinatorSpy()
@@ -181,7 +181,7 @@ struct AppSceneNavigationLifecycleTests {
 
     @Test
     func queuedURLSurvivesCurrentMainResetDuringRestoration() throws {
-        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let appFlowRouter = AppFlowRouter(flow: .restoring)
         appFlowRouter.setFlow(.main)
         let lifecycle = AppSceneNavigationLifecycle(
             appFlowRouter: appFlowRouter,
@@ -208,7 +208,7 @@ struct AppSceneNavigationLifecycleTests {
     func queuedURLSurvivesCurrentAuthenticationDiscardThenReplaysExactly()
         throws {
         let appFlowRouter = AppFlowRouter(flow: .main)
-        appFlowRouter.setFlow(.authentication)
+        appFlowRouter.setFlow(.restoring)
         let lifecycle = AppSceneNavigationLifecycle(
             appFlowRouter: appFlowRouter,
             appFlowCoordinator: AppFlowCoordinatorSpy()
@@ -246,7 +246,7 @@ struct AppSceneNavigationLifecycleTests {
 
     @Test
     func lastQueuedURLWinsAfterAuthenticationAndOldHistoriesReset() throws {
-        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let appFlowRouter = AppFlowRouter(flow: .restoring)
         let lifecycle = AppSceneNavigationLifecycle(
             appFlowRouter: appFlowRouter,
             appFlowCoordinator: AppFlowCoordinatorSpy()
@@ -273,7 +273,7 @@ struct AppSceneNavigationLifecycleTests {
 
     @Test
     func mainTransitionReplaysOnlyEachReceivingScenesPendingIntent() throws {
-        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let appFlowRouter = AppFlowRouter(flow: .restoring)
         let coordinator = AppFlowCoordinatorSpy()
         let first = AppSceneNavigationLifecycle(
             appFlowRouter: appFlowRouter,
@@ -345,11 +345,11 @@ struct AppSceneNavigationLifecycleTests {
             ProjectsRoute.project(id: "template")
         )
 
-        appFlowRouter.setFlow(.authentication)
+        appFlowRouter.setFlow(.restoring)
         _ = first.apply(appFlowRouter.transition)
         _ = second.apply(appFlowRouter.transition)
 
-        #expect(appFlowRouter.flow == .authentication)
+        #expect(appFlowRouter.flow == .restoring)
         #expect(first.router.home.path.isEmpty)
         #expect(second.router.projects.path.isEmpty)
         #expect(first.router.selectedSection == .home)
@@ -359,7 +359,7 @@ struct AppSceneNavigationLifecycleTests {
 
     @Test
     func repeatedDeliveryOfOneTransitionDoesNotResetSceneTwice() {
-        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let appFlowRouter = AppFlowRouter(flow: .restoring)
         let lifecycle = AppSceneNavigationLifecycle(
             appFlowRouter: appFlowRouter,
             appFlowCoordinator: AppFlowCoordinatorSpy()
@@ -483,7 +483,7 @@ struct AppSceneNavigationLifecycleTests {
 
     @Test
     func recreatedSceneSkipsItsPersistedRootTransitionCheckpoint() throws {
-        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let appFlowRouter = AppFlowRouter(flow: .restoring)
         appFlowRouter.setFlow(.main)
         let transition = appFlowRouter.transition
         let coordinator = AppFlowCoordinatorSpy()
@@ -514,8 +514,8 @@ struct AppSceneNavigationLifecycleTests {
     }
 
     @Test
-    func onboardingAndAuthenticationGatesPreserveThenReplayURL() throws {
-        let coordinator = makeTestAppFlowCoordinator()
+    func onboardingAndRestoringGatesPreserveThenReplayURL() throws {
+        let coordinator = makeTestAppFlowCoordinator(isLocalSessionBootstrapResolved: false)
         let appFlowRouter = coordinator.appFlowRouter
         let lifecycle = AppSceneNavigationLifecycle(
             appFlowRouter: appFlowRouter,
@@ -531,12 +531,12 @@ struct AppSceneNavigationLifecycleTests {
         coordinator.completeOnboarding()
         _ = lifecycle.apply(appFlowRouter.transition)
 
-        #expect(appFlowRouter.flow == .authentication)
+        #expect(appFlowRouter.flow == .restoring)
         #expect(
             lifecycle.router.pendingIntent == .browseItem(id: "swiftui")
         )
 
-        coordinator.signIn()
+        coordinator.setLocalSessionBootstrapResolved(true)
         #expect(lifecycle.apply(appFlowRouter.transition) == .applied)
         #expect(lifecycle.router.pendingIntent == nil)
         #expect(lifecycle.router.selectedSection == .browse)
@@ -544,12 +544,15 @@ struct AppSceneNavigationLifecycleTests {
     }
 
     @Test
-    func authenticationAndMaintenanceGatesPreserveThenReplayURL() throws {
+    func restoringAndMaintenanceGatesPreserveThenReplayURL() throws {
         let state = AppState(
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: true
         )
-        let coordinator = makeTestAppFlowCoordinator(state: state)
+        let coordinator = makeTestAppFlowCoordinator(
+            state: state,
+            isLocalSessionBootstrapResolved: false
+        )
         let appFlowRouter = coordinator.appFlowRouter
         let lifecycle = AppSceneNavigationLifecycle(
             appFlowRouter: appFlowRouter,
@@ -564,7 +567,7 @@ struct AppSceneNavigationLifecycleTests {
         )
         _ = lifecycle.restore(from: nil)
 
-        coordinator.signIn()
+        coordinator.setLocalSessionBootstrapResolved(true)
         _ = lifecycle.apply(appFlowRouter.transition)
 
         #expect(appFlowRouter.flow == .maintenance)
@@ -602,13 +605,16 @@ struct AppSceneNavigationLifecycleTests {
     }
 
     @Test
-    func localNotificationReceivingSeamPreservesAuthenticationAndMaintenanceDeferral()
+    func localNotificationReceivingSeamPreservesRestoringAndMaintenanceDeferral()
         throws {
         let state = AppState(
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: true
         )
-        let coordinator = makeTestAppFlowCoordinator(state: state)
+        let coordinator = makeTestAppFlowCoordinator(
+            state: state,
+            isLocalSessionBootstrapResolved: false
+        )
         let appFlowRouter = coordinator.appFlowRouter
         let lifecycle = AppSceneNavigationLifecycle(
             appFlowRouter: appFlowRouter,
@@ -629,7 +635,7 @@ struct AppSceneNavigationLifecycleTests {
             lifecycle.router.pendingIntent
                 == .projectTask(projectID: "project-1", taskID: "task-1")
         )
-        coordinator.signIn()
+        coordinator.setLocalSessionBootstrapResolved(true)
         _ = lifecycle.apply(appFlowRouter.transition)
         #expect(appFlowRouter.flow == .maintenance)
         #expect(
@@ -642,43 +648,6 @@ struct AppSceneNavigationLifecycleTests {
         #expect(lifecycle.router.pendingIntent == nil)
         #expect(lifecycle.router.selectedSection == .projects)
         #expect(lifecycle.router.projects.path.count == 2)
-    }
-
-    @Test
-    func effectiveSignOutDiscardsURLWhenAuthenticationIsAlreadyVisible()
-        throws {
-        let state = AppState(
-            hasCompletedOnboarding: true,
-            isMaintenanceEnabled: false
-        )
-        let coordinator = makeTestAppFlowCoordinator(
-            state: state,
-            isAuthenticated: true,
-            visibleFlow: .authentication
-        )
-        let appFlowRouter = coordinator.appFlowRouter
-        let lifecycle = AppSceneNavigationLifecycle(
-            appFlowRouter: appFlowRouter,
-            appFlowCoordinator: coordinator
-        )
-        _ = lifecycle.receive(
-            try #require(
-                URL(string: "apptemplate://browse/item/swiftui")
-            )
-        )
-        _ = lifecycle.restore(from: nil)
-        let previousID = appFlowRouter.transition.id
-
-        coordinator.signOut()
-        _ = lifecycle.apply(appFlowRouter.transition)
-
-        #expect(appFlowRouter.flow == .authentication)
-        #expect(appFlowRouter.transition.id != previousID)
-        #expect(
-            appFlowRouter.transition.pendingIntentAction == .discard
-        )
-        #expect(lifecycle.router.pendingIntent == nil)
-        #expect(lifecycle.router.browse.path.isEmpty)
     }
 
     private func makeRouter(

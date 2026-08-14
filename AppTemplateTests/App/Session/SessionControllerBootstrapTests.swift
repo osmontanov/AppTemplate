@@ -19,7 +19,9 @@ struct SessionControllerBootstrapTests {
         )
         let controller = SessionController(
             repository: repository,
-            clock: deadline.clock
+            clock: deadline.clock,
+            startupValidationPolicy: .disabled,
+            refreshSchedulePolicy: .disabled
         )
 
         async let first: Void = controller.bootstrap()
@@ -65,7 +67,9 @@ struct SessionControllerBootstrapTests {
         )
         var controller: SessionController? = SessionController(
             repository: repository,
-            clock: deadline.clock
+            clock: deadline.clock,
+            startupValidationPolicy: .disabled,
+            refreshSchedulePolicy: .disabled
         )
         weak let weakController = controller
 
@@ -87,7 +91,12 @@ struct SessionControllerBootstrapTests {
             snapshot: SessionRepositorySnapshot(state: .guest, expiry: nil)
         )
         let deadline = ManualBootstrapDeadline()
-        let controller = SessionController(repository: repository, clock: deadline.clock)
+        let controller = SessionController(
+            repository: repository,
+            clock: deadline.clock,
+            startupValidationPolicy: .disabled,
+            refreshSchedulePolicy: .disabled
+        )
 
         async let first: Void = controller.bootstrap()
         async let second: Void = controller.bootstrap()
@@ -114,7 +123,12 @@ struct SessionControllerBootstrapTests {
             secureStore: SessionSecureStore(keychain: keychain)
         )
         let deadline = ManualBootstrapDeadline()
-        let controller = SessionController(repository: repository, clock: deadline.clock)
+        let controller = SessionController(
+            repository: repository,
+            clock: deadline.clock,
+            startupValidationPolicy: .disabled,
+            refreshSchedulePolicy: .disabled
+        )
 
         await controller.bootstrap()
 
@@ -133,7 +147,11 @@ struct SessionControllerBootstrapTests {
 
     @Test @MainActor func resolvedBootstrapIsIdempotentButRetryUsesLargerID() async {
         let repository = ImmediateBootstrapRepository()
-        let controller = SessionController(repository: repository)
+        let controller = SessionController(
+            repository: repository,
+            startupValidationPolicy: .disabled,
+            refreshSchedulePolicy: .disabled
+        )
 
         await controller.bootstrap()
         await controller.bootstrap()

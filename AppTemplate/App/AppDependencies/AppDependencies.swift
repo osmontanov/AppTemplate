@@ -8,8 +8,11 @@ struct AppDependencies: Sendable {
     let storePreferences: any IStorePreferencesRepository
     let remote: any IRemoteService
     let appStateStorage: any IAppStateStorage
-    let legacyAuthentication: LegacyAuthenticationState
     let keychain: any IKeychainService
+    let sessionRepository: SessionRepository
+    let clock: AppClock
+    let sessionStartupValidationPolicy: SessionStartupValidationPolicy
+    let sessionRefreshSchedulePolicy: SessionRefreshSchedulePolicy
     let settings: SettingsDependencies
     let localNotifications: LocalNotificationDependencies
     let diagnostics: NetworkDiagnosticRecorder
@@ -36,15 +39,24 @@ struct AppDependencies: Sendable {
         let database = LocalDatabaseService(
             configuration: .live(locationResolver: localDatabaseStoreLocationResolver)
         )
+        let remote = RemoteService(diagnosticRecorder: diagnostics)
+        let clock = AppClock.live
         return AppDependencies(
             localDatabase: database,
             favorites: FavoritesRepository(database: database),
             cart: CartRepository(database: database),
             storePreferences: StorePreferencesRepository(userDefaults: userDefaultsService),
-            remote: RemoteService(diagnosticRecorder: diagnostics),
+            remote: remote,
             appStateStorage: UserDefaultsAppStateStorage(userDefaults: userDefaultsService),
-            legacyAuthentication: LegacyAuthenticationState(),
             keychain: keychainService,
+            sessionRepository: SessionRepository(
+                remote: remote,
+                secureStore: SessionSecureStore(keychain: keychainService),
+                clock: clock
+            ),
+            clock: clock,
+            sessionStartupValidationPolicy: .automatic,
+            sessionRefreshSchedulePolicy: .automatic,
             settings: SettingsDependencies(appInfo: AppInfoService()),
             localNotifications: localNotifications ?? .live(
                 runtimeResolver: localNotificationRuntimeResolver
@@ -123,10 +135,16 @@ struct AppDependencies: Sendable {
             storePreferences: StorePreferencesRepository(userDefaults: InMemoryUserDefaultsService()),
             remote: remote,
             appStateStorage: InMemoryAppStateStorage(initialState: scenario.appState),
-            legacyAuthentication: LegacyAuthenticationState(
-                isAuthenticated: scenario.legacyAuthenticationIsAuthenticated
-            ),
             keychain: keychain,
+            sessionRepository: SessionRepository(
+                remote: remote,
+                secureStore: SessionSecureStore(keychain: keychain),
+                clock: fixedClock
+            ),
+            clock: fixedClock,
+            sessionStartupValidationPolicy: scenario.sessionSeed.validationMode == .scripted
+                ? .automatic : .disabled,
+            sessionRefreshSchedulePolicy: .disabled,
             settings: SettingsDependencies(
                 appInfo: AppInfoService(
                     displayName: "AppTemplate UI Tests",
@@ -139,7 +157,7 @@ struct AppDependencies: Sendable {
             uiTestScriptTracker: tracker,
             bootstrap: {
                 if let data = scenario.sessionSeed.keychainData {
-                    try await keychain.set(data, for: .data("UITestSession"))
+                    try await keychain.set(data, for: .data("Store.AuthSession"))
                 }
                 try await database.upsert(scenario.localDatabaseSeed.examples)
                 for request in scenario.notificationSeed.pendingRequests {
@@ -155,10 +173,11 @@ struct AppDependencies: Sendable {
         remoteService: any IRemoteService,
         diagnostics: NetworkDiagnosticRecorder,
         imageLoader: any IImageLoader,
-        legacyAuthentication: LegacyAuthenticationState = LegacyAuthenticationState(),
         localNotifications: LocalNotificationDependencies? = nil
     ) -> AppDependencies {
         let database = LocalDatabaseService(configuration: .inMemory())
+        let keychain = InMemoryKeychainService()
+        let clock = AppClock.live
         return AppDependencies(
             localDatabase: database,
             favorites: FavoritesRepository(database: database),
@@ -166,8 +185,15 @@ struct AppDependencies: Sendable {
             storePreferences: StorePreferencesRepository(userDefaults: InMemoryUserDefaultsService()),
             remote: remoteService,
             appStateStorage: InMemoryAppStateStorage(initialState: initialState),
-            legacyAuthentication: legacyAuthentication,
-            keychain: InMemoryKeychainService(),
+            keychain: keychain,
+            sessionRepository: SessionRepository(
+                remote: remoteService,
+                secureStore: SessionSecureStore(keychain: keychain),
+                clock: clock
+            ),
+            clock: clock,
+            sessionStartupValidationPolicy: .disabled,
+            sessionRefreshSchedulePolicy: .disabled,
             settings: SettingsDependencies(
                 appInfo: AppInfoService(
                     displayName: "AppTemplate UI Tests",
@@ -189,7 +215,6 @@ struct AppDependencies: Sendable {
         diagnostics: NetworkDiagnosticRecorder,
         imageLoader: any IImageLoader,
         appStateStorage: any IAppStateStorage = InMemoryAppStateStorage(),
-        legacyAuthentication: LegacyAuthenticationState = LegacyAuthenticationState(),
         localDatabaseService: any ILocalDatabaseService = LocalDatabaseService(
             configuration: .inMemory()
         ),
@@ -197,15 +222,23 @@ struct AppDependencies: Sendable {
         keychainService: any IKeychainService = InMemoryKeychainService(),
         localNotifications: LocalNotificationDependencies? = nil
     ) -> AppDependencies {
-        AppDependencies(
+        let clock = AppClock.live
+        return AppDependencies(
             localDatabase: localDatabaseService,
             favorites: FavoritesRepository(database: localDatabaseService),
             cart: CartRepository(database: localDatabaseService),
             storePreferences: StorePreferencesRepository(userDefaults: storePreferencesService),
             remote: remoteService,
             appStateStorage: appStateStorage,
-            legacyAuthentication: legacyAuthentication,
             keychain: keychainService,
+            sessionRepository: SessionRepository(
+                remote: remoteService,
+                secureStore: SessionSecureStore(keychain: keychainService),
+                clock: clock
+            ),
+            clock: clock,
+            sessionStartupValidationPolicy: .disabled,
+            sessionRefreshSchedulePolicy: .disabled,
             settings: settings,
             localNotifications: localNotifications ?? .inMemory(),
             diagnostics: diagnostics,
@@ -222,21 +255,28 @@ struct AppDependencies: Sendable {
         diagnostics: NetworkDiagnosticRecorder,
         imageLoader: any IImageLoader,
         appStateStorage: any IAppStateStorage,
-        legacyAuthentication: LegacyAuthenticationState = LegacyAuthenticationState(),
         keychainService: any IKeychainService,
         settings: SettingsDependencies,
         localNotifications: LocalNotificationDependencies,
         storePreferencesService: any IUserDefaultsService = InMemoryUserDefaultsService()
     ) -> AppDependencies {
-        AppDependencies(
+        let clock = AppClock.live
+        return AppDependencies(
             localDatabase: localDatabaseService,
             favorites: FavoritesRepository(database: localDatabaseService),
             cart: CartRepository(database: localDatabaseService),
             storePreferences: StorePreferencesRepository(userDefaults: storePreferencesService),
             remote: remoteService,
             appStateStorage: appStateStorage,
-            legacyAuthentication: legacyAuthentication,
             keychain: keychainService,
+            sessionRepository: SessionRepository(
+                remote: remoteService,
+                secureStore: SessionSecureStore(keychain: keychainService),
+                clock: clock
+            ),
+            clock: clock,
+            sessionStartupValidationPolicy: .disabled,
+            sessionRefreshSchedulePolicy: .disabled,
             settings: settings,
             localNotifications: localNotifications,
             diagnostics: diagnostics,

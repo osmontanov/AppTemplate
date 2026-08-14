@@ -5,8 +5,6 @@ nonisolated
 enum AppFlowCoordinatorCommand: Equatable, Sendable {
     case completeOnboarding
     case restartOnboarding
-    case signIn
-    case signOut
     case setMaintenanceEnabled(Bool)
 }
 
@@ -15,8 +13,6 @@ final class AppFlowCoordinatorSpy: IAppFlowCoordinator {
     private(set) var commands: [AppFlowCoordinatorCommand] = []
     var completeOnboardingResult: AppFlowActionResult = .unchanged
     var restartOnboardingResult: AppFlowActionResult = .unchanged
-    var signInResult: AppFlowActionResult = .unchanged
-    var signOutResult: AppFlowActionResult = .unchanged
     var setMaintenanceEnabledResult: AppFlowActionResult = .unchanged
 
     @discardableResult
@@ -29,18 +25,6 @@ final class AppFlowCoordinatorSpy: IAppFlowCoordinator {
     func restartOnboarding() -> AppFlowActionResult {
         commands.append(.restartOnboarding)
         return restartOnboardingResult
-    }
-
-    @discardableResult
-    func signIn() -> AppFlowActionResult {
-        commands.append(.signIn)
-        return signInResult
-    }
-
-    @discardableResult
-    func signOut() -> AppFlowActionResult {
-        commands.append(.signOut)
-        return signOutResult
     }
 
     @discardableResult
@@ -58,24 +42,21 @@ func makeTestFlowRouter() -> FlowRouter {
 @MainActor
 func makeTestAppFlowCoordinator(
     state: AppState = .initial,
-    isAuthenticated: Bool = false,
-    legacyAuthentication: LegacyAuthenticationState? = nil,
+    isLocalSessionBootstrapResolved: Bool = true,
     visibleFlow: AppFlow? = nil
 ) -> AppFlowCoordinator {
-    let legacyAuthentication = legacyAuthentication
-        ?? LegacyAuthenticationState(isAuthenticated: isAuthenticated)
     let store = AppStateStore(storage: AppStateStorageSpy())
     _ = store.setState(state)
     let appFlowRouter = AppFlowRouter(
         flow: visibleFlow ?? AppFlowPolicy.resolve(
             state,
-            legacyAuthentication: legacyAuthentication
+            isLocalSessionBootstrapResolved: isLocalSessionBootstrapResolved
         )
     )
     return AppFlowCoordinator(
         store: store,
         appFlowRouter: appFlowRouter,
-        legacyAuthentication: legacyAuthentication
+        isLocalSessionBootstrapResolved: isLocalSessionBootstrapResolved
     )
 }
 

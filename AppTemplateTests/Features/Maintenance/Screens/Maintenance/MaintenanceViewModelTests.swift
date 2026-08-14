@@ -11,7 +11,7 @@ struct MaintenanceViewModelTests {
                 hasCompletedOnboarding: true,
                 isMaintenanceEnabled: true
             ),
-            isAuthenticated: true
+            isLocalSessionBootstrapResolved: true
         )
         let viewModel = MaintenanceViewModel(
             maintenanceActions: coordinator

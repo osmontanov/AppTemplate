@@ -8,11 +8,8 @@ struct AppRootView: View {
     var body: some View {
         Group {
             switch appFlowRouter.flow {
-            case .authentication:
-                AuthenticationFlowView(
-                    router: router.authentication,
-                    authenticationCancellation: router
-                )
+            case .restoring:
+                SessionRestoringView()
             case .onboarding:
                 OnboardingFlowView(router: router.onboarding)
             case .main:

@@ -11,7 +11,7 @@ struct OnboardingViewModelTests {
                 hasCompletedOnboarding: false,
                 isMaintenanceEnabled: false
             ),
-            isAuthenticated: true
+            isLocalSessionBootstrapResolved: true
         )
         let viewModel = OnboardingViewModel(
             onboardingActions: coordinator

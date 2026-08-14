@@ -5,17 +5,19 @@ import Testing
 @MainActor
 struct AuthenticationViewModelTests {
     @Test
-    func continueAppliesSemanticSignIn() {
+    func continueUsesDedicatedLegacyActionsWithoutChangingRoot() {
         let coordinator = makeTestAppFlowCoordinator()
         let cancellation = AuthenticationCancellationSpy()
+        let actions = AuthenticationActionsSpy()
         let viewModel = AuthenticationViewModel(
             router: FlowRouter(appFlowCoordinator: coordinator),
-            authenticationActions: coordinator,
+            authenticationActions: actions,
             authenticationCancellation: cancellation
         )
 
         viewModel.continueToApp()
 
+        #expect(actions.signInCount == 1)
         #expect(coordinator.appFlowRouter.flow == .onboarding)
         #expect(cancellation.callCount == 0)
     }
@@ -28,7 +30,7 @@ struct AuthenticationViewModelTests {
         router.push(AuthenticationRoute.help)
         let viewModel = AuthenticationViewModel(
             router: router,
-            authenticationActions: coordinator,
+            authenticationActions: DisabledLegacyAuthenticationActions(),
             authenticationCancellation: cancellation
         )
 
@@ -45,7 +47,7 @@ struct AuthenticationViewModelTests {
         let cancellation = AuthenticationCancellationSpy()
         let viewModel = AuthenticationViewModel(
             router: flowRouter,
-            authenticationActions: flowRouter,
+            authenticationActions: DisabledLegacyAuthenticationActions(),
             authenticationCancellation: cancellation
         )
 
@@ -57,7 +59,7 @@ struct AuthenticationViewModelTests {
     @Test
     func authenticationFlowAndScreenCanBeConstructed() {
         let coordinator = makeTestAppFlowCoordinator(
-            visibleFlow: .authentication
+            visibleFlow: .restoring
         )
         let flowRouter = FlowRouter(appFlowCoordinator: coordinator)
 
@@ -71,6 +73,18 @@ struct AuthenticationViewModelTests {
             authenticationCancellation: cancellation
         )
     }
+}
+
+@MainActor
+private final class AuthenticationActionsSpy: IAuthenticationActions {
+    private(set) var signInCount = 0
+
+    func signIn() -> AppFlowActionResult {
+        signInCount += 1
+        return .unchanged
+    }
+
+    func signOut() -> AppFlowActionResult { .unchanged }
 }
 
 @MainActor

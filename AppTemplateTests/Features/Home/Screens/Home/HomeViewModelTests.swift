@@ -62,11 +62,11 @@ struct HomeViewModelTests {
         )
         let onboardingCoordinator = makeTestAppFlowCoordinator(
             state: mainState,
-            isAuthenticated: true
+            isLocalSessionBootstrapResolved: true
         )
         let maintenanceCoordinator = makeTestAppFlowCoordinator(
             state: mainState,
-            isAuthenticated: true
+            isLocalSessionBootstrapResolved: true
         )
         let viewModel = HomeViewModel(
             router: makeTestFlowRouter(),

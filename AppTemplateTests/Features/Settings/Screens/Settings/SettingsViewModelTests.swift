@@ -12,7 +12,7 @@ struct SettingsViewModelTests {
         )
         let viewModel = SettingsViewModel(
             router: makeTestFlowRouter(),
-            authenticationActions: AppFlowCoordinatorSpy(),
+            authenticationActions: DisabledLegacySettingsAuthenticationActions(),
             appInfo: info
         )
 
@@ -26,23 +26,23 @@ struct SettingsViewModelTests {
     }
 
     @Test
-    func signOutAppliesSemanticSignOut() {
+    func disabledLegacySignOutCannotChangeMainRoot() {
         let coordinator = makeTestAppFlowCoordinator(
             state: AppState(
                 hasCompletedOnboarding: true,
                 isMaintenanceEnabled: false
             ),
-            isAuthenticated: true
+            isLocalSessionBootstrapResolved: true
         )
         let viewModel = SettingsViewModel(
             router: makeTestFlowRouter(),
-            authenticationActions: coordinator,
+            authenticationActions: DisabledLegacySettingsAuthenticationActions(),
             appInfo: appInfo
         )
 
         viewModel.returnToAuthentication()
 
-        #expect(coordinator.appFlowRouter.flow == .authentication)
+        #expect(coordinator.appFlowRouter.flow == .main)
     }
 
     @Test
@@ -50,7 +50,7 @@ struct SettingsViewModelTests {
         let router = makeTestFlowRouter()
         let viewModel = SettingsViewModel(
             router: router,
-            authenticationActions: router,
+            authenticationActions: DisabledLegacySettingsAuthenticationActions(),
             appInfo: appInfo
         )
 
@@ -90,7 +90,7 @@ struct SettingsViewModelTests {
         let router = makeTestFlowRouter()
         return SettingsViewModel(
             router: router,
-            authenticationActions: router,
+            authenticationActions: DisabledLegacySettingsAuthenticationActions(),
             appInfo: appInfo
         )
     }

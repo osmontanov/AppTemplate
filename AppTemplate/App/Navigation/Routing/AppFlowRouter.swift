@@ -10,7 +10,7 @@ final class AppFlowRouter {
         transition.flow
     }
 
-    init(flow: AppFlow = .authentication) {
+    init(flow: AppFlow = .restoring) {
         transition = AppFlowTransition(
             id: UUID(),
             flow: flow,
@@ -33,7 +33,7 @@ final class AppFlowRouter {
     ) {
         transition(
             to: flow,
-            historyAction: .reset,
+            historyAction: .preserve,
             pendingIntentAction: pendingIntentAction
         )
     }

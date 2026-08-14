@@ -363,7 +363,7 @@ struct NavigationSnapshotTests {
     @Test
     func authenticationAndPendingIntentAreNotRestored() throws {
         let source = makeRouter(
-            flow: .authentication,
+            flow: .restoring,
             selectedSection: .settings
         )
         source.authentication.push(AuthenticationSnapshotRoute.step)

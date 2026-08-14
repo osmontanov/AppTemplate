@@ -17,8 +17,6 @@ struct AppRouterTests {
 
         router.onboarding.completeOnboarding()
         router.home.restartOnboarding()
-        router.browse.signIn()
-        router.projects.signOut()
         router.settings.setMaintenanceEnabled(true)
         router.maintenance.setMaintenanceEnabled(false)
 
@@ -27,8 +25,6 @@ struct AppRouterTests {
         #expect(coordinator.commands == [
             .completeOnboarding,
             .restartOnboarding,
-            .signIn,
-            .signOut,
             .setMaintenanceEnabled(true),
             .setMaintenanceEnabled(false)
         ])
@@ -100,7 +96,7 @@ struct AppRouterTests {
 
     @Test
     func projectTaskIntentDefersAndReplaysAfterAuthentication() {
-        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let appFlowRouter = AppFlowRouter(flow: .restoring)
         let router = AppRouter(
             appFlowRouter: appFlowRouter,
             appFlowCoordinator: AppFlowCoordinatorSpy()
@@ -124,7 +120,7 @@ struct AppRouterTests {
 
     @Test
     func mainRootTransitionResetsHistoriesBeforeReplayingIntent() {
-        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let appFlowRouter = AppFlowRouter(flow: .restoring)
         let router = AppRouter(
             appFlowRouter: appFlowRouter,
             appFlowCoordinator: AppFlowCoordinatorSpy()
@@ -151,7 +147,7 @@ struct AppRouterTests {
 
     @Test
     func discardTransitionClearsPendingIntentAndAuthenticationHistory() {
-        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let appFlowRouter = AppFlowRouter(flow: .restoring)
         let router = AppRouter(
             appFlowRouter: appFlowRouter,
             appFlowCoordinator: AppFlowCoordinatorSpy()
@@ -159,11 +155,11 @@ struct AppRouterTests {
         router.authentication.push(AuthenticationTestRoute.step)
         _ = router.handle(.selectSection(.settings))
 
-        appFlowRouter.setFlow(.authentication)
+        appFlowRouter.setFlow(.restoring)
 
         #expect(router.apply(appFlowRouter.transition) == nil)
         #expect(router.pendingIntent == nil)
-        #expect(appFlowRouter.flow == .authentication)
+        #expect(appFlowRouter.flow == .restoring)
         #expect(router.authentication.path.isEmpty)
     }
 
@@ -179,10 +175,10 @@ struct AppRouterTests {
         router.projects.push(ProjectsRoute.project(id: "project-1"))
         router.settings.push(SettingsRoute.about)
 
-        appFlowRouter.setFlow(.authentication)
+        appFlowRouter.setFlow(.restoring)
         _ = router.apply(appFlowRouter.transition)
 
-        #expect(appFlowRouter.flow == .authentication)
+        #expect(appFlowRouter.flow == .restoring)
         #expect(router.selectedSection == .home)
         #expect(router.authentication.path.isEmpty)
         #expect(router.home.path.isEmpty)
@@ -235,15 +231,14 @@ struct AppRouterTests {
     }
 
     @Test
-    func deferredIntentSurvivesOnboardingAndAuthenticationGates() throws {
+    func deferredIntentSurvivesOnboardingAndRestoringGates() throws {
         let storage = AppStateStorageSpy()
         let store = AppStateStore(storage: storage)
         let appFlowRouter = AppFlowRouter(flow: .onboarding)
-        let legacyAuthentication = LegacyAuthenticationState()
         let coordinator = AppFlowCoordinator(
             store: store,
             appFlowRouter: appFlowRouter,
-            legacyAuthentication: legacyAuthentication
+            isLocalSessionBootstrapResolved: false
         )
         let router = AppRouter(
             appFlowRouter: appFlowRouter,
@@ -255,7 +250,7 @@ struct AppRouterTests {
         _ = router.apply(appFlowRouter.transition)
         #expect(router.pendingIntent == .browseItem(id: "swiftui"))
 
-        coordinator.signIn()
+        coordinator.setLocalSessionBootstrapResolved(true)
         #expect(router.apply(appFlowRouter.transition) == .applied)
         #expect(router.pendingIntent == nil)
         #expect(router.selectedSection == .browse)
@@ -263,7 +258,7 @@ struct AppRouterTests {
     }
 
     @Test
-    func deferredIntentSurvivesAuthenticationAndMaintenanceGates() throws {
+    func deferredIntentSurvivesRestoringAndMaintenanceGates() throws {
         let state = AppState(
             hasCompletedOnboarding: true,
             isMaintenanceEnabled: true
@@ -272,12 +267,11 @@ struct AppRouterTests {
             loadResult: .data(try JSONEncoder().encode(state))
         )
         let store = AppStateStore(storage: storage)
-        let appFlowRouter = AppFlowRouter(flow: .authentication)
-        let legacyAuthentication = LegacyAuthenticationState()
+        let appFlowRouter = AppFlowRouter(flow: .restoring)
         let coordinator = AppFlowCoordinator(
             store: store,
             appFlowRouter: appFlowRouter,
-            legacyAuthentication: legacyAuthentication
+            isLocalSessionBootstrapResolved: false
         )
         let router = AppRouter(
             appFlowRouter: appFlowRouter,
@@ -289,7 +283,7 @@ struct AppRouterTests {
             ) == .deferred
         )
 
-        coordinator.signIn()
+        coordinator.setLocalSessionBootstrapResolved(true)
         _ = router.apply(appFlowRouter.transition)
 
         #expect(appFlowRouter.flow == .maintenance)
@@ -315,12 +309,11 @@ struct AppRouterTests {
             loadResult: .data(try JSONEncoder().encode(state))
         )
         let store = AppStateStore(storage: storage)
-        let appFlowRouter = AppFlowRouter(flow: .authentication)
-        let legacyAuthentication = LegacyAuthenticationState()
+        let appFlowRouter = AppFlowRouter(flow: .restoring)
         let coordinator = AppFlowCoordinator(
             store: store,
             appFlowRouter: appFlowRouter,
-            legacyAuthentication: legacyAuthentication
+            isLocalSessionBootstrapResolved: false
         )
         let first = AppRouter(
             appFlowRouter: appFlowRouter,
@@ -335,7 +328,7 @@ struct AppRouterTests {
             .projectTask(projectID: "project-1", taskID: "task-1")
         )
 
-        coordinator.signIn()
+        coordinator.setLocalSessionBootstrapResolved(true)
         _ = first.apply(appFlowRouter.transition)
         _ = second.apply(appFlowRouter.transition)
 
@@ -349,7 +342,7 @@ struct AppRouterTests {
 
     @Test
     func cancellingAuthenticationClearsOnlyTheCancellingScene() {
-        let appFlowRouter = AppFlowRouter(flow: .authentication)
+        let appFlowRouter = AppFlowRouter(flow: .restoring)
         let coordinator = AppFlowCoordinatorSpy()
         let firstScene = AppRouter(
             appFlowRouter: appFlowRouter,

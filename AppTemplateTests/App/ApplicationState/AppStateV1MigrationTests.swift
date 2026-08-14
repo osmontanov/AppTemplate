@@ -12,7 +12,6 @@ struct AppStateV1MigrationTests {
         let storage = AppStateStorageSpy(loadResult: .data(old))
 
         let store = AppStateStore(storage: storage)
-        let legacyAuthentication = LegacyAuthenticationState()
 
         #expect(
             store.state == AppState(
@@ -21,7 +20,6 @@ struct AppStateV1MigrationTests {
             )
         )
         #expect(store.persistenceStatus == .writable)
-        #expect(!legacyAuthentication.isAuthenticated)
         #expect(storage.savedData.count == 1)
         let saved = try #require(storage.savedData.first)
         let object = try #require(

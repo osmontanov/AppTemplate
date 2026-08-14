@@ -56,16 +56,11 @@ struct FlowRouterTests {
     func flowRouterDelegatesEverySemanticCommandAndResult() {
         let coordinator = AppFlowCoordinatorSpy()
         coordinator.completeOnboardingResult = .applied(
-            flow: .authentication,
+            flow: .restoring,
             didTransition: false
         )
         coordinator.restartOnboardingResult = .applied(
             flow: .onboarding,
-            didTransition: true
-        )
-        coordinator.signInResult = .rejected(.saveFailed)
-        coordinator.signOutResult = .applied(
-            flow: .authentication,
             didTransition: true
         )
         coordinator.setMaintenanceEnabledResult = .applied(
@@ -76,16 +71,11 @@ struct FlowRouterTests {
 
         #expect(
             router.completeOnboarding()
-                == .applied(flow: .authentication, didTransition: false)
+                == .applied(flow: .restoring, didTransition: false)
         )
         #expect(
             router.restartOnboarding()
                 == .applied(flow: .onboarding, didTransition: true)
-        )
-        #expect(router.signIn() == .rejected(.saveFailed))
-        #expect(
-            router.signOut()
-                == .applied(flow: .authentication, didTransition: true)
         )
         #expect(
             router.setMaintenanceEnabled(true)
@@ -95,8 +85,6 @@ struct FlowRouterTests {
         #expect(coordinator.commands == [
             .completeOnboarding,
             .restartOnboarding,
-            .signIn,
-            .signOut,
             .setMaintenanceEnabled(true)
         ])
     }

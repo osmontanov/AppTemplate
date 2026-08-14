@@ -10,7 +10,7 @@ struct AuthenticationView: View {
         _viewModel = State(
             initialValue: AuthenticationViewModel(
                 router: router,
-                authenticationActions: router,
+                authenticationActions: DisabledLegacyAuthenticationActions(),
                 authenticationCancellation: authenticationCancellation
             )
         )

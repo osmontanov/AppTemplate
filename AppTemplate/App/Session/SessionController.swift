@@ -3,7 +3,7 @@ import Observation
 
 @MainActor
 @Observable
-final class SessionController {
+final class SessionController: ISessionActions {
     private(set) var status = SessionStatusPresentation(
         session: SessionPresentation(state: .restoring, revision: 0),
         expiry: nil
@@ -13,17 +13,36 @@ final class SessionController {
 
     private let repository: any ISessionRepository
     private let clock: AppClock
+    private let startupValidationPolicy: SessionStartupValidationPolicy
+    private let refreshSchedulePolicy: SessionRefreshSchedulePolicy
     private var latestBootstrapAttemptID: UInt64 = 0
+    private var operationGeneration: UInt64 = 0
     private var bootstrapOperationTask: Task<Void, Never>?
     private var bootstrapReadTask: Task<Void, Never>?
     private var bootstrapTimeoutTask: Task<Void, Never>?
+    private var startupValidationTask: Task<Void, Never>?
+    private var scheduledRefreshTask: Task<Void, Never>?
+    private var scheduledExpiry: Date?
+    private var attemptedExpiry: Date?
 
     init(
         repository: any ISessionRepository,
-        clock: AppClock = .live
+        clock: AppClock = .live,
+        startupValidationPolicy: SessionStartupValidationPolicy,
+        refreshSchedulePolicy: SessionRefreshSchedulePolicy
     ) {
         self.repository = repository
         self.clock = clock
+        self.startupValidationPolicy = startupValidationPolicy
+        self.refreshSchedulePolicy = refreshSchedulePolicy
+    }
+
+    isolated deinit {
+        bootstrapOperationTask?.cancel()
+        bootstrapReadTask?.cancel()
+        bootstrapTimeoutTask?.cancel()
+        startupValidationTask?.cancel()
+        scheduledRefreshTask?.cancel()
     }
 
     func bootstrap() async {
@@ -32,12 +51,19 @@ final class SessionController {
     }
 
     func retryBootstrap() async {
+        supersedeAutomation()
         await startOrJoinBootstrap()
     }
 
     func login(username: String, password: String) async -> SessionLoginResult {
+        supersedeAutomation()
+        let generation = operationGeneration
         let result = await repository.login(username: username, password: password)
-        if case let .authenticated(snapshot) = result { commit(snapshot) }
+        if case let .authenticated(snapshot) = result,
+           generation == operationGeneration,
+           !Task.isCancelled {
+            commit(snapshot)
+        }
         return result
     }
 
@@ -59,16 +85,26 @@ final class SessionController {
     }
 
     func validateSession() async -> SessionValidationResult {
-        mapValidation(await repository.validateStoredSession())
+        let generation = operationGeneration
+        return mapValidation(
+            await repository.validateStoredSession(),
+            expectedGeneration: generation
+        )
     }
 
     func refreshSession() async -> SessionValidationResult {
-        mapValidation(await repository.refreshStoredSession())
+        let generation = operationGeneration
+        return mapValidation(
+            await repository.refreshStoredSession(),
+            expectedGeneration: generation
+        )
     }
 
     func signOut() async -> SessionSignOutResult {
+        supersedeAutomation()
+        let generation = operationGeneration
         let result = await repository.signOut()
-        if result == .guest {
+        if result == .guest, generation == operationGeneration, !Task.isCancelled {
             commit(SessionRepositorySnapshot(state: .guest, expiry: nil))
         }
         return result
@@ -142,6 +178,7 @@ final class SessionController {
                 )
                 guard !Task.isCancelled else { return }
                 commit(snapshot)
+                startStartupValidationIfNeeded(for: snapshot)
             case .staleAttempt:
                 return
             }
@@ -162,8 +199,12 @@ final class SessionController {
     }
 
     private func mapValidation(
-        _ result: SessionRepositoryValidationResult
+        _ result: SessionRepositoryValidationResult,
+        expectedGeneration: UInt64
     ) -> SessionValidationResult {
+        guard expectedGeneration == operationGeneration, !Task.isCancelled else {
+            return .cancelled
+        }
         switch result {
         case let .snapshot(snapshot):
             commit(snapshot)
@@ -194,5 +235,77 @@ final class SessionController {
             expiry: snapshot.expiry
         )
         isLocalBootstrapResolved = true
+        updateRefreshSchedule(for: snapshot)
+    }
+
+    private func startStartupValidationIfNeeded(
+        for snapshot: SessionRepositorySnapshot
+    ) {
+        guard startupValidationPolicy == .automatic,
+              case .authenticated(_, availability: .validating) = snapshot.state
+        else { return }
+        startupValidationTask?.cancel()
+        let generation = operationGeneration
+        let revision = status.session.revision
+        let repository = repository
+        startupValidationTask = Task { @MainActor [weak self, repository] in
+            let result = await repository.validateStoredSession()
+            guard let self else { return }
+            guard !Task.isCancelled,
+                  self.operationGeneration == generation,
+                  self.status.session.revision == revision
+            else { return }
+            _ = self.mapValidation(result, expectedGeneration: generation)
+            self.startupValidationTask = nil
+        }
+    }
+
+    private func updateRefreshSchedule(for snapshot: SessionRepositorySnapshot) {
+        guard refreshSchedulePolicy == .automatic,
+              case .authenticated = snapshot.state,
+              let expiry = snapshot.expiry?.accessExpiresAt,
+              expiry != attemptedExpiry,
+              expiry != scheduledExpiry
+        else {
+            if snapshot.expiry?.accessExpiresAt == nil {
+                scheduledRefreshTask?.cancel()
+                scheduledRefreshTask = nil
+                scheduledExpiry = nil
+            }
+            return
+        }
+        scheduledRefreshTask?.cancel()
+        scheduledExpiry = expiry
+        let generation = operationGeneration
+        let revision = status.session.revision
+        let delay = max(0, expiry.addingTimeInterval(-60).timeIntervalSince(clock.now()))
+        let clock = clock
+        let repository = repository
+        scheduledRefreshTask = Task { @MainActor [weak self, clock, repository] in
+            do { try await clock.sleep(.seconds(delay)) } catch { return }
+            guard !Task.isCancelled,
+                  self?.operationGeneration == generation,
+                  self?.status.session.revision == revision,
+                  self?.scheduledExpiry == expiry
+            else { return }
+            self?.attemptedExpiry = expiry
+            self?.scheduledExpiry = nil
+            self?.scheduledRefreshTask = nil
+            let result = await repository.refreshStoredSession()
+            guard !Task.isCancelled,
+                  self?.operationGeneration == generation
+            else { return }
+            _ = self?.mapValidation(result, expectedGeneration: generation)
+        }
+    }
+
+    private func supersedeAutomation() {
+        operationGeneration &+= 1
+        startupValidationTask?.cancel()
+        startupValidationTask = nil
+        scheduledRefreshTask?.cancel()
+        scheduledRefreshTask = nil
+        scheduledExpiry = nil
+        attemptedExpiry = nil
     }
 }

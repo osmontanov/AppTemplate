@@ -13,6 +13,7 @@ struct AppTemplateApp: App {
     private let dependencies: AppDependencies?
     private let sceneNavigationPersistencePolicy: AppSceneNavigationPersistencePolicy
     @State private var appFlowCoordinator: AppFlowCoordinator?
+    @State private var sessionController: SessionController?
 
     init() {
         let configuration = AppLaunchConfiguration(
@@ -35,27 +36,35 @@ struct AppTemplateApp: App {
             let router = AppFlowRouter(
                 flow: AppFlowPolicy.resolve(
                     store.state,
-                    legacyAuthentication: resolved.legacyAuthentication
+                    isLocalSessionBootstrapResolved: false
                 )
             )
             _appFlowCoordinator = State(
                 initialValue: AppFlowCoordinator(
                     store: store,
                     appFlowRouter: router,
-                    legacyAuthentication: resolved.legacyAuthentication
+                    isLocalSessionBootstrapResolved: false
                 )
             )
+            _sessionController = State(initialValue: SessionController(
+                repository: resolved.sessionRepository,
+                clock: resolved.clock,
+                startupValidationPolicy: resolved.sessionStartupValidationPolicy,
+                refreshSchedulePolicy: resolved.sessionRefreshSchedulePolicy
+            ))
         } else {
             _appFlowCoordinator = State(initialValue: nil)
+            _sessionController = State(initialValue: nil)
         }
     }
 
     var body: some Scene {
         WindowGroup {
-            if let dependencies, let appFlowCoordinator {
+            if let dependencies, let appFlowCoordinator, let sessionController {
                 ConfiguredAppRootView(
                     dependencies: dependencies,
                     appFlowCoordinator: appFlowCoordinator,
+                    sessionController: sessionController,
                     navigationPersistencePolicy: sceneNavigationPersistencePolicy
                 )
             } else {
@@ -78,6 +87,7 @@ struct AppTemplateApp: App {
 private struct ConfiguredAppRootView: View {
     let dependencies: AppDependencies
     let appFlowCoordinator: AppFlowCoordinator
+    let sessionController: SessionController
     let navigationPersistencePolicy: AppSceneNavigationPersistencePolicy
 
     @State private var isReady: Bool
@@ -87,10 +97,12 @@ private struct ConfiguredAppRootView: View {
     init(
         dependencies: AppDependencies,
         appFlowCoordinator: AppFlowCoordinator,
+        sessionController: SessionController,
         navigationPersistencePolicy: AppSceneNavigationPersistencePolicy
     ) {
         self.dependencies = dependencies
         self.appFlowCoordinator = appFlowCoordinator
+        self.sessionController = sessionController
         self.navigationPersistencePolicy = navigationPersistencePolicy
         _isReady = State(initialValue: dependencies.uiTestScriptTracker == nil)
         _scriptPresentation = State(initialValue: .pending)
@@ -120,10 +132,14 @@ private struct ConfiguredAppRootView: View {
             }
         }
         .task {
-            guard dependencies.uiTestScriptTracker != nil else { return }
             do {
                 try await dependencies.bootstrap()
                 guard !Task.isCancelled else { return }
+                await sessionController.bootstrap()
+                guard !Task.isCancelled else { return }
+                appFlowCoordinator.setLocalSessionBootstrapResolved(
+                    sessionController.isLocalBootstrapResolved
+                )
                 isReady = true
             } catch {
                 bootstrapFailed = true

@@ -4,17 +4,17 @@ import Testing
 @MainActor
 struct AppFlowRouterTests {
     @Test
-    func defaultRouterStartsInAuthentication() {
+    func defaultRouterStartsInRestoring() {
         let router = AppFlowRouter()
 
-        #expect(router.flow == .authentication)
+        #expect(router.flow == .restoring)
         #expect(router.transition.historyAction == .preserve)
         #expect(router.transition.pendingIntentAction == .preserve)
     }
 
     @Test
     func mainFlowResetsAndReplaysPendingIntent() {
-        let router = AppFlowRouter(flow: .authentication)
+        let router = AppFlowRouter(flow: .restoring)
 
         router.setFlow(.main)
 
@@ -24,7 +24,7 @@ struct AppFlowRouterTests {
     }
 
     @Test(arguments: [
-        AppFlow.authentication,
+        AppFlow.restoring,
         AppFlow.onboarding,
         AppFlow.maintenance
     ])
@@ -40,12 +40,12 @@ struct AppFlowRouterTests {
 
     @Test
     func repeatedExplicitFlowProducesNewResetTransition() {
-        let router = AppFlowRouter(flow: .authentication)
+        let router = AppFlowRouter(flow: .restoring)
         let firstID = router.transition.id
 
-        router.setFlow(.authentication)
+        router.setFlow(.restoring)
 
-        #expect(router.flow == .authentication)
+        #expect(router.flow == .restoring)
         #expect(router.transition.id != firstID)
         #expect(router.transition.historyAction == .reset)
         #expect(router.transition.pendingIntentAction == .discard)
@@ -56,20 +56,20 @@ struct AppFlowRouterTests {
         .replay,
         .discard
     ])
-    func policyTransitionResetsWithTheRequestedPendingAction(
+    func policyTransitionPreservesHistoryWithTheRequestedPendingAction(
         action: PendingIntentAction
     ) {
         let router = AppFlowRouter(flow: .onboarding)
         let previousID = router.transition.id
 
         router.transitionForPolicy(
-            to: .authentication,
+            to: .restoring,
             pendingIntentAction: action
         )
 
-        #expect(router.flow == .authentication)
+        #expect(router.flow == .restoring)
         #expect(router.transition.id != previousID)
-        #expect(router.transition.historyAction == .reset)
+        #expect(router.transition.historyAction == .preserve)
         #expect(router.transition.pendingIntentAction == action)
     }
 }

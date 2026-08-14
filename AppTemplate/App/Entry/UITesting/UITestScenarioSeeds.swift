@@ -1,7 +1,22 @@
 import Foundation
 
+nonisolated enum UITestSessionValidationMode: Equatable, Sendable {
+    case disabled
+    case scripted
+}
+
 nonisolated struct UITestSessionSeed: Equatable, Sendable {
     let keychainData: Data?
+
+    let validationMode: UITestSessionValidationMode
+
+    init(
+        keychainData: Data?,
+        validationMode: UITestSessionValidationMode = .disabled
+    ) {
+        self.keychainData = keychainData
+        self.validationMode = validationMode
+    }
 }
 
 nonisolated struct UITestLocalDatabaseSeed: Equatable, Sendable {

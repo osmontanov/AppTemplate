@@ -1,5 +1,11 @@
 import SwiftUI
 
+@MainActor
+final class DisabledLegacySettingsAuthenticationActions: IAuthenticationActions {
+    func signIn() -> AppFlowActionResult { .unchanged }
+    func signOut() -> AppFlowActionResult { .unchanged }
+}
+
 struct SettingsView: View {
     private let router: FlowRouter
     @State private var viewModel: SettingsViewModel
@@ -12,7 +18,7 @@ struct SettingsView: View {
         _viewModel = State(
             initialValue: SettingsViewModel(
                 router: router,
-                authenticationActions: router,
+                authenticationActions: DisabledLegacySettingsAuthenticationActions(),
                 appInfo: dependencies.appInfo
             )
         )

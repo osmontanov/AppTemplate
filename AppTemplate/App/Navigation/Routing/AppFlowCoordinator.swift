@@ -5,16 +5,16 @@ import Observation
 final class AppFlowCoordinator: IAppFlowCoordinator {
     let appFlowRouter: AppFlowRouter
     private let store: AppStateStore
-    private let legacyAuthentication: LegacyAuthenticationState
+    private var isLocalSessionBootstrapResolved: Bool
 
     init(
         store: AppStateStore,
         appFlowRouter: AppFlowRouter,
-        legacyAuthentication: LegacyAuthenticationState
+        isLocalSessionBootstrapResolved: Bool
     ) {
         self.store = store
         self.appFlowRouter = appFlowRouter
-        self.legacyAuthentication = legacyAuthentication
+        self.isLocalSessionBootstrapResolved = isLocalSessionBootstrapResolved
     }
 
     @discardableResult
@@ -31,24 +31,10 @@ final class AppFlowCoordinator: IAppFlowCoordinator {
         return synchronize(with: state)
     }
 
-    @discardableResult
-    func signIn() -> AppFlowActionResult {
-        let didChangeAuthentication = !legacyAuthentication.isAuthenticated
-        legacyAuthentication.signIn()
-        return transitionForCurrentPolicy(
-            didChangeState: didChangeAuthentication
-        )
-    }
-
-    @discardableResult
-    func signOut() -> AppFlowActionResult {
-        let didChangeAuthentication = legacyAuthentication.isAuthenticated
-        legacyAuthentication.signOut()
-        return transitionForCurrentPolicy(
-            didChangeState: didChangeAuthentication,
-            nonMainPendingIntentAction: .discard,
-            forceTransitionWhenStateChanges: true
-        )
+    func setLocalSessionBootstrapResolved(_ isResolved: Bool) {
+        guard isLocalSessionBootstrapResolved != isResolved else { return }
+        isLocalSessionBootstrapResolved = isResolved
+        _ = transitionForCurrentPolicy(didChangeState: true)
     }
 
     @discardableResult
@@ -87,7 +73,7 @@ final class AppFlowCoordinator: IAppFlowCoordinator {
     ) -> AppFlowActionResult {
         let targetFlow = AppFlowPolicy.resolve(
             store.state,
-            legacyAuthentication: legacyAuthentication
+            isLocalSessionBootstrapResolved: isLocalSessionBootstrapResolved
         )
         let mustForceTransition =
             forceTransitionWhenStateChanges && didChangeState
