@@ -35,6 +35,45 @@ final class SessionController {
         await startOrJoinBootstrap()
     }
 
+    func login(username: String, password: String) async -> SessionLoginResult {
+        let result = await repository.login(username: username, password: password)
+        if case let .authenticated(snapshot) = result { commit(snapshot) }
+        return result
+    }
+
+    func retryPersistence(
+        _ token: SessionPersistenceRetryToken
+    ) async -> SessionPersistenceRetryResult {
+        let result = await repository.retryPersistence(token)
+        switch result {
+        case let .committed(snapshot), let .failed(_, retained: snapshot):
+            commit(snapshot)
+        case .invalidToken, .cancelled:
+            break
+        }
+        return result
+    }
+
+    func discardPersistenceRetry(_ token: SessionPersistenceRetryToken) async {
+        await repository.discardPersistenceRetry(token)
+    }
+
+    func validateSession() async -> SessionValidationResult {
+        mapValidation(await repository.validateStoredSession())
+    }
+
+    func refreshSession() async -> SessionValidationResult {
+        mapValidation(await repository.refreshStoredSession())
+    }
+
+    func signOut() async -> SessionSignOutResult {
+        let result = await repository.signOut()
+        if result == .guest {
+            commit(SessionRepositorySnapshot(state: .guest, expiry: nil))
+        }
+        return result
+    }
+
     private func startOrJoinBootstrap() async {
         if let bootstrapOperationTask {
             await bootstrapOperationTask.value
@@ -122,7 +161,30 @@ final class SessionController {
         ))
     }
 
+    private func mapValidation(
+        _ result: SessionRepositoryValidationResult
+    ) -> SessionValidationResult {
+        switch result {
+        case let .snapshot(snapshot):
+            commit(snapshot)
+            return .committed(presentation)
+        case let .persistenceFailed(snapshot, token):
+            commit(snapshot)
+            return .persistenceFailed(token, retained: presentation)
+        case .unchanged:
+            return .unchanged
+        case let .failed(error):
+            return .failed(error)
+        case .cancelled:
+            return .cancelled
+        }
+    }
+
     private func commit(_ snapshot: SessionRepositorySnapshot) {
+        guard status.session.state != snapshot.state || status.expiry != snapshot.expiry else {
+            isLocalBootstrapResolved = true
+            return
+        }
         let revision = status.session.revision &+ 1
         status = SessionStatusPresentation(
             session: SessionPresentation(
