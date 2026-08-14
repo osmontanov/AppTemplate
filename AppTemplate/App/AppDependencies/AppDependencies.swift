@@ -182,6 +182,7 @@ struct AppDependencies: Sendable {
                 if let cart = scenario.localDatabaseSeed.cart {
                     try await database.upsert(cart)
                 }
+                try await notifications.bootstrapCategoriesIfNeeded()
                 for request in scenario.notificationSeed.pendingRequests {
                     try await notifications.service.schedule(request)
                 }

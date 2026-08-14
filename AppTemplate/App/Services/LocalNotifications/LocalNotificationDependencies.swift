@@ -3,23 +3,23 @@ import Foundation
 nonisolated
 struct LocalNotificationDependencies: Sendable {
     let service: any ILocalNotificationService
+    let categoryCatalog: any IAppNotificationCategoryCatalog
     let eventHub: LocalNotificationEventHub
     let navigationCoordinator: LocalNotificationNavigationCoordinator
 
     private let delegateBridge: NotificationCenterDelegateBridge?
-    private let bootstrap: @Sendable () async throws -> Void
 
     init(
         service: any ILocalNotificationService,
         eventHub: LocalNotificationEventHub,
         navigationCoordinator: LocalNotificationNavigationCoordinator,
-        bootstrap: @escaping @Sendable () async throws -> Void
+        categoryCatalog: any IAppNotificationCategoryCatalog
     ) {
         self.service = service
+        self.categoryCatalog = categoryCatalog
         self.eventHub = eventHub
         self.navigationCoordinator = navigationCoordinator
         delegateBridge = nil
-        self.bootstrap = bootstrap
     }
 
     private init(
@@ -27,17 +27,17 @@ struct LocalNotificationDependencies: Sendable {
         eventHub: LocalNotificationEventHub,
         navigationCoordinator: LocalNotificationNavigationCoordinator,
         delegateBridge: NotificationCenterDelegateBridge,
-        bootstrap: @escaping @Sendable () async throws -> Void
+        categoryCatalog: any IAppNotificationCategoryCatalog
     ) {
         self.service = service
+        self.categoryCatalog = categoryCatalog
         self.eventHub = eventHub
         self.navigationCoordinator = navigationCoordinator
         self.delegateBridge = delegateBridge
-        self.bootstrap = bootstrap
     }
 
     func bootstrapCategoriesIfNeeded() async throws {
-        try await bootstrap()
+        try await categoryCatalog.bootstrapIfNeeded()
     }
 
     @MainActor
@@ -72,12 +72,17 @@ struct LocalNotificationDependencies: Sendable {
             startupCategories: [],
             client: runtime.client
         )
+        let categoryCatalog = AppNotificationCategoryCatalog(
+            service: service,
+            storeCategory: StoreProductNotificationCategory.make(),
+            gate: AsyncOperationGate()
+        )
         return LocalNotificationDependencies(
             service: service,
             eventHub: eventHub,
             navigationCoordinator: navigationCoordinator,
             delegateBridge: delegateBridge,
-            bootstrap: { try await service.bootstrapCategoriesIfNeeded() }
+            categoryCatalog: categoryCatalog
         )
     }
 
@@ -99,39 +104,16 @@ struct LocalNotificationDependencies: Sendable {
             deepLinkPolicy: deepLinkPolicy(parser: parser),
             eventHub: eventHub
         )
-        return LocalNotificationDependencies(
+        let categoryCatalog = AppNotificationCategoryCatalog(
             service: service,
-            eventHub: eventHub,
-            navigationCoordinator: navigationCoordinator,
-            bootstrap: {}
-        )
-    }
-
-    @MainActor
-    static func inMemory(
-        settings: LocalNotificationSettings = .inMemoryDefault,
-        authorizationResult: Bool = true,
-        requiredCategories: [LocalNotificationCategory]
-    ) throws -> LocalNotificationDependencies {
-        let parser = DeepLinkParser()
-        let eventHub = LocalNotificationEventHub()
-        let navigationCoordinator = LocalNotificationNavigationCoordinator(
-            eventHub: eventHub,
-            parser: parser
-        )
-        navigationCoordinator.start()
-        let service = try InMemoryLocalNotificationService(
-            settings: settings,
-            authorizationResult: authorizationResult,
-            configuredCategories: requiredCategories,
-            deepLinkPolicy: deepLinkPolicy(parser: parser),
-            eventHub: eventHub
+            storeCategory: StoreProductNotificationCategory.make(),
+            gate: AsyncOperationGate()
         )
         return LocalNotificationDependencies(
             service: service,
             eventHub: eventHub,
             navigationCoordinator: navigationCoordinator,
-            bootstrap: {}
+            categoryCatalog: categoryCatalog
         )
     }
 

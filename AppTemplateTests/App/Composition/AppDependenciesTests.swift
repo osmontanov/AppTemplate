@@ -24,6 +24,10 @@ struct AppDependenciesTests {
         #expect(first.diagnostics !== second.diagnostics)
         #expect(first.uiTestScriptTracker !== second.uiTestScriptTracker)
         #expect(first.imageLoader is ScriptedImageLoader)
+        #expect(
+            first.localNotifications.categoryCatalog as AnyObject
+                !== second.localNotifications.categoryCatalog as AnyObject
+        )
 
         await #expect(throws: ScriptedImageLoaderError.unexpectedURL) {
             _ = try await first.imageLoader.load(
@@ -134,6 +138,13 @@ struct AppDependenciesTests {
 
         #expect(recorder.values == ["resolve", "install", "categories.read", "categories.set"])
         #expect(api.operations == ["categories.read", "categories.set"])
+        #expect(
+            api.installedCategoryIdentifiers == [
+                try LocalNotificationNamespace().physicalCategoryID(
+                    AppNotificationIdentifiers.storeCategory
+                )
+            ]
+        )
     }
 
     @Test
@@ -168,7 +179,14 @@ struct AppDependenciesTests {
         }
 
         #expect(api.operations == ["categories.read", "categories.set"])
-        #expect(api.installedCategoryIdentifiers == ["Foreign.category"])
+        #expect(
+            api.installedCategoryIdentifiers == [
+                "Foreign.category",
+                try LocalNotificationNamespace().physicalCategoryID(
+                    AppNotificationIdentifiers.storeCategory
+                )
+            ]
+        )
     }
 
     @Test
@@ -219,17 +237,37 @@ struct AppDependenciesTests {
         #expect(preview.localNotifications.service is InMemoryLocalNotificationService)
         #expect(uiTest.localNotifications.service is InMemoryLocalNotificationService)
         #expect(direct.service is InMemoryLocalNotificationService)
+        #expect(
+            preview.localNotifications.categoryCatalog as AnyObject
+                !== uiTest.localNotifications.categoryCatalog as AnyObject
+        )
+        let directCopy = direct
+        #expect(
+            direct.categoryCatalog as AnyObject
+                === directCopy.categoryCatalog as AnyObject
+        )
         try await preview.localNotifications.bootstrapCategoriesIfNeeded()
         try await uiTest.localNotifications.bootstrapCategoriesIfNeeded()
         try await direct.bootstrapCategoriesIfNeeded()
+        let expected = [StoreProductNotificationCategory.make()]
+        #expect(
+            await (preview.localNotifications.service as? InMemoryLocalNotificationService)?
+                .registeredCategoriesForTesting() == expected
+        )
+        #expect(
+            await (uiTest.localNotifications.service as? InMemoryLocalNotificationService)?
+                .registeredCategoriesForTesting() == expected
+        )
+        #expect(
+            await (direct.service as? InMemoryLocalNotificationService)?
+                .registeredCategoriesForTesting() == expected
+        )
     }
 
     @Test
-    func requiredCategoryInMemoryFactoryBuildsAValidatedSchedulableCatalog() async throws {
+    func pluralLabReplacementBuildsAValidatedSchedulableInMemoryCatalog() async throws {
         let category = try LocalNotificationFixtures.category(id: "configured")
-        let graph = try LocalNotificationDependencies.inMemory(
-            requiredCategories: [category]
-        )
+        let graph = LocalNotificationDependencies.inMemory()
         let request = LocalNotificationRequest(
             id: try LocalNotificationID("request"),
             content: LocalNotificationContent(
@@ -239,9 +277,75 @@ struct AppDependenciesTests {
             trigger: .immediate
         )
 
+        try await graph.categoryCatalog.replaceLabCategories([category])
         try await graph.service.schedule(request)
 
+        #expect(
+            await graph.categoryCatalog.categories()
+                == [StoreProductNotificationCategory.make(), category]
+        )
         #expect(await graph.service.pending().map(\.id) == [request.id])
+    }
+
+    @Test
+    func scenarioBootstrapRegistersStoreCategoryBeforeSeedingPendingRequests() async throws {
+        let request = LocalNotificationRequest(
+            id: try LocalNotificationID("seeded-store-request"),
+            content: LocalNotificationContent(
+                body: "Body",
+                categoryID: AppNotificationIdentifiers.storeCategory
+            ),
+            trigger: .immediate
+        )
+        let scenario = UITestScenario(
+            id: .servicesBasic,
+            appState: AppState(
+                hasCompletedOnboarding: true,
+                isMaintenanceEnabled: false
+            ),
+            sessionSeed: UITestSessionSeed(keychainData: nil),
+            localDatabaseSeed: UITestLocalDatabaseSeed(examples: []),
+            preferencesSeed: UITestPreferencesSeed(encodedValues: [:]),
+            notificationSeed: UITestNotificationSeed(
+                authorizationStatus: .authorized,
+                pendingRequests: [request]
+            ),
+            imageSeed: UITestImageSeed(steps: []),
+            networkPolicy: .failClosed,
+            remoteSteps: []
+        )
+        let dependencies = AppDependencies.uiTesting(scenario: scenario)
+
+        try await dependencies.bootstrap()
+
+        #expect(
+            await dependencies.localNotifications.service.pending().map(\.id)
+                == [request.id]
+        )
+        #expect(
+            await dependencies.localNotifications.categoryCatalog.categories()
+                == [StoreProductNotificationCategory.make()]
+        )
+    }
+
+    @Test
+    func notificationBootstrapRoutesOnlyThroughTheInjectedCategoryCatalog() async throws {
+        let base = LocalNotificationDependencies.inMemory()
+        let catalog = NotificationCategoryCatalogRoutingSpy()
+        let graph = LocalNotificationDependencies(
+            service: base.service,
+            eventHub: base.eventHub,
+            navigationCoordinator: base.navigationCoordinator,
+            categoryCatalog: catalog
+        )
+
+        try await graph.bootstrapCategoriesIfNeeded()
+
+        #expect(await catalog.bootstrapCallCount == 1)
+        #expect(
+            await (base.service as? InMemoryLocalNotificationService)?
+                .registeredCategoriesForTesting().isEmpty == true
+        )
     }
 
     @Test
@@ -267,6 +371,10 @@ struct AppDependenciesTests {
             dependencies.localNotifications.navigationCoordinator
                 === notifications.navigationCoordinator
         )
+        #expect(
+            dependencies.localNotifications.categoryCatalog as AnyObject
+                === notifications.categoryCatalog as AnyObject
+        )
     }
 
     @Test
@@ -277,6 +385,7 @@ struct AppDependenciesTests {
         )
         let receiver = NotificationSceneReceiver()
         let bootstrap = ControlledNotificationBootstrap()
+        registration.setNavigationReady(true)
         let runTask = Task {
             await registration.run(
                 receiver: receiver,
@@ -308,6 +417,7 @@ struct AppDependenciesTests {
             coordinator: graph.navigationCoordinator
         )
         let receiver = NotificationSceneReceiver()
+        registration.setNavigationReady(true)
         registration.setEligible(true)
         let runTask = Task {
             await registration.run(
@@ -333,6 +443,7 @@ struct AppDependenciesTests {
             coordinator: graph.navigationCoordinator
         )
         let first = NotificationSceneReceiver()
+        registration.setNavigationReady(true)
         registration.setEligible(true)
         let runTask = Task {
             await registration.run(receiver: first, bootstrap: {})
@@ -364,6 +475,7 @@ struct AppDependenciesTests {
             coordinator: graph.navigationCoordinator
         )
         let receiver = NotificationSceneReceiver()
+        registration.setNavigationReady(true)
         registration.setEligible(true)
         let firstBootstrap = ControlledNotificationBootstrap()
         let firstTask = Task {
@@ -1218,6 +1330,26 @@ private actor ControlledNotificationBootstrap {
 
 private nonisolated enum NotificationCompositionTestError: Error {
     case bootstrap
+}
+
+private actor NotificationCategoryCatalogRoutingSpy:
+    IAppNotificationCategoryCatalog
+{
+    private(set) var bootstrapCallCount = 0
+
+    func categories() async -> [LocalNotificationCategory] { [] }
+
+    func bootstrapIfNeeded() async throws {
+        bootstrapCallCount += 1
+    }
+
+    func replaceLabCategories(
+        _ categories: [LocalNotificationCategory]
+    ) async throws {
+        _ = categories
+    }
+
+    func resetLabCategories() async throws {}
 }
 
 nonisolated
