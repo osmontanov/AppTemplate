@@ -34,4 +34,19 @@ struct UITestScriptConsumptionTrackerTests {
         var iterator = await tracker.updates().makeAsyncIterator()
         #expect(await iterator.next() == .exhausted)
     }
+
+    @Test
+    func notificationStepsParticipateInTheSharedTerminalState() async {
+        let tracker = UITestScriptConsumptionTracker(
+            networkSteps: 0,
+            imageSteps: 0,
+            notificationSteps: 2
+        )
+        var iterator = await tracker.updates().makeAsyncIterator()
+        #expect(await iterator.next() == .pending)
+        await tracker.didConsume(.notification)
+        #expect(await iterator.next() == .pending)
+        await tracker.didConsume(.notification)
+        #expect(await iterator.next() == .exhausted)
+    }
 }

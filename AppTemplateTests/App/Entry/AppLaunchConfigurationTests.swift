@@ -27,7 +27,7 @@ struct AppLaunchConfigurationTests {
     #if os(macOS)
     @Test
     func supportsOneLeadingPersistenceIsolationPair() throws {
-        let scenario = try UITestScenario.named("services-basic")
+        let scenario = try UITestScenario.named("services-basic").preparedForLaunch()
         #expect(AppLaunchConfiguration(arguments: [
             "AppTemplate", "-ApplePersistenceIgnoreState", "YES",
             "--ui-testing", "--ui-test-scenario", "services-basic"
@@ -71,6 +71,28 @@ struct AppLaunchConfigurationTests {
         #expect(AppLaunchConfiguration.live.sceneNavigationPersistencePolicy == .restored)
         #expect(AppLaunchConfiguration.uiTesting(try .named("guest-store")).sceneNavigationPersistencePolicy == .ephemeral)
         #expect(AppLaunchConfiguration.invalidUITesting(.missingScenario).sceneNavigationPersistencePolicy == .ephemeral)
+    }
+
+    @Test
+    func servicesBasicLaunchFreezesTheOrderedNotificationJourney() throws {
+        let configuration = AppLaunchConfiguration(arguments: [
+            "AppTemplate", "--ui-testing", "--ui-test-scenario", "services-basic"
+        ])
+        let scenario = try #require({
+            if case let .uiTesting(value) = configuration { return value }
+            return nil
+        }())
+
+        #expect(scenario.networkPolicy == .failClosed)
+        #expect(scenario.remoteSteps.isEmpty)
+        #expect(scenario.imageSeed.steps.isEmpty)
+        #expect(scenario.notificationSeed.authorizationStatus == .authorized)
+        #expect(scenario.notificationSeed.pendingRequests.map(\.id.value) == [
+            "store.services-seed"
+        ])
+        #expect(scenario.notificationSeed.labSteps == [
+            .schedule("services.lab.immediate"), .resetLabData
+        ])
     }
 
     @MainActor

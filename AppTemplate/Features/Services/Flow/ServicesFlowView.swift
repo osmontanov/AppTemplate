@@ -59,7 +59,13 @@ struct ServicesFlowView: View {
                 diagnostics: dependencies.diagnostics
             )
         case .localNotifications:
-            ServiceLabPlaceholderView(item: item)
+            LocalNotificationLabView(
+                guide: item.guide,
+                lab: dependencies.notificationLab,
+                appWide: dependencies.notificationAppWide,
+                history: dependencies.notificationHistory,
+                assets: dependencies.notificationAssets
+            )
         }
     }
 
@@ -88,20 +94,5 @@ struct ServicesFlowView: View {
         #else
         "Apple Platform"
         #endif
-    }
-}
-
-private struct ServiceLabPlaceholderView: View {
-    let item: ServicesCatalogItem
-
-    var body: some View {
-        ServiceLabGuideView(guide: item.guide, result: .idle) {
-            Text("This lab is not active yet.")
-                .foregroundStyle(.secondary)
-        } advanced: {
-            Text("No service calls are made by this placeholder.")
-                .foregroundStyle(.secondary)
-        }
-        .navigationTitle(item.route.displayTitle)
     }
 }

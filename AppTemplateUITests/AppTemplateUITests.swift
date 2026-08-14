@@ -18,6 +18,19 @@ final class AppTemplateUITests: XCTestCase {
     }
 
     @MainActor
+    func testServicesBasicTryActualResetJourneys() throws {
+        let appRobot = try AppRobot.launchServicesBasic()
+        let services = appRobot.services()
+
+        try services.openServices()
+        try services.assertDestinationWiresAndOpen(.localNotifications)
+        try services.scheduleImmediateAndRequireActual()
+        try services.resetDemoData()
+
+        try appRobot.waitForScriptExhaustion()
+    }
+
+    @MainActor
     private func launch(scenario: String) -> XCUIApplication {
         let app = XCUIApplication()
         #if os(macOS)

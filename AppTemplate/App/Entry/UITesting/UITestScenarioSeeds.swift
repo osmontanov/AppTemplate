@@ -42,6 +42,31 @@ nonisolated struct UITestPreferencesSeed: Equatable, Sendable {
 nonisolated struct UITestNotificationSeed: Equatable, Sendable {
     let authorizationStatus: LocalNotificationAuthorizationStatus
     let pendingRequests: [LocalNotificationRequest]
+    let labSteps: [UITestNotificationLabStep]
+
+    init(
+        authorizationStatus: LocalNotificationAuthorizationStatus,
+        pendingRequests: [LocalNotificationRequest],
+        labSteps: [UITestNotificationLabStep] = []
+    ) {
+        self.authorizationStatus = authorizationStatus
+        self.pendingRequests = pendingRequests
+        self.labSteps = labSteps
+    }
+}
+
+nonisolated enum UITestNotificationLabStep: Equatable, Sendable {
+    case authorization(UInt)
+    case replaceCategories([String])
+    case resetCategories
+    case schedule(String)
+    case removePending([String])
+    case removeDelivered([String])
+    case resetLabData
+    case removeAllPending
+    case removeAllDelivered
+    case setBadge(Int)
+    case clearBadge
 }
 
 nonisolated struct UITestImageSeed: Equatable, Sendable {
@@ -88,9 +113,163 @@ nonisolated extension UITestScenario {
             ProtectedFavoriteUITestFixture.scenario
         case .productReminder:
             ProductReminderUITestFixture.scenario
-        case .servicesBasic, .accessibilitySmoke:
+        case .servicesBasic:
+            ServicesBasicUITestFixture.scenario
+        case .accessibilitySmoke:
             self
         }
+    }
+}
+
+private nonisolated enum ServicesBasicUITestFixture {
+    static var scenario: UITestScenario {
+        UITestScenario(
+            id: .servicesBasic,
+            appState: AppState(
+                hasCompletedOnboarding: true,
+                isMaintenanceEnabled: false
+            ),
+            sessionSeed: UITestSessionSeed(keychainData: nil),
+            localDatabaseSeed: UITestLocalDatabaseSeed(examples: []),
+            preferencesSeed: UITestPreferencesSeed(encodedValues: [:]),
+            notificationSeed: UITestNotificationSeed(
+                authorizationStatus: .authorized,
+                pendingRequests: [LocalNotificationRequest(
+                    id: try! LocalNotificationID("store.services-seed"),
+                    content: LocalNotificationContent(
+                        title: "Store seed",
+                        body: "Preserved by Services reset"
+                    ),
+                    trigger: .immediate
+                )],
+                labSteps: [
+                    .schedule("services.lab.immediate"),
+                    .resetLabData
+                ]
+            ),
+            imageSeed: UITestImageSeed(steps: []),
+            networkPolicy: .failClosed,
+            remoteSteps: []
+        )
+    }
+}
+
+actor ScriptedLocalNotificationLabService:
+    ILocalNotificationLabService,
+    ILocalNotificationAppWideCapabilities
+{
+    private let lab: any ILocalNotificationLabService
+    private let appWide: any ILocalNotificationAppWideCapabilities
+    private let tracker: UITestScriptConsumptionTracker
+    private var steps: [UITestNotificationLabStep]
+
+    init(
+        lab: any ILocalNotificationLabService,
+        appWide: any ILocalNotificationAppWideCapabilities,
+        steps: [UITestNotificationLabStep],
+        tracker: UITestScriptConsumptionTracker
+    ) {
+        self.lab = lab
+        self.appWide = appWide
+        self.steps = steps
+        self.tracker = tracker
+    }
+
+    func settings() async -> LocalNotificationSettings { await lab.settings() }
+
+    func requestAuthorization(
+        _ options: LocalNotificationAuthorizationOptions
+    ) async throws -> Bool {
+        try await require(.authorization(options.rawValue))
+        return try await lab.requestAuthorization(options)
+    }
+
+    func replaceLabCategories(
+        _ categories: [LocalNotificationCategory]
+    ) async throws {
+        try await require(.replaceCategories(categories.map(\.id.value)))
+        try await lab.replaceLabCategories(categories)
+    }
+
+    func resetLabCategories() async throws {
+        try await require(.resetCategories)
+        try await lab.resetLabCategories()
+    }
+
+    func scheduleLab(_ request: LocalNotificationRequest) async throws {
+        try await require(.schedule(request.id.value))
+        try await lab.scheduleLab(request)
+    }
+
+    func pendingLab() async -> [LocalNotificationPendingSnapshot] {
+        await lab.pendingLab()
+    }
+
+    func deliveredLab() async -> [LocalNotificationDeliveredSnapshot] {
+        await lab.deliveredLab()
+    }
+
+    func removeLabPending(_ ids: Set<LocalNotificationID>) async {
+        guard await accept(.removePending(ids.map(\.value).sorted())) else { return }
+        await lab.removeLabPending(ids)
+    }
+
+    func removeLabDelivered(_ ids: Set<LocalNotificationID>) async {
+        guard await accept(.removeDelivered(ids.map(\.value).sorted())) else { return }
+        await lab.removeLabDelivered(ids)
+    }
+
+    func resetLabData() async throws {
+        try await require(.resetLabData)
+        try await lab.resetLabData()
+    }
+
+    func pendingAppOwned() async -> [LocalNotificationPendingSnapshot] {
+        await appWide.pendingAppOwned()
+    }
+
+    func deliveredAppOwned() async -> [LocalNotificationDeliveredSnapshot] {
+        await appWide.deliveredAppOwned()
+    }
+
+    func removeAllPending() async {
+        guard await accept(.removeAllPending) else { return }
+        await appWide.removeAllPending()
+    }
+
+    func removeAllDelivered() async {
+        guard await accept(.removeAllDelivered) else { return }
+        await appWide.removeAllDelivered()
+    }
+
+    func setBadgeCount(_ count: Int) async throws {
+        try await require(.setBadge(count))
+        try await appWide.setBadgeCount(count)
+    }
+
+    func clearBadge() async throws {
+        try await require(.clearBadge)
+        try await appWide.clearBadge()
+    }
+
+    private func require(_ step: UITestNotificationLabStep) async throws {
+        guard await accept(step) else {
+            throw LocalNotificationServiceError.system(
+                operation: .schedule,
+                domain: "UITestNotificationScript",
+                code: 1
+            )
+        }
+    }
+
+    private func accept(_ step: UITestNotificationLabStep) async -> Bool {
+        guard steps.first == step else {
+            await tracker.didFail(.notification)
+            return false
+        }
+        steps.removeFirst()
+        await tracker.didConsume(.notification)
+        return true
     }
 }
 

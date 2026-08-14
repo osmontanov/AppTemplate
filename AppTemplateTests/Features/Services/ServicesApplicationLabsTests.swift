@@ -365,6 +365,12 @@ private struct ServicesTwoSceneFixture {
 
     init() {
         let appState = ServicesAppStateInspectorSpy()
+        let notificationGraph = AppNotificationGraph.inMemory()
+        let notificationFacade = LocalNotificationLabService(
+            service: notificationGraph.dependencies.service,
+            catalog: notificationGraph.dependencies.categoryCatalog,
+            namespace: "services.lab"
+        )
         dependencies = ServicesDependencies(
             appState: appState,
             appFlowCoordinator: coordinator,
@@ -379,7 +385,14 @@ private struct ServicesTwoSceneFixture {
                 database: LocalDatabaseService(configuration: .inMemory())
             ),
             remoteAPI: RemoteAPILabService(remote: FailClosedRemoteService()),
-            diagnostics: NetworkDiagnosticRecorder()
+            diagnostics: NetworkDiagnosticRecorder(),
+            notificationLab: notificationFacade,
+            notificationAppWide: notificationFacade,
+            notificationHistory: notificationGraph.dependencies.eventReader,
+            notificationAssets: LocalNotificationLabAssetProvider(
+                resolve: { _ in nil },
+                validate: { _ in .unreadable }
+            )
         )
         first = ServicesAppStateViewModel(
             appState: dependencies.appState,

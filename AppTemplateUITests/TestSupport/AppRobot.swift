@@ -16,6 +16,10 @@ struct AppRobot {
         try launch(scenario: "product-reminder")
     }
 
+    static func launchServicesBasic() throws -> AppRobot {
+        try launch(scenario: "services-basic")
+    }
+
     private static func launch(scenario: String) throws -> AppRobot {
         let app = XCUIApplication()
         #if os(macOS)
@@ -40,6 +44,10 @@ struct AppRobot {
 
     func store() -> StoreRobot {
         StoreRobot(app: app, appRobot: self)
+    }
+
+    func services() -> ServicesRobot {
+        ServicesRobot(app: app, appRobot: self)
     }
 
     func openSection(

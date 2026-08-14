@@ -8,6 +8,8 @@ struct LocalNotificationDependencies: Sendable {
     let eventHistory: LocalNotificationEventHistory
     let navigationCoordinator: LocalNotificationNavigationCoordinator
 
+    var eventReader: any ILocalNotificationEventReading { eventHistory }
+
     private let delegateBridge: NotificationCenterDelegateBridge?
 
     init(

@@ -53,8 +53,8 @@ enum ServicesCatalogViewModel {
             route: .localNotifications,
             guide: ServiceLabGuide(
                 why: "Understand authorization, scheduling, and cleanup through app-owned notification services.",
-                preset: "This guided lab will use a namespaced demonstration notification.",
-                expected: "A later task will add permission-aware scheduling and cleanup controls."
+                preset: "The Basic preset schedules one namespaced immediate notification and observes only safe history summaries.",
+                expected: "Lab reset preserves Store data; explicitly labelled app-wide controls are confirmed separately."
             )
         )
     ]

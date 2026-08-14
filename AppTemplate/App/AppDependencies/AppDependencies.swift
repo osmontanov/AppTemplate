@@ -25,6 +25,7 @@ struct AppDependencies: Sendable {
     let diagnostics: NetworkDiagnosticRecorder
     let imageLoader: any IImageLoader
     let uiTestScriptTracker: UITestScriptConsumptionTracker?
+    let uiTestNotificationLabSteps: [UITestNotificationLabStep]?
     let bootstrap: @Sendable () async throws -> Void
 
     var localNotifications: LocalNotificationDependencies {
@@ -93,6 +94,7 @@ struct AppDependencies: Sendable {
             diagnostics: diagnostics,
             imageLoader: imageLoader,
             uiTestScriptTracker: nil,
+            uiTestNotificationLabSteps: nil,
             bootstrap: {}
         )
     }
@@ -104,7 +106,8 @@ struct AppDependencies: Sendable {
         let diagnostics = NetworkDiagnosticRecorder()
         let tracker = UITestScriptConsumptionTracker(
             networkSteps: scenario.remoteSteps.count,
-            imageSteps: scenario.imageSeed.steps.count
+            imageSteps: scenario.imageSeed.steps.count,
+            notificationSteps: scenario.notificationSeed.labSteps.count
         )
         let transport = ScriptedNetworkTransport(
             steps: scenario.remoteSteps,
@@ -207,6 +210,7 @@ struct AppDependencies: Sendable {
             diagnostics: diagnostics,
             imageLoader: imageLoader,
             uiTestScriptTracker: tracker,
+            uiTestNotificationLabSteps: scenario.notificationSeed.labSteps,
             bootstrap: {
                 if let data = scenario.sessionSeed.keychainData {
                     try await keychain.set(data, for: .data("Store.AuthSession"))
@@ -280,6 +284,7 @@ struct AppDependencies: Sendable {
             diagnostics: diagnostics,
             imageLoader: imageLoader,
             uiTestScriptTracker: nil,
+            uiTestNotificationLabSteps: nil,
             bootstrap: {}
         )
     }
@@ -342,6 +347,7 @@ struct AppDependencies: Sendable {
             diagnostics: diagnostics,
             imageLoader: imageLoader,
             uiTestScriptTracker: nil,
+            uiTestNotificationLabSteps: nil,
             bootstrap: {}
         )
     }
@@ -398,6 +404,7 @@ struct AppDependencies: Sendable {
             diagnostics: diagnostics,
             imageLoader: imageLoader,
             uiTestScriptTracker: nil,
+            uiTestNotificationLabSteps: nil,
             bootstrap: {}
         )
     }
@@ -424,7 +431,28 @@ struct AppDependencies: Sendable {
         sessionActions: any ISessionActions,
         appStateStatus: ServicesAppStateStatus
     ) -> ServicesDependencies {
-        ServicesDependencies(
+        let notificationFacade = LocalNotificationLabService(
+            service: notificationGraph.dependencies.service,
+            catalog: notificationGraph.dependencies.categoryCatalog,
+            namespace: "services.lab"
+        )
+        let notificationLab: any ILocalNotificationLabService
+        let notificationAppWide: any ILocalNotificationAppWideCapabilities
+        if let steps = uiTestNotificationLabSteps,
+           let tracker = uiTestScriptTracker {
+            let scripted = ScriptedLocalNotificationLabService(
+                lab: notificationFacade,
+                appWide: notificationFacade,
+                steps: steps,
+                tracker: tracker
+            )
+            notificationLab = scripted
+            notificationAppWide = scripted
+        } else {
+            notificationLab = notificationFacade
+            notificationAppWide = notificationFacade
+        }
+        return ServicesDependencies(
             appState: appState,
             appFlowCoordinator: appFlowCoordinator,
             appStateStatus: appStateStatus,
@@ -434,7 +462,11 @@ struct AppDependencies: Sendable {
             keychainLab: servicesLabKeychain,
             localDatabase: localDatabaseExamples,
             remoteAPI: remoteAPILab,
-            diagnostics: diagnostics
+            diagnostics: diagnostics,
+            notificationLab: notificationLab,
+            notificationAppWide: notificationAppWide,
+            notificationHistory: notificationGraph.dependencies.eventReader,
+            notificationAssets: LocalNotificationLabAssetProvider(bundle: .main)
         )
     }
 }

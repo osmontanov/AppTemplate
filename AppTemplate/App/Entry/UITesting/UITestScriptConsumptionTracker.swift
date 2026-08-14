@@ -3,6 +3,7 @@ import Foundation
 nonisolated enum UITestScriptComponent: Sendable {
     case network
     case image
+    case notification
 }
 
 nonisolated enum UITestScriptConsumptionPresentation: Equatable, Sendable {
@@ -14,13 +15,21 @@ nonisolated enum UITestScriptConsumptionPresentation: Equatable, Sendable {
 actor UITestScriptConsumptionTracker {
     private var networkSteps: Int
     private var imageSteps: Int
+    private var notificationSteps: Int
     private var hasFailed = false
     private var continuations: [UUID: AsyncStream<UITestScriptConsumptionPresentation>.Continuation] = [:]
 
-    init(networkSteps: Int, imageSteps: Int) {
-        precondition(networkSteps >= 0 && imageSteps >= 0)
+    init(
+        networkSteps: Int,
+        imageSteps: Int,
+        notificationSteps: Int = 0
+    ) {
+        precondition(
+            networkSteps >= 0 && imageSteps >= 0 && notificationSteps >= 0
+        )
         self.networkSteps = networkSteps
         self.imageSteps = imageSteps
+        self.notificationSteps = notificationSteps
     }
 
     func didConsume(_ component: UITestScriptComponent) {
@@ -31,6 +40,7 @@ actor UITestScriptConsumptionTracker {
         switch component {
         case .network: networkSteps = max(0, networkSteps - 1)
         case .image: imageSteps = max(0, imageSteps - 1)
+        case .notification: notificationSteps = max(0, notificationSteps - 1)
         }
         publish(currentPresentation)
     }
@@ -55,7 +65,8 @@ actor UITestScriptConsumptionTracker {
 
     private var currentPresentation: UITestScriptConsumptionPresentation {
         if hasFailed { return .failed }
-        return networkSteps == 0 && imageSteps == 0 ? .exhausted : .pending
+        return networkSteps == 0 && imageSteps == 0 && notificationSteps == 0
+            ? .exhausted : .pending
     }
 
     private func publish(_ value: UITestScriptConsumptionPresentation) {

@@ -10,4 +10,8 @@ struct ServicesDependencies {
     let localDatabase: any ILocalDatabaseExampleRepository
     let remoteAPI: any IRemoteAPILabService
     let diagnostics: NetworkDiagnosticRecorder
+    let notificationLab: any ILocalNotificationLabService
+    let notificationAppWide: any ILocalNotificationAppWideCapabilities
+    let notificationHistory: any ILocalNotificationEventReading
+    let notificationAssets: LocalNotificationLabAssetProvider
 }

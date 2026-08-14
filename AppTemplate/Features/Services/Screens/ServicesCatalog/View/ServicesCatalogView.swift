@@ -18,6 +18,7 @@ struct ServicesCatalogView: View {
                         .lineLimit(2)
                 }
             }
+            .accessibilityIdentifier("route.services.\(item.route.accessibilityWireValue)")
         }
         .navigationTitle("Services")
         .accessibilityIdentifier("screen.services.root")
@@ -26,6 +27,18 @@ struct ServicesCatalogView: View {
 
 nonisolated
 extension ServicesRoute {
+    var accessibilityWireValue: String {
+        switch self {
+        case .appState: "app-state"
+        case .appInfo: "app-info"
+        case .userDefaults: "user-defaults"
+        case .keychain: "keychain"
+        case .localDatabase: "local-database"
+        case .remoteAPI: "remote-api"
+        case .localNotifications: "local-notifications"
+        }
+    }
+
     var displayTitle: String {
         switch self {
         case .appState: "App State"
