@@ -7,29 +7,23 @@ enum PreviewFixtures {
         isLocalSessionBootstrapResolved: Bool = false
     ) -> ContentView {
         let dependencies = failClosedDependencies()
+        let session = PreviewSessionActions()
         return ContentView(
             appFlowCoordinator: appFlowCoordinator(
                 state: state,
                 isLocalSessionBootstrapResolved: isLocalSessionBootstrapResolved
             ),
-            session: SessionPresentation(state: .guest, revision: 1),
-            storeDependencies: dependencies.makeStoreDependencies(),
+            session: session.presentation,
+            storeDependencies: dependencies.makeStoreDependencies(session: session),
             storeUISupport: dependencies.storeUISupport
         )
     }
 
     static func authenticationFlow() -> AuthenticationFlowView {
-        let appFlowCoordinator = appFlowCoordinator(
-            state: AppState(
-                hasCompletedOnboarding: true,
-                isMaintenanceEnabled: false
-            )
-        )
-        let router = FlowRouter(appFlowCoordinator: appFlowCoordinator)
-        return AuthenticationFlowView(
-            router: router,
-            authenticationCancellation: PreviewAuthenticationCancellation(router: router)
-        )
+        AuthenticationFlowView(dependencies: AuthenticationDependencies(
+            session: PreviewSessionActions(),
+            cancellation: PreviewAuthenticationCancellation()
+        ))
     }
 
     static func onboardingFlow() -> OnboardingFlowView {
@@ -148,9 +142,34 @@ enum PreviewFixtures {
 
 @MainActor
 private final class PreviewAuthenticationCancellation: IAuthenticationCancellation {
-    private let router: FlowRouter
+    func cancelAuthentication() {}
+}
 
-    init(router: FlowRouter) { self.router = router }
+@MainActor
+private final class PreviewSessionActions: ISessionActions {
+    private(set) var status = SessionStatusPresentation(
+        session: SessionPresentation(state: .guest, revision: 1),
+        expiry: nil
+    )
+    var presentation: SessionPresentation { status.session }
 
-    func cancelAuthentication() { router.popToRoot() }
+    func bootstrap() async {}
+    func retryBootstrap() async {}
+    func login(username: String, password: String) async -> SessionLoginResult {
+        _ = username
+        _ = password
+        return .failure(.responseInvalid)
+    }
+    func retryPersistence(
+        _ token: SessionPersistenceRetryToken
+    ) async -> SessionPersistenceRetryResult {
+        _ = token
+        return .invalidToken
+    }
+    func discardPersistenceRetry(_ token: SessionPersistenceRetryToken) async {
+        _ = token
+    }
+    func validateSession() async -> SessionValidationResult { .unchanged }
+    func refreshSession() async -> SessionValidationResult { .unchanged }
+    func signOut() async -> SessionSignOutResult { .cancelled }
 }

@@ -2,7 +2,7 @@ import Observation
 
 @MainActor
 @Observable
-final class StoreRouter {
+final class StoreRouter: IAuthenticationCancellation {
     var path: [StoreRoute]
     var presentation: StorePresentation?
     private(set) var pendingProtectedAction: ProtectedStoreAction?

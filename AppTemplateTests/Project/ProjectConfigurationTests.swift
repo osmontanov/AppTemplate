@@ -52,7 +52,8 @@ struct ProjectConfigurationTests {
             diagnostics: NetworkDiagnosticRecorder(),
             imageLoader: FailClosedImageLoader()
         )
-        let storeDependencies = dependencies.makeStoreDependencies()
+        let projectSession = ProjectSessionActions()
+        let storeDependencies = dependencies.makeStoreDependencies(session: projectSession)
         let storeUISupport = dependencies.storeUISupport
 
         _ = ContentView(
@@ -89,10 +90,12 @@ struct ProjectConfigurationTests {
             uiSupport: storeUISupport
         )
         _ = ServicesFlowView(router: router.services, session: session)
-        _ = AuthenticationFlowView(
-            router: legacyRouter,
-            authenticationCancellation: ProjectAuthenticationCancellation(router: legacyRouter)
+        let authenticationDependencies = AuthenticationDependencies(
+            session: projectSession,
+            cancellation: ProjectAuthenticationCancellation()
         )
+        _ = AuthenticationView(dependencies: authenticationDependencies)
+        _ = AuthenticationFlowView(dependencies: authenticationDependencies)
         _ = AuthenticationHelpView()
         _ = OnboardingFlowView(router: onboardingRouter)
         _ = OnboardingView(router: onboardingRouter)
@@ -147,11 +150,36 @@ struct ProjectConfigurationTests {
 private final class ProjectAuthenticationCancellation:
     IAuthenticationCancellation
 {
-    private let router: FlowRouter
+    func cancelAuthentication() {}
+}
 
-    init(router: FlowRouter) { self.router = router }
+@MainActor
+private final class ProjectSessionActions: ISessionActions {
+    private(set) var status = SessionStatusPresentation(
+        session: SessionPresentation(state: .guest, revision: 1),
+        expiry: nil
+    )
+    var presentation: SessionPresentation { status.session }
 
-    func cancelAuthentication() { router.popToRoot() }
+    func bootstrap() async {}
+    func retryBootstrap() async {}
+    func login(username: String, password: String) async -> SessionLoginResult {
+        _ = username
+        _ = password
+        return .cancelled
+    }
+    func retryPersistence(
+        _ token: SessionPersistenceRetryToken
+    ) async -> SessionPersistenceRetryResult {
+        _ = token
+        return .invalidToken
+    }
+    func discardPersistenceRetry(_ token: SessionPersistenceRetryToken) async {
+        _ = token
+    }
+    func validateSession() async -> SessionValidationResult { .unchanged }
+    func refreshSession() async -> SessionValidationResult { .unchanged }
+    func signOut() async -> SessionSignOutResult { .cancelled }
 }
 
 #if os(macOS)

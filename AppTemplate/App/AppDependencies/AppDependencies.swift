@@ -319,9 +319,12 @@ struct AppDependencies: Sendable {
     }
 
     @MainActor
-    func makeStoreDependencies() -> StoreDependencies {
+    func makeStoreDependencies(
+        session: any ISessionActions
+    ) -> StoreDependencies {
         StoreDependencies(
             products: products,
+            session: session,
             cart: cart,
             preferences: storePreferences,
             appInfo: appInfo

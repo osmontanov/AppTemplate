@@ -35,6 +35,29 @@ struct StoreFlowView: View {
         } destination: { route in
             destination(route)
         }
+        .sheet(item: $router.presentation) { presentation in
+            presentedContent(presentation)
+        }
+    }
+
+    @ViewBuilder
+    private func presentedContent(_ presentation: StorePresentation) -> some View {
+        switch presentation {
+        case .authentication:
+            AuthenticationFlowView(dependencies: AuthenticationDependencies(
+                session: dependencies.session,
+                cancellation: router
+            ))
+        case .filters:
+            ContentUnavailableView("Filters", systemImage: "line.3.horizontal.decrease")
+        case .checkout:
+            ContentUnavailableView("Checkout", systemImage: "cart")
+        case let .reminder(productID):
+            ContentUnavailableView(
+                "Reminder for product \(productID)",
+                systemImage: "bell"
+            )
+        }
     }
 
     @ViewBuilder

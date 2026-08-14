@@ -32,7 +32,6 @@ struct AppTemplateApp: App {
         }
 
         dependencies = resolved
-        storeDependencies = resolved?.makeStoreDependencies()
         storeUISupport = resolved?.storeUISupport
         sceneNavigationPersistencePolicy = configuration.sceneNavigationPersistencePolicy
         if let resolved {
@@ -50,13 +49,16 @@ struct AppTemplateApp: App {
                     isLocalSessionBootstrapResolved: false
                 )
             )
-            _sessionController = State(initialValue: SessionController(
+            let sessionController = SessionController(
                 repository: resolved.sessionRepository,
                 clock: resolved.clock,
                 startupValidationPolicy: resolved.sessionStartupValidationPolicy,
                 refreshSchedulePolicy: resolved.sessionRefreshSchedulePolicy
-            ))
+            )
+            storeDependencies = resolved.makeStoreDependencies(session: sessionController)
+            _sessionController = State(initialValue: sessionController)
         } else {
+            storeDependencies = nil
             _appFlowCoordinator = State(initialValue: nil)
             _sessionController = State(initialValue: nil)
         }

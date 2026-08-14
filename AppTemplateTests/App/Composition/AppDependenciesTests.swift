@@ -770,7 +770,7 @@ struct AppDependenciesTests {
     }
 
     @Test
-    func storeFactoryReusesRetainedProductsCartPreferencesAppInfoAndUISupport() {
+    func storeFactoryReusesInjectedSessionProductsCartPreferencesAppInfoAndUISupport() async {
         let remote = InjectedRemoteService()
         let imageLoader = InjectedImageLoader()
         let appInfo = AppInfoService(displayName: "Shared", version: "4.2")
@@ -781,9 +781,12 @@ struct AppDependenciesTests {
             imageLoader: imageLoader
         )
 
-        let first = dependencies.makeStoreDependencies()
-        let second = dependencies.makeStoreDependencies()
+        let session = CompositionSessionActionsSpy()
+        let first = dependencies.makeStoreDependencies(session: session)
+        let second = dependencies.makeStoreDependencies(session: session)
 
+        #expect(first.session as AnyObject === session)
+        #expect(second.session as AnyObject === session)
         #expect(first.products as AnyObject === dependencies.products as AnyObject)
         #expect(first.products as AnyObject === second.products as AnyObject)
         #expect(first.cart as AnyObject === dependencies.cart as AnyObject)
@@ -791,6 +794,9 @@ struct AppDependenciesTests {
         #expect(first.appInfo as AnyObject === dependencies.appInfo as AnyObject)
         #expect(first.appInfo as AnyObject === dependencies.settings.appInfo as AnyObject)
         #expect(dependencies.storeUISupport.images as AnyObject === imageLoader)
+
+        _ = await first.session.login(username: "emilys", password: "emilyspass")
+        #expect(session.loginCalls == 1)
     }
 
     @Test
@@ -878,6 +884,37 @@ private func expectUnregisteredTestModel(
     } catch {
         Issue.record("Unexpected error type: \(type(of: error))")
     }
+}
+
+@MainActor
+private final class CompositionSessionActionsSpy: ISessionActions {
+    private(set) var status = SessionStatusPresentation(
+        session: SessionPresentation(state: .guest, revision: 1),
+        expiry: nil
+    )
+    var presentation: SessionPresentation { status.session }
+    private(set) var loginCalls = 0
+
+    func bootstrap() async {}
+    func retryBootstrap() async {}
+    func login(username: String, password: String) async -> SessionLoginResult {
+        _ = username
+        _ = password
+        loginCalls += 1
+        return .cancelled
+    }
+    func retryPersistence(
+        _ token: SessionPersistenceRetryToken
+    ) async -> SessionPersistenceRetryResult {
+        _ = token
+        return .invalidToken
+    }
+    func discardPersistenceRetry(_ token: SessionPersistenceRetryToken) async {
+        _ = token
+    }
+    func validateSession() async -> SessionValidationResult { .unchanged }
+    func refreshSession() async -> SessionValidationResult { .unchanged }
+    func signOut() async -> SessionSignOutResult { .cancelled }
 }
 
 private actor InjectedLocalDatabaseService: ILocalDatabaseService {

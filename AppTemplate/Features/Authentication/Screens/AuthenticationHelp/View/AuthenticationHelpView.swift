@@ -11,7 +11,7 @@ struct AuthenticationHelpView: View {
                     .accessibilityHidden(true)
                 Text("Authentication Help")
                     .font(.title)
-                Text("Continue replaces the Authentication root with Main.")
+                Text("Sign in to continue the protected Store action. Cancel returns to the Store.")
                     .foregroundStyle(.secondary)
             }
         }

@@ -1,16 +1,19 @@
 import SwiftUI
 
 struct AuthenticationFlowView: View {
-    @Bindable var router: FlowRouter
-    let authenticationCancellation: any IAuthenticationCancellation
+    let dependencies: AuthenticationDependencies
 
     var body: some View {
-        NavigationStack(path: $router.path) {
-            AuthenticationView(
-                router: router,
-                authenticationCancellation: authenticationCancellation
-            )
+        NavigationStack {
+            AuthenticationView(dependencies: dependencies)
+                .navigationDestination(for: AuthenticationRoute.self) { route in
+                    switch route {
+                    case .help:
+                        AuthenticationHelpView()
+                    }
+                }
         }
+        .interactiveDismissDisabled()
     }
 }
 
