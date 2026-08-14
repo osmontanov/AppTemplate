@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ReviewsView: View {
     @State private var viewModel: ReviewsViewModel
+    @AccessibilityFocusState private var resultIsFocused: Bool
 
     init(productID: Product.ID, products: any IProductRepository) {
         _viewModel = State(initialValue: ReviewsViewModel(productID: productID, products: products))
@@ -19,15 +20,29 @@ struct ReviewsView: View {
                 }
                 if product.reviews.isEmpty {
                     ContentUnavailableView(StoreServicesText.resource("No reviews"), systemImage: "star.bubble")
+                        .accessibilityIdentifier(AppAccessibilityIdentifier.result(.empty))
+                        .accessibilityFocused($resultIsFocused)
                 }
             } else if let error = viewModel.errorMessage {
                 ContentUnavailableView(error, systemImage: "exclamationmark.triangle")
+                    .accessibilityIdentifier(AppAccessibilityIdentifier.result(.actualFailure))
+                    .accessibilityFocused($resultIsFocused)
             } else {
                 ProgressView()
+                    .accessibilityLabel(StoreServicesText.resource("Loading reviews"))
+                    .accessibilityIdentifier(AppAccessibilityIdentifier.result(.loading))
             }
         }
         .navigationTitle(StoreServicesText.resource("Reviews"))
-        .task(id: viewModel.productID) { await viewModel.load() }
-        .accessibilityIdentifier("screen.store.reviews")
+        .task(id: viewModel.productID) {
+            await viewModel.load()
+            resultIsFocused = viewModel.product?.reviews.isEmpty != false
+            AccessibilityNotification.Announcement(
+                viewModel.product == nil
+                    ? StoreServicesText.string("Reviews are unavailable")
+                    : StoreServicesText.string("Reviews loaded")
+            ).post()
+        }
+        .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.reviews))
     }
 }

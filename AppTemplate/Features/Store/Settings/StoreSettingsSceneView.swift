@@ -14,8 +14,8 @@ struct StoreSettingsSceneView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 440, height: 360)
+        .frame(minWidth: 360, idealWidth: 440, minHeight: 360)
         .scenePadding()
-        .accessibilityIdentifier("screen.store.settings")
+        .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.storePreferences))
     }
 }

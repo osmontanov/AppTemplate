@@ -6,6 +6,7 @@ struct StoreFlowView: View {
     let uiSupport: StoreUISupport
     @Environment(ProtectedStoreActionExecutor.self) private var protectedActions
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @State private var searchRequestID = 0
 
     var body: some View {
         AdaptiveFlowNavigationContainer(
@@ -20,17 +21,10 @@ struct StoreFlowView: View {
                 products: dependencies.products,
                 preferences: dependencies.preferences,
                 images: uiSupport.images,
-                clock: uiSupport.clock
+                clock: uiSupport.clock,
+                searchRequestID: searchRequestID
             )
-            .toolbar {
-                ToolbarItem {
-                    Menu(StoreServicesText.resource("More"), systemImage: "ellipsis.circle") {
-                        Button(StoreServicesText.resource("Profile")) { router.push(.profile) }
-                        Button(StoreServicesText.resource("Cart")) { router.push(.cart) }
-                        Button(StoreServicesText.resource("Favorites")) { requestProtected(.openFavorites) }
-                    }
-                }
-            }
+            .toolbar { storeToolbar }
         } placeholder: {
             ContentUnavailableView(StoreServicesText.resource("Select a Store destination"), systemImage: "storefront")
         } destination: { route in
@@ -92,9 +86,15 @@ struct StoreFlowView: View {
                                 productID: id,
                                 session: dependencies.session.presentation.state
                             )
+                            AccessibilityNotification.Announcement(
+                                protectedActions.error == nil
+                                    ? StoreServicesText.string("Favorite status updated")
+                                    : StoreServicesText.string("Favorite could not be updated")
+                            ).post()
                         }
                     }
-                    .accessibilityIdentifier("action.store.favorite")
+                    .frame(minWidth: 44, minHeight: 44)
+                    .accessibilityIdentifier(AppAccessibilityIdentifier.action(.favorite))
                 }
             }
         case let .reviews(id):
@@ -136,6 +136,57 @@ struct StoreFlowView: View {
             break
         case let .blocked(reason):
             router.presentation = .sessionRecovery(reason)
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var storeToolbar: some ToolbarContent {
+        ToolbarItemGroup {
+            ForEach(
+                Array(StoreToolbarPolicy.actions(horizontalSizeClass: horizontalSizeClass).enumerated()),
+                id: \.offset
+            ) { _, action in
+                storeToolbarAction(action)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func storeToolbarAction(_ action: StoreToolbarAction) -> some View {
+        switch action {
+        case .search:
+            Button(StoreServicesText.resource("Search"), systemImage: "magnifyingglass") {
+                searchRequestID &+= 1
+            }
+            .accessibilityIdentifier("action.store.search")
+        case .filter:
+            Button(StoreServicesText.resource("Filters"), systemImage: "line.3.horizontal.decrease") {
+                router.presentation = .filters
+            }
+            .accessibilityIdentifier("action.store.filter")
+        case .cart:
+            Button(StoreServicesText.resource("Cart"), systemImage: "cart") { router.push(.cart) }
+                .accessibilityIdentifier("action.store.cart")
+        case .favorites:
+            Button(StoreServicesText.resource("Favorites"), systemImage: "heart") {
+                requestProtected(.openFavorites)
+            }
+            .accessibilityIdentifier("action.store.favorites")
+        case .profile:
+            Button(StoreServicesText.resource("Profile"), systemImage: "person.crop.circle") {
+                router.push(.profile)
+            }
+            .accessibilityIdentifier("action.store.profile")
+        case .more:
+            Menu(StoreServicesText.resource("More"), systemImage: "ellipsis.circle") {
+                Button(StoreServicesText.resource("Favorites"), systemImage: "heart") {
+                    requestProtected(.openFavorites)
+                }
+                Button(StoreServicesText.resource("Profile"), systemImage: "person.crop.circle") {
+                    router.push(.profile)
+                }
+            }
+            .accessibilityIdentifier("action.store.more")
         }
     }
 

@@ -6,6 +6,7 @@ struct ServiceLabGuideView<TryItContent: View, AdvancedContent: View>: View {
     let resetDemoData: (() -> Void)?
     private let tryItContent: TryItContent
     private let advancedContent: AdvancedContent
+    @AccessibilityFocusState private var resultIsFocused: Bool
 
     init(
         guide: ServiceLabGuide,
@@ -37,6 +38,7 @@ struct ServiceLabGuideView<TryItContent: View, AdvancedContent: View>: View {
                     Section(section.title) {
                         tryItContent
                     }
+                    .accessibilityIdentifier(AppAccessibilityIdentifier.action(.tryService))
                 case .expected:
                     Section(section.title) {
                         Text(guide.expected)
@@ -49,6 +51,8 @@ struct ServiceLabGuideView<TryItContent: View, AdvancedContent: View>: View {
                     Section(section.title) {
                         if let resetDemoData {
                             Button(StoreServicesText.resource(.resetDemoData), action: resetDemoData)
+                                .frame(minHeight: 44)
+                                .accessibilityIdentifier(AppAccessibilityIdentifier.action(.resetService))
                         } else {
                             Text(StoreServicesText.resource("No demo data has been created."))
                                 .foregroundStyle(.secondary)
@@ -60,6 +64,18 @@ struct ServiceLabGuideView<TryItContent: View, AdvancedContent: View>: View {
                     }
                 }
             }
+        }
+        .controlSize(.large)
+        .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.serviceLab))
+        .task {
+            guard result != .idle else { return }
+            resultIsFocused = result != .running
+            AccessibilityNotification.Announcement(announcement(for: result)).post()
+        }
+        .onChange(of: result) { _, newValue in
+            guard newValue != .idle else { return }
+            resultIsFocused = newValue != .running
+            AccessibilityNotification.Announcement(announcement(for: newValue)).post()
         }
     }
 
@@ -74,12 +90,28 @@ struct ServiceLabGuideView<TryItContent: View, AdvancedContent: View>: View {
                 ProgressView()
                 Text(StoreServicesText.resource("Running"))
             }
+            .accessibilityIdentifier(AppAccessibilityIdentifier.result(.loading))
         case let .success(message):
             Label(message, systemImage: "checkmark.circle.fill")
                 .foregroundStyle(.green)
+                .accessibilityLabel(StoreServicesText.resource("Operation succeeded"))
+                .accessibilityFocused($resultIsFocused)
+                .accessibilityIdentifier(AppAccessibilityIdentifier.result(.actualSuccess))
         case let .failure(message):
             Label(message, systemImage: "exclamationmark.triangle.fill")
                 .foregroundStyle(.red)
+                .accessibilityLabel(StoreServicesText.resource("Operation failed"))
+                .accessibilityFocused($resultIsFocused)
+                .accessibilityIdentifier(AppAccessibilityIdentifier.result(.actualFailure))
+        }
+    }
+
+    private func announcement(for result: ServiceLabResult) -> String {
+        switch result {
+        case .idle: StoreServicesText.string("Ready")
+        case .running: StoreServicesText.string("Operation running")
+        case .success: StoreServicesText.string("Operation succeeded")
+        case .failure: StoreServicesText.string("Operation failed")
         }
     }
 }

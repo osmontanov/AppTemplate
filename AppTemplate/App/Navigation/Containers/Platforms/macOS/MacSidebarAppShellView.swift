@@ -14,6 +14,11 @@ struct MacSidebarAppShellView: View {
             List(selection: $router.selectedSection) {
                 ForEach(AppSection.allCases) { section in
                     Label(section.localizedTitle, systemImage: section.systemImage)
+                        .accessibilityValue(
+                            router.selectedSection == section
+                                ? StoreServicesText.resource("Selected")
+                                : StoreServicesText.resource("Not selected")
+                        )
                         .accessibilityIdentifier(section.accessibilityIdentifier)
                         .tag(section)
                 }
@@ -31,6 +36,7 @@ struct MacSidebarAppShellView: View {
                 sceneNavigation: sceneNavigation
             )
         }
+        .frame(minWidth: 820, minHeight: 620)
     }
 }
 #endif

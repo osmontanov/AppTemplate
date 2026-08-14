@@ -1,7 +1,11 @@
 import SwiftUI
 
 struct AuthenticationView: View {
+    private enum Field: Hashable { case username, password, result }
+
     @State private var viewModel: AuthenticationViewModel
+    @FocusState private var focusedField: Field?
+    @AccessibilityFocusState private var accessibilityFocusedField: Field?
 
     init(dependencies: AuthenticationDependencies) {
         _viewModel = State(initialValue: AuthenticationViewModel(
@@ -24,7 +28,7 @@ struct AuthenticationView: View {
         }
         .navigationTitle(StoreServicesText.resource("Authentication"))
         .frame(minWidth: 360, minHeight: 420)
-        .accessibilityIdentifier("screen.authentication")
+        .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.authentication))
     }
 
     @ViewBuilder
@@ -36,10 +40,15 @@ struct AuthenticationView: View {
             credentialsForm(message: StoreServicesText.string("Check your username and password."))
         case let .submitting(username):
             ProgressView(StoreServicesText.resource("Signing in as \(username)"))
+                .accessibilityLabel(StoreServicesText.resource("Signing in"))
+                .accessibilityIdentifier(AppAccessibilityIdentifier.result(.loading))
         case let .persistenceFailed(context):
             VStack(spacing: 12) {
                 Text(StoreServicesText.resource("Signed in as \(context.username), but the session could not be saved."))
                     .foregroundStyle(.secondary)
+                    .accessibilityLabel(StoreServicesText.resource("Signed in, but the session could not be saved."))
+                    .accessibilityFocused($accessibilityFocusedField, equals: .result)
+                    .accessibilityIdentifier(AppAccessibilityIdentifier.result(.actualFailure))
                 Button(StoreServicesText.resource("Retry saving session")) {
                     Task { await viewModel.retryPersistence() }
                 }
@@ -58,16 +67,23 @@ struct AuthenticationView: View {
                 set: { viewModel.username = $0 }
             ))
             .textContentType(.username)
+            .focused($focusedField, equals: .username)
+            .accessibilityFocused($accessibilityFocusedField, equals: .username)
             .accessibilityIdentifier("authentication.username")
             SecureField(StoreServicesText.resource("Password"), text: Binding(
                 get: { viewModel.password },
                 set: { viewModel.password = $0 }
             ))
             .textContentType(.password)
+            .focused($focusedField, equals: .password)
+            .accessibilityFocused($accessibilityFocusedField, equals: .password)
             .accessibilityIdentifier("authentication.password")
             if let message {
-                Text(message)
+                Label(message, systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.red)
+                    .accessibilityLabel(StoreServicesText.resource("Sign in failed. Check your entries and try again."))
+                    .accessibilityFocused($accessibilityFocusedField, equals: .result)
+                    .accessibilityIdentifier(AppAccessibilityIdentifier.result(.actualFailure))
             }
             ViewThatFits(in: .horizontal) {
                 HStack { credentialActions }
@@ -83,9 +99,12 @@ struct AuthenticationView: View {
             viewModel.fillDemoCredentials()
         }
         Button(StoreServicesText.resource("Sign in")) {
-            Task { await viewModel.submit() }
+            Task { await submit() }
         }
         .buttonStyle(.borderedProminent)
+        .frame(minHeight: 44)
+        .keyboardShortcut(.defaultAction)
+        .accessibilityIdentifier(AppAccessibilityIdentifier.action(.signIn))
     }
 
     private var navigationActions: some View {
@@ -101,6 +120,9 @@ struct AuthenticationView: View {
             Task { await viewModel.cancel() }
         }
         .disabled(viewModel.isBusy)
+        .frame(minHeight: 44)
+        .keyboardShortcut(.cancelAction)
+        .accessibilityIdentifier(AppAccessibilityIdentifier.action(.cancel))
         NavigationLink(StoreServicesText.resource("Help"), value: AuthenticationRoute.help)
     }
 
@@ -126,6 +148,25 @@ struct AuthenticationView: View {
             StoreServicesText.string("Check your username and password.")
         case .persistenceFailed:
             StoreServicesText.string("The session could not be saved.")
+        }
+    }
+
+    private func submit() async {
+        await viewModel.submit()
+        switch viewModel.state {
+        case .invalidCredentials, .failed:
+            focusedField = .username
+            accessibilityFocusedField = .username
+            AccessibilityNotification.Announcement(
+                StoreServicesText.string("Sign in failed. Check your entries and try again.")
+            ).post()
+        case .persistenceFailed:
+            accessibilityFocusedField = .result
+            AccessibilityNotification.Announcement(
+                StoreServicesText.string("The session could not be saved.")
+            ).post()
+        case .editing, .submitting:
+            break
         }
     }
 }

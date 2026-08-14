@@ -4,6 +4,7 @@ struct StorePreferencesForm: View {
     let repository: any IStorePreferencesRepository
     @State private var preferences = StorePreferences.defaults
     @State private var errorMessage: String?
+    @AccessibilityFocusState private var errorIsFocused: Bool
 
     var body: some View {
         Group {
@@ -27,9 +28,13 @@ struct StorePreferencesForm: View {
                 ForEach(CatalogViewModel.pageSizeChoices, id: \.self) { Text(StoreServicesText.resource("\($0)")).tag($0) }
             }
             if let errorMessage {
-                Text(verbatim: errorMessage).foregroundStyle(.red)
+                Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+                    .accessibilityIdentifier(AppAccessibilityIdentifier.result(.actualFailure))
+                    .accessibilityFocused($errorIsFocused)
             }
         }
+        .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.storePreferences))
         .task {
             preferences = await repository.current()
             for await update in await repository.updates() {
@@ -41,14 +46,22 @@ struct StorePreferencesForm: View {
 
     private func setLayout(_ value: StoreCatalogLayout) async {
         do { try await repository.setLayout(value) }
-        catch { errorMessage = StoreServicesText.string("Preferences could not be saved.") }
+        catch { publishSaveFailure() }
     }
     private func setSort(_ value: StoreCatalogSort) async {
         do { try await repository.setSort(value) }
-        catch { errorMessage = StoreServicesText.string("Preferences could not be saved.") }
+        catch { publishSaveFailure() }
     }
     private func setPageSize(_ value: Int) async {
         do { try await repository.setPreferredRemotePageSize(value) }
-        catch { errorMessage = StoreServicesText.string("Preferences could not be saved.") }
+        catch { publishSaveFailure() }
+    }
+
+    private func publishSaveFailure() {
+        errorMessage = StoreServicesText.string("Preferences could not be saved.")
+        errorIsFocused = true
+        AccessibilityNotification.Announcement(
+            StoreServicesText.string("Preferences could not be saved.")
+        ).post()
     }
 }

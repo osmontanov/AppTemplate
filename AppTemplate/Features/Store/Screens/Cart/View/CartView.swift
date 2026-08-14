@@ -4,6 +4,7 @@ struct CartView: View {
     let repository: any ICartRepository
     @State private var viewModel: CartViewModel
     @State private var checkoutCart: CartAggregate?
+    @AccessibilityFocusState private var resultIsFocused: Bool
 
     init(repository: any ICartRepository) {
         self.repository = repository
@@ -13,7 +14,10 @@ struct CartView: View {
     var body: some View {
         List {
             if let error = viewModel.errorMessage {
-                Text(verbatim: error).foregroundStyle(.red)
+                Label(error, systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+                    .accessibilityIdentifier(AppAccessibilityIdentifier.result(.actualFailure))
+                    .accessibilityFocused($resultIsFocused)
             }
             if let cart = viewModel.cart {
                 ForEach(cart.lines, id: \.product.id) { line in
@@ -36,9 +40,13 @@ struct CartView: View {
                 }
                 if cart.lines.isEmpty {
                     ContentUnavailableView(StoreServicesText.resource("Your cart is empty"), systemImage: "cart")
+                        .accessibilityIdentifier(AppAccessibilityIdentifier.result(.empty))
+                        .accessibilityFocused($resultIsFocused)
                 }
             } else if viewModel.isLoading {
                 ProgressView()
+                    .accessibilityLabel(StoreServicesText.resource("Loading cart"))
+                    .accessibilityIdentifier(AppAccessibilityIdentifier.result(.loading))
             }
         }
         .navigationTitle(StoreServicesText.resource("Cart"))
@@ -48,9 +56,20 @@ struct CartView: View {
             }
             .buttonStyle(.borderedProminent)
             .disabled(!viewModel.canCheckout)
+            .frame(minHeight: 44)
+            .keyboardShortcut(.defaultAction)
+            .accessibilityIdentifier(AppAccessibilityIdentifier.action(.continueCheckout))
             .padding()
         }
-        .task { await viewModel.load() }
+        .task {
+            await viewModel.load()
+            resultIsFocused = viewModel.errorMessage != nil || viewModel.cart?.lines.isEmpty == true
+            AccessibilityNotification.Announcement(
+                viewModel.errorMessage != nil
+                    ? StoreServicesText.string("Cart is unavailable")
+                    : StoreServicesText.string("Cart loaded")
+            ).post()
+        }
         .sheet(item: $checkoutCart) { cart in
             CheckoutFlowView(
                 cart: cart,
@@ -65,6 +84,6 @@ struct CartView: View {
                 }
             )
         }
-        .accessibilityIdentifier("screen.store.cart")
+        .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.cart))
     }
 }

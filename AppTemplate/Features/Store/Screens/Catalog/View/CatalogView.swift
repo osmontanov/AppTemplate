@@ -7,16 +7,21 @@ struct CatalogView: View {
     @State private var searchText = ""
     @State private var selectedCategory = ""
     @State private var hasLoadedInitialCatalog = false
+    @FocusState private var searchIsFocused: Bool
+    @AccessibilityFocusState private var resultIsFocused: Bool
+    let searchRequestID: Int
 
     init(
         router: StoreRouter,
         products: any IProductRepository,
         preferences: any IStorePreferencesRepository,
         images: any IImageLoader,
-        clock: AppClock
+        clock: AppClock,
+        searchRequestID: Int = 0
     ) {
         self.router = router
         self.images = images
+        self.searchRequestID = searchRequestID
         _viewModel = State(initialValue: CatalogViewModel(
             products: products,
             preferences: preferences,
@@ -28,11 +33,18 @@ struct CatalogView: View {
         Group {
             if viewModel.model.products.isEmpty, viewModel.state == .loading {
                 ProgressView(StoreServicesText.resource("Loading products"))
+                    .accessibilityIdentifier(AppAccessibilityIdentifier.result(.loading))
             } else if viewModel.model.products.isEmpty {
                 ContentUnavailableView(
                     viewModel.errorMessage ?? StoreServicesText.string("No products found"),
                     systemImage: "shippingbox"
                 )
+                .accessibilityIdentifier(
+                    AppAccessibilityIdentifier.result(
+                        viewModel.errorMessage == nil ? .empty : .actualFailure
+                    )
+                )
+                .accessibilityFocused($resultIsFocused)
             } else if viewModel.model.preferences.layout == .grid {
                 grid
             } else {
@@ -41,9 +53,17 @@ struct CatalogView: View {
         }
         .navigationTitle(StoreServicesText.resource("Catalog"))
         .searchable(text: $searchText, prompt: StoreServicesText.resource("Search products"))
+        .searchFocused($searchIsFocused)
+        .onChange(of: searchRequestID) { _, _ in searchIsFocused = true }
         .task {
             await viewModel.loadInitial()
             guard !Task.isCancelled else { return }
+            resultIsFocused = viewModel.model.products.isEmpty
+            AccessibilityNotification.Announcement(
+                viewModel.model.products.isEmpty
+                    ? StoreServicesText.string("No products are available")
+                    : StoreServicesText.string("Products loaded")
+            ).post()
             hasLoadedInitialCatalog = true
             await viewModel.observePreferences()
         }
@@ -61,7 +81,7 @@ struct CatalogView: View {
                 .foregroundStyle(.secondary)
                 .padding(8)
         }
-        .accessibilityIdentifier("screen.store.catalog")
+        .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.storeCatalog))
     }
 
     private var grid: some View {
@@ -95,6 +115,7 @@ struct CatalogView: View {
     private var loadMore: some View {
         if viewModel.canLoadMore {
             Button(StoreServicesText.resource("Load more")) { Task { await viewModel.loadNextPage() } }
+                .frame(minHeight: 44)
         }
     }
 

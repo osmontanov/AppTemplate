@@ -30,6 +30,12 @@ struct AdaptiveTabAppShellView: View {
                     }
                 }
                 .customizationID(section.presentationIdentifier)
+                .accessibilityLabel(section.localizedTitle)
+                .accessibilityValue(
+                    router.selectedSection == section
+                        ? StoreServicesText.resource("Selected")
+                        : StoreServicesText.resource("Not selected")
+                )
                 .accessibilityIdentifier(section.accessibilityIdentifier)
             }
         }

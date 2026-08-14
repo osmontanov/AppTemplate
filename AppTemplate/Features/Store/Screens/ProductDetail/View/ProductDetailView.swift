@@ -6,6 +6,7 @@ struct ProductDetailView: View {
     let images: any IImageLoader
     @State private var viewModel: ProductDetailViewModel
     @Environment(\.locale) private var locale
+    @AccessibilityFocusState private var resultIsFocused: Bool
 
     init(
         productID: Product.ID,
@@ -50,13 +51,24 @@ struct ProductDetailView: View {
                 }
             } else if let error = viewModel.errorMessage {
                 ContentUnavailableView(error, systemImage: "exclamationmark.triangle")
+                    .accessibilityIdentifier(AppAccessibilityIdentifier.result(.actualFailure))
+                    .accessibilityFocused($resultIsFocused)
             } else {
                 ProgressView(StoreServicesText.resource("Loading product"))
+                    .accessibilityIdentifier(AppAccessibilityIdentifier.result(.loading))
             }
         }
         .navigationTitle(StoreServicesText.resource("Product"))
-        .task(id: productID) { await viewModel.load(productID: productID) }
-        .accessibilityIdentifier("screen.store.product")
+        .task(id: productID) {
+            await viewModel.load(productID: productID)
+            resultIsFocused = viewModel.model == nil
+            AccessibilityNotification.Announcement(
+                viewModel.model == nil
+                    ? StoreServicesText.string("Product is unavailable")
+                    : StoreServicesText.string("Product loaded")
+            ).post()
+        }
+        .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.productDetail))
     }
 
     @ViewBuilder
@@ -64,10 +76,13 @@ struct ProductDetailView: View {
         Button(StoreServicesText.resource("Add to cart")) { Task { await viewModel.addToCart() } }
             .buttonStyle(.borderedProminent)
             .disabled(product.stock == 0)
+            .frame(minHeight: 44)
         Button(StoreServicesText.resource("Reviews")) { router.push(.reviews(product.id)) }
+            .frame(minHeight: 44)
         Button(StoreServicesText.resource("Remind me"), systemImage: "bell") {
             router.presentation = .reminder(product.id)
         }
-        .accessibilityIdentifier("action.store.reminder")
+        .frame(minHeight: 44)
+        .accessibilityIdentifier(AppAccessibilityIdentifier.action(.scheduleReminder))
     }
 }

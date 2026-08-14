@@ -1,7 +1,7 @@
 import Foundation
 
 nonisolated
-enum ServicesRoute: NavigationRoute {
+enum ServicesRoute: NavigationRoute, CaseIterable {
     case appState
     case appInfo
     case userDefaults
@@ -53,6 +53,18 @@ enum ServicesRoute: NavigationRoute {
 
 nonisolated
 extension ServicesRoute {
+    var accessibilityDestination: AppAccessibilityIdentifier.ServiceDestination {
+        switch self {
+        case .appState: .appState
+        case .appInfo: .appInfo
+        case .userDefaults: .userDefaults
+        case .keychain: .keychain
+        case .localDatabase: .localDatabase
+        case .remoteAPI: .remoteAPI
+        case .localNotifications: .localNotifications
+        }
+    }
+
     var accessibilityWireValue: String {
         switch self {
         case .appState: "app-state"

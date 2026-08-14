@@ -4,6 +4,7 @@ struct FavoritesView: View {
     @Bindable var router: StoreRouter
     let userID: Int
     @State private var viewModel: FavoritesViewModel
+    @AccessibilityFocusState private var resultIsFocused: Bool
 
     init(
         router: StoreRouter,
@@ -20,10 +21,15 @@ struct FavoritesView: View {
             switch viewModel.state {
             case .idle, .loading:
                 ProgressView(StoreServicesText.resource("Loading favorites"))
+                    .accessibilityIdentifier(AppAccessibilityIdentifier.result(.loading))
             case .empty:
                 ContentUnavailableView(StoreServicesText.resource("No favorites"), systemImage: "heart")
+                    .accessibilityIdentifier(AppAccessibilityIdentifier.result(.empty))
+                    .accessibilityFocused($resultIsFocused)
             case .failed:
                 ContentUnavailableView(StoreServicesText.resource("Favorites are unavailable"), systemImage: "exclamationmark.triangle")
+                    .accessibilityIdentifier(AppAccessibilityIdentifier.result(.actualFailure))
+                    .accessibilityFocused($resultIsFocused)
             case let .loaded(model):
                 List(model.items) { favorite in
                     HStack {
@@ -41,12 +47,22 @@ struct FavoritesView: View {
                         }
                         .labelStyle(.iconOnly)
                         .accessibilityLabel(StoreServicesText.resource("Remove \(favorite.product.title)"))
+                        .frame(minWidth: 44, minHeight: 44)
                     }
                 }
             }
         }
         .navigationTitle(StoreServicesText.resource("Favorites"))
-        .task(id: userID) { await viewModel.load(userID: userID) }
-        .accessibilityIdentifier("screen.store.favorites")
+        .task(id: userID) {
+            await viewModel.load(userID: userID)
+            switch viewModel.state {
+            case .empty, .failed:
+                resultIsFocused = true
+            case .idle, .loading, .loaded:
+                resultIsFocused = false
+            }
+            AccessibilityNotification.Announcement(StoreServicesText.string("Favorites updated")).post()
+        }
+        .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.favorites))
     }
 }

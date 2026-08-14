@@ -11,10 +11,12 @@ struct AuthenticationHelpView: View {
                     .accessibilityHidden(true)
                 Text(StoreServicesText.resource("Authentication Help"))
                     .font(.title)
+                    .accessibilityAddTraits(.isHeader)
                 Text(StoreServicesText.resource("Sign in to continue the protected Store action. Cancel returns to the Store."))
                     .foregroundStyle(.secondary)
             }
         }
         .navigationTitle(StoreServicesText.resource("Help"))
+        .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.authentication))
     }
 }

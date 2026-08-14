@@ -55,17 +55,32 @@ struct ProfileView: View {
         }
         .navigationTitle(StoreServicesText.resource("Profile"))
         .task { await viewModel.load() }
-        .accessibilityIdentifier("screen.store.profile")
+        .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.profile))
     }
 
     @ViewBuilder
     private var accountContent: some View {
         if let account = router.cachedAccountPresentation {
             LabeledContent(StoreServicesText.resource("Account"), value: account.displayName)
-            Button(StoreServicesText.resource("Sign Out")) { Task { await viewModel.signOut() } }
+            Button(StoreServicesText.resource("Sign Out")) {
+                Task {
+                    await viewModel.signOut()
+                    AccessibilityNotification.Announcement(
+                        viewModel.error == nil
+                            ? StoreServicesText.string("Signed out")
+                            : StoreServicesText.string("Sign out failed")
+                    ).post()
+                }
+            }
+                .frame(minHeight: 44)
+                .accessibilityIdentifier(AppAccessibilityIdentifier.action(.signOut))
             if viewModel.error == .signOutDeletionFailed {
-                Text(StoreServicesText.resource("The saved session could not be removed."))
+                Label(
+                    StoreServicesText.resource("The saved session could not be removed."),
+                    systemImage: "exclamationmark.triangle.fill"
+                )
                     .foregroundStyle(.red)
+                    .accessibilityIdentifier(AppAccessibilityIdentifier.result(.actualFailure))
             }
         }
     }

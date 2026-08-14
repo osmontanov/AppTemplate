@@ -18,9 +18,11 @@ struct ServicesCatalogView: View {
                         .lineLimit(2)
                 }
             }
-            .accessibilityIdentifier("route.services.\(item.route.accessibilityWireValue)")
+            .accessibilityIdentifier(
+                AppAccessibilityIdentifier.serviceDestination(item.route.accessibilityDestination)
+            )
         }
         .navigationTitle(StoreServicesText.resource(.servicesTitle))
-        .accessibilityIdentifier("screen.services.root")
+        .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.servicesCatalog))
     }
 }

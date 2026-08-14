@@ -11,6 +11,8 @@ struct ProductReminderView: View {
     let product: Product
     @State private var viewModel: ProductReminderViewModel
     @FocusState private var focusedField: ProductReminderField?
+    @AccessibilityFocusState private var accessibilityFocusedField: ProductReminderField?
+    @AccessibilityFocusState private var resultIsFocused: Bool
     @Environment(\.dismiss) private var dismiss
     @Environment(\.locale) private var locale
 
@@ -40,19 +42,22 @@ struct ProductReminderView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(StoreServicesText.resource("Done")) { dismiss() }
+                        .keyboardShortcut(.cancelAction)
                 }
             }
         }
         .task { await viewModel.refresh() }
         .onChange(of: viewModel.focusedField) { _, value in
             focusedField = value
+            accessibilityFocusedField = value
         }
         .onChange(of: announcementText) { _, value in
             guard let value else { return }
+            resultIsFocused = true
             AccessibilityNotification.Announcement(value).post()
         }
         .frame(minWidth: 360, minHeight: 460)
-        .accessibilityIdentifier("screen.store.product-reminder")
+        .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.productReminder))
     }
 
     private var productSection: some View {
@@ -80,6 +85,7 @@ struct ProductReminderView: View {
             case .interval:
                 TextField(StoreServicesText.resource("Seconds"), text: intervalTextBinding)
                     .focused($focusedField, equals: .interval)
+                    .accessibilityFocused($accessibilityFocusedField, equals: .interval)
                     .accessibilityIdentifier("field.product-reminder.interval")
                 Toggle(StoreServicesText.resource("Repeat"), isOn: repeatsBinding)
                 Text(StoreServicesText.resource("Use 1 to 604,800 seconds. Repeating reminders require at least 60 seconds."))
@@ -92,6 +98,7 @@ struct ProductReminderView: View {
                     displayedComponents: [.date, .hourAndMinute]
                 )
                 .focused($focusedField, equals: .calendarDate)
+                .accessibilityFocused($accessibilityFocusedField, equals: .calendarDate)
                 .accessibilityIdentifier("field.product-reminder.calendar-date")
                 Picker(StoreServicesText.resource("Time zone"), selection: calendarTimeZoneBinding) {
                     ForEach(TimeZone.knownTimeZoneIdentifiers, id: \.self) { identifier in
@@ -138,6 +145,7 @@ struct ProductReminderView: View {
                     Text(StoreServicesText.resource("Scheduling reminder…"))
                 }
             }
+            .accessibilityIdentifier(AppAccessibilityIdentifier.result(.loading))
         case let .scheduled(result):
             Section(StoreServicesText.resource("Result")) {
                 Label(StoreServicesText.resource("Reminder scheduled"), systemImage: "checkmark.circle.fill")
@@ -151,12 +159,16 @@ struct ProductReminderView: View {
                     .foregroundStyle(.orange)
                 }
             }
+            .accessibilityFocused($resultIsFocused)
+            .accessibilityIdentifier(AppAccessibilityIdentifier.result(.actualSuccess))
         case let .failed(_, error):
             Section(StoreServicesText.resource("Result")) {
                 Label(errorMessage(error), systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.red)
                     .accessibilityIdentifier("result.product-reminder.failed")
             }
+            .accessibilityFocused($resultIsFocused)
+            .accessibilityIdentifier(AppAccessibilityIdentifier.result(.actualFailure))
         }
     }
 
@@ -167,13 +179,16 @@ struct ProductReminderView: View {
             }
             .buttonStyle(.borderedProminent)
             .disabled(isScheduling)
-            .accessibilityIdentifier("action.product-reminder.schedule")
+            .frame(minHeight: 44)
+            .keyboardShortcut(.defaultAction)
+            .accessibilityIdentifier(AppAccessibilityIdentifier.action(.scheduleReminder))
 
             if canCancel {
                 Button(StoreServicesText.resource("Cancel reminder"), role: .destructive) {
                     Task { await viewModel.cancel() }
                 }
                 .disabled(isScheduling)
+                .frame(minHeight: 44)
                 .accessibilityIdentifier("action.product-reminder.cancel")
             }
         }
