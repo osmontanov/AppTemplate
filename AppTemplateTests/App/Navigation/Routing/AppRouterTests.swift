@@ -36,6 +36,34 @@ struct AppRouterTests {
         #expect(router.services.path.isEmpty)
     }
 
+    @Test(arguments: [
+        (NavigationIntent.openProduct(12), AppSection.store, [StoreRoute.product(12)], []),
+        (.openFavorites, .store, [.favorites], []),
+        (.openProfile, .store, [.profile], []),
+        (.openService(.appState), .services, [], [ServicesRoute.appState]),
+        (.openService(.localNotifications), .services, [], [.localNotifications])
+    ])
+    func typedIntentsSelectAndReplaceOnlyTheirDestination(
+        intent: NavigationIntent,
+        expectedSection: AppSection,
+        expectedStorePath: [StoreRoute],
+        expectedServicesPath: [ServicesRoute]
+    ) {
+        let router = makeRouter(selectedSection: .services)
+        router.store.path = [.cart, .profile]
+        router.services.path = [.keychain, .remoteAPI]
+
+        #expect(router.handle(intent) == .applied)
+        #expect(router.selectedSection == expectedSection)
+        if expectedSection == .store {
+            #expect(router.store.path == expectedStorePath)
+            #expect(router.services.path == [.keychain, .remoteAPI])
+        } else {
+            #expect(router.store.path == [.cart, .profile])
+            #expect(router.services.path == expectedServicesPath)
+        }
+    }
+
     @Test
     func policyTransitionsPreserveHistories() {
         let flow = AppFlowRouter(flow: .main)
@@ -63,19 +91,6 @@ struct AppRouterTests {
         #expect(router.selectedSection == .store)
         #expect(router.store.path.isEmpty)
         #expect(router.services.path.isEmpty)
-    }
-
-    @Test
-    func intentDefersOutsideMainAndReplaysOnMainTransition() {
-        let flow = AppFlowRouter(flow: .restoring)
-        let router = AppRouter(appFlowRouter: flow)
-
-        #expect(router.handle(.openServicesRoot) == .deferred)
-        #expect(router.pendingIntent == .openServicesRoot)
-        flow.setFlow(.main)
-        #expect(router.apply(flow.transition) == .applied)
-        #expect(router.selectedSection == .services)
-        #expect(router.pendingIntent == nil)
     }
 
     @Test

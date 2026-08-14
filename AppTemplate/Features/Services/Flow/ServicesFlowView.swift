@@ -14,6 +14,7 @@ struct ServicesFlowView: View {
                 NavigationLink(item.title, value: item.route)
             }
             .navigationTitle("Services")
+            .accessibilityIdentifier("screen.services.root")
         } placeholder: {
             ContentUnavailableView("Select a Service", systemImage: "wrench.and.screwdriver")
         } destination: { route in

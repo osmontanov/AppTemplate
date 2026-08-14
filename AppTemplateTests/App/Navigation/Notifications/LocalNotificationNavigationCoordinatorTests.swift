@@ -199,9 +199,9 @@ struct LocalNotificationNavigationCoordinatorTests {
         }
 
         for (id, url) in [
-            ("fifo-home", "apptemplate://store"),
-            ("fifo-item", "apptemplate://services"),
-            ("fifo-settings", "apptemplate://services")
+            ("fifo-product", "apptemplate://store/product/17"),
+            ("fifo-service", "apptemplate://services/keychain"),
+            ("fifo-profile", "apptemplate://store/profile")
         ] {
             await hub.publish(try openedEvent(id: id, url: url))
         }
@@ -225,9 +225,9 @@ struct LocalNotificationNavigationCoordinatorTests {
 
         #expect(
             receiver.urls.map(\.absoluteString) == [
-                "apptemplate://store",
-                "apptemplate://services",
-                "apptemplate://services"
+                "apptemplate://store/product/17",
+                "apptemplate://services/keychain",
+                "apptemplate://store/profile"
             ]
         )
     }

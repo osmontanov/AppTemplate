@@ -9,7 +9,6 @@ final class AppRouter {
     var selectedSection: AppSection
     let store: StoreRouter
     let services: ServicesRouter
-    private(set) var pendingIntent: NavigationIntent?
 
     init(
         appFlowRouter: AppFlowRouter,
@@ -26,24 +25,10 @@ final class AppRouter {
     @discardableResult
     func apply(_ transition: AppFlowTransition) -> NavigationOutcome? {
         if transition.historyAction == .reset { resetHistories() }
-        switch transition.pendingIntentAction {
-        case .preserve:
-            return nil
-        case .discard:
-            pendingIntent = nil
-            return nil
-        case .replay:
-            guard let intent = pendingIntent else { return nil }
-            pendingIntent = nil
-            return apply(intent)
-        }
+        return nil
     }
 
     func handle(_ intent: NavigationIntent) -> NavigationOutcome {
-        guard appFlowRouter.flow == .main else {
-            pendingIntent = intent
-            return .deferred
-        }
         return apply(intent)
     }
 
@@ -58,7 +43,19 @@ final class AppRouter {
     private func apply(_ intent: NavigationIntent) -> NavigationOutcome {
         switch intent {
         case .openStoreRoot: openDefaultDestination(for: .store)
+        case let .openProduct(id):
+            selectedSection = .store
+            store.replace(with: .product(id))
+        case .openFavorites:
+            selectedSection = .store
+            store.replace(with: .favorites)
+        case .openProfile:
+            selectedSection = .store
+            store.replace(with: .profile)
         case .openServicesRoot: openDefaultDestination(for: .services)
+        case let .openService(route):
+            selectedSection = .services
+            services.path = [route]
         }
         return .applied
     }
@@ -129,7 +126,6 @@ final class AppRouter {
 
     func resetNavigation() {
         resetHistories()
-        pendingIntent = nil
     }
 
     private func resetHistories() {
@@ -143,7 +139,6 @@ final class AppRouter {
         store.path = snapshot.storePath
         store.presentation = nil
         services.path = snapshot.servicesPath
-        pendingIntent = nil
     }
 
     private func migrate<Value: Decodable>(

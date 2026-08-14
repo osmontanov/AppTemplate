@@ -6,6 +6,7 @@ struct CatalogView: View {
     @State private var viewModel: CatalogViewModel
     @State private var searchText = ""
     @State private var selectedCategory = ""
+    @State private var hasLoadedInitialCatalog = false
 
     init(
         router: StoreRouter,
@@ -40,9 +41,14 @@ struct CatalogView: View {
         }
         .navigationTitle("Catalog")
         .searchable(text: $searchText, prompt: "Search products")
-        .task { await viewModel.loadInitial() }
-        .task { await viewModel.observePreferences() }
+        .task {
+            await viewModel.loadInitial()
+            guard !Task.isCancelled else { return }
+            hasLoadedInitialCatalog = true
+            await viewModel.observePreferences()
+        }
         .task(id: searchText) {
+            guard hasLoadedInitialCatalog else { return }
             await viewModel.search(searchText)
         }
         .onChange(of: selectedCategory) { _, value in

@@ -120,7 +120,15 @@ struct AppDependencies: Sendable {
             tracker: tracker
         )
         let database = LocalDatabaseService(configuration: .inMemory())
+        let baseCart = CartRepository(database: database)
+        let cart: any ICartRepository = scenario.id == .guestStore
+            ? UITestConflictOnceCartRepository(base: baseCart)
+            : baseCart
         let keychain = InMemoryKeychainService()
+        let preferencesService = InMemoryUserDefaultsService()
+        let storePreferences = StorePreferencesRepository(
+            userDefaults: preferencesService
+        )
         let notifications = LocalNotificationDependencies.inMemory(
             settings: LocalNotificationSettings(
                 authorizationStatus: scenario.notificationSeed.authorizationStatus,
@@ -142,8 +150,8 @@ struct AppDependencies: Sendable {
         return AppDependencies(
             localDatabase: database,
             favorites: FavoritesRepository(database: database),
-            cart: CartRepository(database: database),
-            storePreferences: StorePreferencesRepository(userDefaults: InMemoryUserDefaultsService()),
+            cart: cart,
+            storePreferences: storePreferences,
             products: ProductRepository(remote: remote),
             appInfo: appInfo,
             storeUISupport: StoreUISupport(images: imageLoader, clock: fixedClock),
@@ -168,7 +176,12 @@ struct AppDependencies: Sendable {
                 if let data = scenario.sessionSeed.keychainData {
                     try await keychain.set(data, for: .data("Store.AuthSession"))
                 }
+                try scenario.preferencesSeed.apply(to: preferencesService)
                 try await database.upsert(scenario.localDatabaseSeed.examples)
+                try await database.upsert(scenario.localDatabaseSeed.favorites)
+                if let cart = scenario.localDatabaseSeed.cart {
+                    try await database.upsert(cart)
+                }
                 for request in scenario.notificationSeed.pendingRequests {
                     try await notifications.service.schedule(request)
                 }

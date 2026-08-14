@@ -143,6 +143,17 @@ struct ProjectConfigurationTests {
     }
 }
 
+@MainActor
+private final class ProjectAuthenticationCancellation:
+    IAuthenticationCancellation
+{
+    private let router: FlowRouter
+
+    init(router: FlowRouter) { self.router = router }
+
+    func cancelAuthentication() { router.popToRoot() }
+}
+
 #if os(macOS)
 extension ProjectConfigurationTests {
     @MainActor
@@ -182,15 +193,6 @@ extension ProjectConfigurationTests {
 
         #expect(didDismiss)
     }
-}
-
-@MainActor
-private final class ProjectAuthenticationCancellation: IAuthenticationCancellation {
-    private let router: FlowRouter
-
-    init(router: FlowRouter) { self.router = router }
-
-    func cancelAuthentication() { router.popToRoot() }
 }
 
 @MainActor

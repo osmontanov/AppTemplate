@@ -76,7 +76,9 @@ nonisolated enum AppLaunchConfiguration: Equatable, Sendable {
             return
         }
         do {
-            self = .uiTesting(try UITestScenario.named(values[valueIndex]))
+            self = .uiTesting(
+                try UITestScenario.named(values[valueIndex]).preparedForLaunch()
+            )
         } catch let error as UITestConfigurationError {
             self = .invalidUITesting(error)
         } catch {

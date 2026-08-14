@@ -1,33 +1,30 @@
 import Foundation
+import Observation
 import OSLog
 
 @MainActor
-final class AppSceneNavigationLifecycle {
+@Observable
+final class AppSceneNavigationLifecycle: ISceneNavigationActions {
     let router: AppRouter
     private(set) var hasRestored = false
     private(set) var restorationResult: NavigationRestorationResult = .noState
 
     var snapshot: NavigationSnapshot {
-        router.makeSnapshot(
-            lastAppliedTransitionID: lastAppliedTransitionID
-        )
+        router.makeSnapshot(lastAppliedTransitionID: lastAppliedTransitionID)
     }
 
     var snapshotForPersistence: NavigationSnapshot? {
-        guard allowsSnapshotPersistence else {
-            return nil
-        }
+        guard allowsSnapshotPersistence else { return nil }
         return snapshot
     }
 
     private let parser: DeepLinkParser
     private var allowsSnapshotPersistence = true
     private var lastAppliedTransitionID: UUID?
-    private var queuedURLs: [URL] = []
+    private var deferredIntent: NavigationIntent?
+    private var deepLinkFailure: DeepLinkFailurePresentation?
 
-    init(
-        appFlowRouter: AppFlowRouter
-    ) {
+    init(appFlowRouter: AppFlowRouter) {
         router = AppRouter(appFlowRouter: appFlowRouter)
         parser = DeepLinkParser()
     }
@@ -44,19 +41,20 @@ final class AppSceneNavigationLifecycle {
 
     @discardableResult
     func apply(_ transition: AppFlowTransition) -> NavigationOutcome? {
-        guard transition.id != lastAppliedTransitionID else {
-            return nil
-        }
+        guard transition.id != lastAppliedTransitionID else { return nil }
         lastAppliedTransitionID = transition.id
-        return router.apply(transition)
+        let transitionOutcome = router.apply(transition)
+        guard hasRestored, router.appFlowRouter.flow == .main,
+              let intent = takeDeferredIntent() else {
+            return transitionOutcome
+        }
+        applyIntent(intent)
+        return .applied
     }
 
     @discardableResult
     func restore(from data: Data?) -> NavigationSnapshot? {
-        restore(
-            from: data,
-            applying: router.appFlowRouter.transition
-        )
+        restore(from: data, applying: router.appFlowRouter.transition)
     }
 
     @discardableResult
@@ -64,30 +62,29 @@ final class AppSceneNavigationLifecycle {
         from data: Data?,
         applying transition: AppFlowTransition
     ) -> NavigationSnapshot? {
-        guard !hasRestored else {
-            return nil
-        }
+        guard !hasRestored else { return nil }
 
         let restoration = router.restore(from: data)
         lastAppliedTransitionID = restoration.lastAppliedTransitionID
         restorationResult = restoration.result
-        switch restoration.result {
-        case .preservedFutureSchema:
+        if case .preservedFutureSchema = restoration.result {
             allowsSnapshotPersistence = false
-        default:
+        } else {
             allowsSnapshotPersistence = true
         }
+
         let appliesTransition = transition.id != lastAppliedTransitionID
         let transitionOutcome = apply(transition)
         hasRestored = true
 
-        let urls = queuedURLs
-        queuedURLs.removeAll()
-        urls.forEach(handle)
-
-        if !urls.isEmpty {
-            return snapshotForPersistence
+        var appliedDeferredIntent = false
+        if router.appFlowRouter.flow == .main,
+           let intent = takeDeferredIntent() {
+            applyIntent(intent)
+            appliedDeferredIntent = true
         }
+
+        if appliedDeferredIntent { return snapshotForPersistence }
         if appliesTransition,
            (transition.historyAction == .reset || transitionOutcome != nil) {
             return snapshotForPersistence
@@ -102,28 +99,66 @@ final class AppSceneNavigationLifecycle {
 
     @discardableResult
     func receive(_ url: URL) -> NavigationSnapshot? {
-        guard hasRestored else {
-            queuedURLs.append(url)
+        let intent: NavigationIntent
+        switch parser.parse(url) {
+        case let .success(value):
+            intent = value
+            deepLinkFailure = nil
+        case let .failure(error):
+            deepLinkFailure = DeepLinkFailurePresentation(reason: error)
+            Logger.navigation.error("Rejected deep link")
             return nil
         }
 
-        handle(url)
+        guard hasRestored, router.appFlowRouter.flow == .main else {
+            deferredIntent = intent
+            return nil
+        }
+        deferredIntent = nil
+        applyIntent(intent)
         return snapshotForPersistence
     }
 
-    private func handle(_ url: URL) {
-        switch parser.parse(url) {
-        case let .success(intent):
-            _ = router.handle(intent)
-        case let .failure(error):
-            let fallback = parser.fallbackSection(for: url)
-            _ = router.handle(
-                fallback == .store ? .openStoreRoot : .openServicesRoot
-            )
-            Logger.navigation.error(
-                "Rejected deep link: \(String(describing: error), privacy: .public)"
-            )
+    func presentation() -> SceneNavigationPresentation {
+        SceneNavigationPresentation(
+            selectedSection: router.selectedSection,
+            storePath: router.store.path,
+            servicesPath: router.services.path,
+            restorationResult: restorationResult,
+            checkpoint: lastAppliedTransitionID,
+            hasDeferredLink: deferredIntent != nil,
+            hasPendingProtectedAction: false,
+            deepLinkFailure: deepLinkFailure
+        )
+    }
+
+    func resetNavigationInCurrentScene() {
+        deferredIntent = nil
+        deepLinkFailure = nil
+        router.resetNavigation()
+    }
+
+    func handleSampleIntent(_ intent: NavigationIntent) {
+        applyIntent(intent)
+    }
+
+    func recoverRejectedLink(_ action: DeepLinkRecoveryAction) {
+        deepLinkFailure = nil
+        deferredIntent = nil
+        switch action {
+        case .openStore: applyIntent(.openStoreRoot)
+        case .openServices: applyIntent(.openServicesRoot)
         }
+    }
+
+    private func applyIntent(_ intent: NavigationIntent) {
+        _ = router.handle(intent)
+    }
+
+    private func takeDeferredIntent() -> NavigationIntent? {
+        let intent = deferredIntent
+        deferredIntent = nil
+        return intent
     }
 }
 

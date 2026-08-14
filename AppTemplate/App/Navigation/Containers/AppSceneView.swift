@@ -103,6 +103,11 @@ struct AppSceneView: View {
                     bootstrap: localNotifications.bootstrapCategoriesIfNeeded
                 )
             }
+            .overlay(alignment: .top) {
+                if lifecycle.presentation().deepLinkFailure != nil {
+                    rejectedLinkRecovery
+                }
+            }
             #if os(iOS)
             .onChange(of: scenePhase, initial: true) { _, phase in
                 localNotificationRegistration.setEligible(
@@ -116,6 +121,27 @@ struct AppSceneView: View {
                 }
             }
             #endif
+    }
+
+    private var rejectedLinkRecovery: some View {
+        VStack(spacing: 8) {
+            Text("That link could not be opened.")
+                .font(.headline)
+            HStack {
+                Button("Open Store") {
+                    lifecycle.recoverRejectedLink(.openStore)
+                }
+                .accessibilityIdentifier("action.deep-link.open-store")
+                Button("Open Services") {
+                    lifecycle.recoverRejectedLink(.openServices)
+                }
+                .accessibilityIdentifier("action.deep-link.open-services")
+            }
+        }
+        .padding()
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .padding()
+        .accessibilityIdentifier("presentation.deep-link-failure")
     }
 
     private func persist() {
