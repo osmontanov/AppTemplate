@@ -116,8 +116,76 @@ nonisolated extension UITestScenario {
         case .servicesBasic:
             ServicesBasicUITestFixture.scenario
         case .accessibilitySmoke:
-            self
+            AccessibilitySmokeUITestFixture.scenario
         }
+    }
+}
+
+private nonisolated enum AccessibilitySmokeUITestFixture {
+    static var scenario: UITestScenario {
+        UITestScenario(
+            id: .accessibilitySmoke,
+            appState: .initial,
+            sessionSeed: UITestSessionSeed(keychainData: nil),
+            localDatabaseSeed: UITestLocalDatabaseSeed(
+                examples: [],
+                cart: CartAggregate(
+                    id: CartAggregate.singletonID,
+                    revision: 0,
+                    lines: []
+                )
+            ),
+            preferencesSeed: UITestPreferencesSeed(encodedValues: [
+                "Store.CatalogLayout": Data(#""list""#.utf8),
+                "Store.CatalogSort": Data(#""featured""#.utf8),
+                "Store.RemotePageSize": Data("10".utf8)
+            ]),
+            notificationSeed: UITestNotificationSeed(
+                authorizationStatus: .notDetermined,
+                pendingRequests: []
+            ),
+            imageSeed: UITestImageSeed(steps: []),
+            networkPolicy: .failClosed,
+            remoteSteps: remoteSteps
+        )
+    }
+
+    static var remoteSteps: [ScriptedNetworkStep] {
+        [
+                jsonStep(
+                    path: "/products/categories",
+                    body: #"[{"slug":"phones","name":"Phones","url":"https://dummyjson.com/products/category/phones"}]"#
+                ),
+                jsonStep(
+                    path: "/products",
+                    queryItems: [
+                        URLQueryItem(name: "limit", value: "10"),
+                        URLQueryItem(name: "skip", value: "0")
+                    ],
+                    body: #"{"products":[{"id":88,"title":"Accessibility Phone","description":"Offline accessibility fixture","category":"phones","price":49,"rating":4.5,"stock":5,"brand":"Demo","availabilityStatus":"In Stock","reviews":[],"images":[],"thumbnail":null}],"total":1,"skip":0,"limit":10}"#
+                )
+        ]
+    }
+
+    private static func jsonStep(
+        path: String,
+        queryItems: [URLQueryItem] = [],
+        body: String
+    ) -> ScriptedNetworkStep {
+        ScriptedNetworkStep(
+            origin: RemoteService.defaultDummyJSONBaseURL,
+            method: .get,
+            path: path,
+            queryItems: queryItems,
+            headers: [:],
+            shouldHandleCookies: true,
+            body: .none,
+            result: .response(
+                statusCode: 200,
+                headers: ["Content-Type": "application/json"],
+                body: Data(body.utf8)
+            )
+        )
     }
 }
 
@@ -130,8 +198,12 @@ private nonisolated enum ServicesBasicUITestFixture {
                 isMaintenanceEnabled: false
             ),
             sessionSeed: UITestSessionSeed(keychainData: nil),
-            localDatabaseSeed: UITestLocalDatabaseSeed(examples: []),
-            preferencesSeed: UITestPreferencesSeed(encodedValues: [:]),
+            localDatabaseSeed: UITestLocalDatabaseSeed(examples: examples),
+            preferencesSeed: UITestPreferencesSeed(encodedValues: [
+                "Store.CatalogLayout": Data(#""list""#.utf8),
+                "Store.CatalogSort": Data(#""featured""#.utf8),
+                "Store.RemotePageSize": Data("10".utf8)
+            ]),
             notificationSeed: UITestNotificationSeed(
                 authorizationStatus: .authorized,
                 pendingRequests: [LocalNotificationRequest(
@@ -149,7 +221,47 @@ private nonisolated enum ServicesBasicUITestFixture {
             ),
             imageSeed: UITestImageSeed(steps: []),
             networkPolicy: .failClosed,
-            remoteSteps: []
+            remoteSteps: AccessibilitySmokeUITestFixture.remoteSteps + [
+                jsonStep(
+                    path: "/products/search",
+                    queryItems: [
+                        URLQueryItem(name: "q", value: "phone"),
+                        URLQueryItem(name: "limit", value: "10"),
+                        URLQueryItem(name: "skip", value: "0")
+                    ],
+                    body: #"{"products":[{"id":88,"title":"Services Phone","description":"Offline Services fixture","category":"phones","price":49,"rating":4.5,"stock":5,"brand":"Demo","availabilityStatus":"In Stock","reviews":[],"images":[],"thumbnail":null}],"total":1,"skip":0,"limit":10}"#
+                )
+            ]
+        )
+    }
+
+    private static var examples: [ExampleRecord] {
+        (1...21).map {
+            ExampleRecord(
+                id: String(format: "services-%02d", $0),
+                payload: "Offline service record \($0)"
+            )
+        }
+    }
+
+    private static func jsonStep(
+        path: String,
+        queryItems: [URLQueryItem],
+        body: String
+    ) -> ScriptedNetworkStep {
+        ScriptedNetworkStep(
+            origin: RemoteService.defaultDummyJSONBaseURL,
+            method: .get,
+            path: path,
+            queryItems: queryItems,
+            headers: [:],
+            shouldHandleCookies: true,
+            body: .none,
+            result: .response(
+                statusCode: 200,
+                headers: ["Content-Type": "application/json"],
+                body: Data(body.utf8)
+            )
         )
     }
 }
@@ -300,7 +412,7 @@ private nonisolated enum ProductReminderUITestFixture {
                 pendingRequests: []
             ),
             imageSeed: UITestImageSeed(
-                steps: Array(repeating: imageStep, count: 3)
+                steps: [imageStep]
             ),
             networkPolicy: .failClosed,
             remoteSteps: [
@@ -423,6 +535,16 @@ private nonisolated enum ProtectedFavoriteUITestFixture {
                     path: "/auth/login",
                     shouldHandleCookies: false,
                     bodyExpectation: .json(Data(
+                        #"{"username":"invalid-user","password":"invalid-password","expiresInMins":30}"#.utf8
+                    )),
+                    statusCode: 400,
+                    body: #"{"message":"Invalid credentials"}"#
+                ),
+                jsonStep(
+                    method: .post,
+                    path: "/auth/login",
+                    shouldHandleCookies: false,
+                    bodyExpectation: .json(Data(
                         #"{"username":"emilys","password":"emilyspass","expiresInMins":30}"#.utf8
                     )),
                     body: loginJSON
@@ -438,6 +560,7 @@ private nonisolated enum ProtectedFavoriteUITestFixture {
         queryItems: [URLQueryItem] = [],
         shouldHandleCookies: Bool? = true,
         bodyExpectation: ScriptedBodyExpectation = .none,
+        statusCode: Int = 200,
         body: String
     ) -> ScriptedNetworkStep {
         ScriptedNetworkStep(
@@ -449,7 +572,7 @@ private nonisolated enum ProtectedFavoriteUITestFixture {
             shouldHandleCookies: shouldHandleCookies,
             body: bodyExpectation,
             result: .response(
-                statusCode: 200,
+                statusCode: statusCode,
                 headers: ["Content-Type": "application/json"],
                 body: Data(body.utf8)
             )
@@ -520,7 +643,7 @@ private nonisolated enum GuestStoreUITestFixture {
                 pendingRequests: []
             ),
             imageSeed: UITestImageSeed(
-                steps: Array(repeating: imageStep, count: 6)
+                steps: [imageStep]
             ),
             networkPolicy: .failClosed,
             remoteSteps: remoteSteps
@@ -559,12 +682,9 @@ private nonisolated enum GuestStoreUITestFixture {
             )
         ]
             + detailSteps(productID: 1, body: productOne)
-            + [jsonStep(path: "/products/1", body: productOne)]
-            + detailSteps(productID: 1, body: productOne)
             + detailSteps(productID: 2, body: productTwo)
             + detailSteps(productID: 1, body: productOne)
-            + catalogReentrySteps
-            + catalogReentrySteps
+            + [jsonStep(path: "/products/1", body: productOne)]
     }
 
     private static func detailSteps(
@@ -579,14 +699,6 @@ private nonisolated enum GuestStoreUITestFixture {
                 body: relatedPageJSON
             )
         ]
-    }
-
-    private static var catalogReentrySteps: [ScriptedNetworkStep] {
-        Array(repeating: jsonStep(
-            path: "/products",
-            queryItems: pageQuery(skip: 0),
-            body: pageJSON(products: [productOne, productTwo], skip: 0)
-        ), count: 2)
     }
 
     private static func jsonStep(

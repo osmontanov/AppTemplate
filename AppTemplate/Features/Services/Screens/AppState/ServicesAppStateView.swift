@@ -46,6 +46,7 @@ struct ServicesAppStateView: View {
             Button(action.confirmationLabel, role: action.role) {
                 perform(action)
             }
+            .accessibilityIdentifier("action.services.app-state.confirm")
             Button(StoreServicesText.resource("Cancel"), role: .cancel) {}
         } message: { action in
             Text(action.confirmationMessage)
@@ -100,9 +101,11 @@ struct ServicesAppStateView: View {
             Button(StoreServicesText.resource("Open App Info Sample Link")) {
                 model.handleSampleIntent(.openService(.appInfo))
             }
+            .accessibilityIdentifier("action.services.app-state.open-app-info")
             Button(StoreServicesText.resource("Open Store Sample Link")) {
                 model.handleSampleIntent(.openStoreRoot)
             }
+            .accessibilityIdentifier("action.services.app-state.open-store")
             Text(StoreServicesText.resource("Sample links and Reset Demo Data affect only this window."))
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -123,6 +126,7 @@ struct ServicesAppStateView: View {
                     !model.application.isMaintenanceEnabled
                 )
             }
+            .accessibilityIdentifier("action.services.app-state.maintenance")
             Button(StoreServicesText.resource("Sign Out"), role: .destructive) {
                 pendingAppAction = .signOut
             }

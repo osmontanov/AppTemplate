@@ -11,7 +11,7 @@ struct ServicesFlowView: View {
             path: $router.path,
             layout: AdaptiveFlowLayoutPolicy.resolve(horizontalSizeClass: horizontalSizeClass, isMacOS: isMacOS)
         ) {
-            ServicesCatalogView()
+            ServicesCatalogView(router: router)
         } placeholder: {
             ContentUnavailableView(StoreServicesText.resource("Select a Service"), systemImage: "wrench.and.screwdriver")
         } destination: { route in

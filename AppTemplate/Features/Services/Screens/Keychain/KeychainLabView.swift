@@ -43,11 +43,17 @@ struct KeychainLabView: View {
         .onDisappear { model.hideValue() }
     }
 
+    @ViewBuilder
     private func operationRow(_ kind: KeychainLabKind) -> some View {
         VStack(alignment: .leading) {
             Text(kind.title).font(.headline)
             HStack {
-                Button(StoreServicesText.resource("Save")) { Task { await model.save(kind) } }
+                if kind == .string {
+                    Button(StoreServicesText.resource("Save")) { Task { await model.save(kind) } }
+                        .accessibilityIdentifier(AppAccessibilityIdentifier.action(.tryService))
+                } else {
+                    Button(StoreServicesText.resource("Save")) { Task { await model.save(kind) } }
+                }
                 Button(StoreServicesText.resource("Read")) { Task { await model.read(kind) } }
                 Button(StoreServicesText.resource("Remove")) { Task { await model.remove(kind) } }
             }

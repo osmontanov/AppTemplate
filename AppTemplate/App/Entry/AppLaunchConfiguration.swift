@@ -1,4 +1,72 @@
 import Foundation
+import SwiftUI
+
+nonisolated enum UITestContentSize: String, Sendable {
+    case standard
+    case accessibilityExtraExtraExtraLarge
+
+    var dynamicTypeSize: DynamicTypeSize {
+        switch self {
+        case .standard: .large
+        case .accessibilityExtraExtraExtraLarge: .accessibility5
+        }
+    }
+}
+
+nonisolated enum UITestLayoutDirection: String, Sendable {
+    case leftToRight
+    case rightToLeft
+
+    var swiftUILayoutDirection: LayoutDirection {
+        switch self {
+        case .leftToRight: .leftToRight
+        case .rightToLeft: .rightToLeft
+        }
+    }
+}
+
+nonisolated enum UITestLocale: String, Sendable {
+    case system
+    case arabic = "ar_SA"
+
+    var localeIdentifier: String? {
+        switch self {
+        case .system: nil
+        case .arabic: rawValue
+        }
+    }
+}
+
+nonisolated enum UITestLocalizationVariant: String, Sendable {
+    case standard
+    case doubled
+}
+
+nonisolated struct UITestPresentationOverrides: Equatable, Sendable {
+    let contentSize: UITestContentSize
+    let layoutDirection: UITestLayoutDirection
+    let locale: UITestLocale
+    let reduceMotion: Bool
+
+    static let standard = Self(
+        contentSize: .standard,
+        layoutDirection: .leftToRight,
+        locale: .system,
+        reduceMotion: false
+    )
+    static let largestText = Self(
+        contentSize: .accessibilityExtraExtraExtraLarge,
+        layoutDirection: .leftToRight,
+        locale: .system,
+        reduceMotion: false
+    )
+    static let arabicRTL = Self(
+        contentSize: .standard,
+        layoutDirection: .rightToLeft,
+        locale: .arabic,
+        reduceMotion: false
+    )
+}
 
 nonisolated enum UITestConfigurationError: Error, Equatable, Sendable {
     case missingScenario
@@ -10,7 +78,7 @@ nonisolated enum UITestConfigurationError: Error, Equatable, Sendable {
 
 nonisolated enum AppLaunchConfiguration: Equatable, Sendable {
     case live
-    case uiTesting(UITestScenario)
+    case uiTesting(UITestScenario, UITestPresentationOverrides)
     case invalidUITesting(UITestConfigurationError)
 
     var sceneNavigationPersistencePolicy: AppSceneNavigationPersistencePolicy {
@@ -23,6 +91,14 @@ nonisolated enum AppLaunchConfiguration: Equatable, Sendable {
     init(arguments: [String]) {
         let marker = "--ui-testing"
         let scenarioOption = "--ui-test-scenario"
+        let contentSizeOption = "--ui-test-content-size"
+        let layoutDirectionOption = "--ui-test-layout-direction"
+        let localeOption = "--ui-test-locale"
+        let reduceMotionOption = "--ui-test-reduce-motion"
+        let valueOptions = [
+            scenarioOption, contentSizeOption, layoutDirectionOption, localeOption
+        ]
+        let recognizedOptions = Set(valueOptions + [marker, reduceMotionOption])
         var values = Array(arguments.dropFirst())
 
         #if os(macOS)
@@ -50,39 +126,93 @@ nonisolated enum AppLaunchConfiguration: Equatable, Sendable {
             self = .invalidUITesting(.duplicateOption(marker))
             return
         }
-        let optionIndices = values.indices.filter { values[$0] == scenarioOption }
-        if optionIndices.count > 1 {
-            self = .invalidUITesting(.duplicateOption(scenarioOption))
-            return
-        }
         if let unknown = values.first(where: {
-            $0.hasPrefix("--ui-") && $0 != marker && $0 != scenarioOption
+            $0.hasPrefix("--ui-") && !recognizedOptions.contains($0)
         }) {
             self = .invalidUITesting(.unknownOption(unknown))
             return
         }
-        guard markers == 1, let optionIndex = optionIndices.first else {
+        for option in valueOptions {
+            if values.filter({ $0 == option }).count > 1 {
+                self = .invalidUITesting(.duplicateOption(option))
+                return
+            }
+        }
+        if values.filter({ $0 == reduceMotionOption }).count > 1 {
+            self = .invalidUITesting(.duplicateOption(reduceMotionOption))
+            return
+        }
+
+        let scenarioIndices = values.indices.filter { values[$0] == scenarioOption }
+        guard markers == 1, let optionIndex = scenarioIndices.first else {
             self = .invalidUITesting(.missingScenario)
             return
         }
-        let valueIndex = values.index(after: optionIndex)
-        guard valueIndex < values.endIndex,
-              !values[valueIndex].hasPrefix("-"),
-              !values[valueIndex].trimmingCharacters(
-                in: .whitespacesAndNewlines
-              ).isEmpty
-        else {
-            self = .invalidUITesting(.malformedValue(option: scenarioOption))
-            return
-        }
+
         do {
+            let scenarioID = try Self.value(
+                for: scenarioOption,
+                at: optionIndex,
+                in: values
+            )
+            let contentSize = try Self.parsedValue(
+                option: contentSizeOption,
+                in: values,
+                default: UITestContentSize.standard
+            )
+            let layoutDirection = try Self.parsedValue(
+                option: layoutDirectionOption,
+                in: values,
+                default: UITestLayoutDirection.leftToRight
+            )
+            let locale = try Self.parsedValue(
+                option: localeOption,
+                in: values,
+                default: UITestLocale.system
+            )
             self = .uiTesting(
-                try UITestScenario.named(values[valueIndex]).preparedForLaunch()
+                try UITestScenario.named(scenarioID).preparedForLaunch(),
+                UITestPresentationOverrides(
+                    contentSize: contentSize,
+                    layoutDirection: layoutDirection,
+                    locale: locale,
+                    reduceMotion: values.contains(reduceMotionOption)
+                )
             )
         } catch let error as UITestConfigurationError {
             self = .invalidUITesting(error)
         } catch {
             self = .invalidUITesting(.malformedValue(option: scenarioOption))
         }
+    }
+
+    private static func value(
+        for option: String,
+        at optionIndex: Int,
+        in values: [String]
+    ) throws -> String {
+        let valueIndex = values.index(after: optionIndex)
+        guard valueIndex < values.endIndex,
+              !values[valueIndex].hasPrefix("-"),
+              !values[valueIndex].trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else {
+            throw UITestConfigurationError.malformedValue(option: option)
+        }
+        return values[valueIndex]
+    }
+
+    private static func parsedValue<Value: RawRepresentable>(
+        option: String,
+        in values: [String],
+        default defaultValue: Value
+    ) throws -> Value where Value.RawValue == String {
+        guard let optionIndex = values.firstIndex(of: option) else {
+            return defaultValue
+        }
+        let rawValue = try value(for: option, at: optionIndex, in: values)
+        guard let value = Value(rawValue: rawValue) else {
+            throw UITestConfigurationError.malformedValue(option: option)
+        }
+        return value
     }
 }

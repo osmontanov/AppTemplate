@@ -1,15 +1,22 @@
 import SwiftUI
 
 struct ServicesCatalogView: View {
+    @Bindable var router: ServicesRouter
     let items: [ServicesCatalogItem]
 
-    init(items: [ServicesCatalogItem] = ServicesCatalogViewModel.items) {
+    init(
+        router: ServicesRouter,
+        items: [ServicesCatalogItem] = ServicesCatalogViewModel.items
+    ) {
+        self.router = router
         self.items = items
     }
 
     var body: some View {
         List(items) { item in
-            NavigationLink(value: item.route) {
+            Button {
+                router.open(item.route)
+            } label: {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(item.route.displayTitle)
                     Text(item.guide.why)
@@ -18,6 +25,7 @@ struct ServicesCatalogView: View {
                         .lineLimit(2)
                 }
             }
+            .buttonStyle(.plain)
             .accessibilityIdentifier(
                 AppAccessibilityIdentifier.serviceDestination(item.route.accessibilityDestination)
             )

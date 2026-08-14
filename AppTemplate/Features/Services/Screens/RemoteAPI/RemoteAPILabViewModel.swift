@@ -226,6 +226,17 @@ final class RemoteAPILabViewModel {
         actualResult = .success(StoreServicesText.string("Cleared network diagnostics."))
     }
 
+    func resetDemoData() async {
+        currentOperation?.cancel()
+        operationGeneration &+= 1
+        await diagnostics.clear()
+        state = RemoteAPILabState()
+        canLoadMoreProducts = true
+        lastRetryOperation = nil
+        pendingPersistenceRetryToken = nil
+        actualResult = .success(StoreServicesText.string("Reset the Remote API lab state."))
+    }
+
     func cancelCurrentOperation() {
         currentOperation?.cancel()
     }

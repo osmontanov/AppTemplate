@@ -38,7 +38,6 @@ struct ServiceLabGuideView<TryItContent: View, AdvancedContent: View>: View {
                     Section(section.title) {
                         tryItContent
                     }
-                    .accessibilityIdentifier(AppAccessibilityIdentifier.action(.tryService))
                 case .expected:
                     Section(section.title) {
                         Text(guide.expected)

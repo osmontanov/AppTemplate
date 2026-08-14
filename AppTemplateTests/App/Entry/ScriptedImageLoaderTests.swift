@@ -14,6 +14,18 @@ struct ScriptedImageLoaderTests {
     }
 
     @Test
+    func repeatedSuccessfulURLUsesTheConsumedCachedImage() async throws {
+        let url = URL(string: "https://cdn.dummyjson.com/a.png")!
+        let loader = ScriptedImageLoader(steps: [
+            .init(url: url, result: .success(image))
+        ])
+
+        #expect(try await loader.load(url, policy: .product) == image)
+        #expect(try await loader.load(url, policy: .product) == image)
+        try await loader.assertExhausted()
+    }
+
+    @Test
     func mismatchDoesNotConsumeAndEmptyScriptFailsClosed() async {
         let expectedURL = URL(string: "https://cdn.dummyjson.com/a.png")!
         let otherURL = URL(string: "https://cdn.dummyjson.com/private.png")!

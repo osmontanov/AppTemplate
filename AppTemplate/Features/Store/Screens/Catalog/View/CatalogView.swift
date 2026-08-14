@@ -116,6 +116,7 @@ struct CatalogView: View {
         if viewModel.canLoadMore {
             Button(StoreServicesText.resource("Load more")) { Task { await viewModel.loadNextPage() } }
                 .frame(minHeight: 44)
+                .accessibilityIdentifier("action.store.load-more")
         }
     }
 

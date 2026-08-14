@@ -16,7 +16,7 @@ final class AuthenticationViewModel {
     var username: String {
         get { model.username }
         set {
-            guard !isBusy else { return }
+            guard !isBusy, newValue != model.username else { return }
             model.username = newValue
             state = .editing(model)
         }
@@ -25,7 +25,7 @@ final class AuthenticationViewModel {
     var password: String {
         get { model.password }
         set {
-            guard !isBusy else { return }
+            guard !isBusy, newValue != model.password else { return }
             model.password = newValue
             state = .editing(model)
         }

@@ -1,6 +1,35 @@
 import OSLog
 import SwiftUI
 
+nonisolated enum UITestDeepLinkHarnessAction: CaseIterable, Hashable, Sendable {
+    case product
+    case favorites
+
+    var accessibilityIdentifier: String {
+        switch self {
+        case .product: "ui-test.action.open-product-link"
+        case .favorites: "ui-test.action.open-favorites-link"
+        }
+    }
+
+    var url: URL {
+        switch self {
+        case .product: URL(string: "apptemplate://store/product/1")!
+        case .favorites: URL(string: "apptemplate://store/favorites")!
+        }
+    }
+}
+
+nonisolated extension UITestScenario.Name {
+    var deepLinkHarnessAction: UITestDeepLinkHarnessAction? {
+        switch self {
+        case .guestStore: .product
+        case .protectedFavorite: .favorites
+        case .productReminder, .servicesBasic, .accessibilitySmoke: nil
+        }
+    }
+}
+
 struct AppSceneView: View {
     let appFlowCoordinator: AppFlowCoordinator
     let session: SessionPresentation
@@ -10,6 +39,8 @@ struct AppSceneView: View {
     let servicesDependencies: ServicesDependencies
     private let navigationPersistencePolicy:
         AppSceneNavigationPersistencePolicy
+    private let presentationOverrides: UITestPresentationOverrides?
+    private let uiTestDeepLinkHarnessAction: UITestDeepLinkHarnessAction?
 
     @State private var lifecycle: AppSceneNavigationLifecycle
     @State private var protectedStoreActionExecutor: ProtectedStoreActionExecutor
@@ -18,6 +49,7 @@ struct AppSceneView: View {
     @State private var maintenanceRouter: FlowRouter
     @State private var localNotificationRegistration:
         LocalNotificationSceneRegistration
+    @State private var showsUITestDeepLinkHarness = true
     @SceneStorage("AppTemplate.NavigationSnapshot") private var encodedSnapshot: Data?
 
     #if os(iOS)
@@ -36,7 +68,9 @@ struct AppSceneView: View {
         storeUISupport: StoreUISupport,
         servicesDependencies: ServicesDependencies,
         navigationPersistencePolicy:
-            AppSceneNavigationPersistencePolicy = .restored
+            AppSceneNavigationPersistencePolicy = .restored,
+        presentationOverrides: UITestPresentationOverrides? = nil,
+        uiTestDeepLinkHarnessAction: UITestDeepLinkHarnessAction? = nil
     ) {
         self.appFlowCoordinator = appFlowCoordinator
         self.session = session
@@ -45,6 +79,8 @@ struct AppSceneView: View {
         self.storeUISupport = storeUISupport
         self.servicesDependencies = servicesDependencies
         self.navigationPersistencePolicy = navigationPersistencePolicy
+        self.presentationOverrides = presentationOverrides
+        self.uiTestDeepLinkHarnessAction = uiTestDeepLinkHarnessAction
         let sceneStoreRouter = AppSceneNavigationLifecycle(
             appFlowRouter: appFlowCoordinator.appFlowRouter
         )
@@ -140,9 +176,7 @@ struct AppSceneView: View {
                 persist()
             }
             .onOpenURL { url in
-                if lifecycle.receive(url) != nil {
-                    persist()
-                }
+                receiveAndPersist(url)
             }
             .task {
                 await localNotificationRegistration.run(
@@ -153,6 +187,23 @@ struct AppSceneView: View {
             .overlay(alignment: .top) {
                 if lifecycle.presentation().deepLinkFailure != nil {
                     rejectedLinkRecovery
+                }
+            }
+            .overlay(alignment: .topLeading) {
+                if let action = uiTestDeepLinkHarnessAction,
+                   showsUITestDeepLinkHarness {
+                    Button {
+                        showsUITestDeepLinkHarness = false
+                        receiveAndPersist(action.url)
+                    } label: {
+                        Rectangle()
+                            .fill(.black.opacity(0.001))
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("UI test deep link")
+                    .accessibilityIdentifier(action.accessibilityIdentifier)
                 }
             }
             #if os(iOS)
@@ -168,6 +219,15 @@ struct AppSceneView: View {
                 }
             }
             #endif
+            .modifier(UITestPresentationOverridesModifier(
+                overrides: presentationOverrides
+            ))
+    }
+
+    private func receiveAndPersist(_ url: URL) {
+        if lifecycle.receive(url) != nil {
+            persist()
+        }
     }
 
     private var rejectedLinkRecovery: some View {
@@ -225,6 +285,34 @@ struct AppSceneView: View {
                 action,
                 expectedUserID: profile.id
             )
+        }
+    }
+}
+
+private struct UITestPresentationOverridesModifier: ViewModifier {
+    let overrides: UITestPresentationOverrides?
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if let overrides {
+            content
+                .dynamicTypeSize(overrides.contentSize.dynamicTypeSize)
+                .environment(
+                    \.layoutDirection,
+                    overrides.layoutDirection.swiftUILayoutDirection
+                )
+                .environment(
+                    \.locale,
+                    overrides.locale.localeIdentifier.map(Locale.init(identifier:))
+                        ?? Locale.current
+                )
+                .transaction { transaction in
+                    if overrides.reduceMotion {
+                        transaction.animation = nil
+                    }
+                }
+        } else {
+            content
         }
     }
 }

@@ -31,7 +31,9 @@ struct ProfileView: View {
                 Text(StoreServicesText.resource("Overview")).tag(ProfileSection.overview)
                 Text(StoreServicesText.resource("Preferences")).tag(ProfileSection.preferences)
                 Text(StoreServicesText.resource("About")).tag(ProfileSection.about)
-                Text(StoreServicesText.resource("Account")).tag(ProfileSection.account)
+                Text(StoreServicesText.resource("Account"))
+                    .accessibilityIdentifier("action.store.profile.account")
+                    .tag(ProfileSection.account)
             }
             .pickerStyle(.segmented)
 

@@ -17,6 +17,8 @@ struct AppTemplateApp: App {
     private let appStateInspector: AppStateInspector?
     private let servicesAppStateStatus: ServicesAppStateStatus?
     private let sceneNavigationPersistencePolicy: AppSceneNavigationPersistencePolicy
+    private let uiTestPresentationOverrides: UITestPresentationOverrides?
+    private let uiTestDeepLinkHarnessAction: UITestDeepLinkHarnessAction?
     @State private var appFlowCoordinator: AppFlowCoordinator?
     @State private var sessionController: SessionController?
 
@@ -28,10 +30,16 @@ struct AppTemplateApp: App {
         switch configuration {
         case .live:
             resolved = AppDependencies.live()
-        case let .uiTesting(scenario):
+            uiTestPresentationOverrides = nil
+            uiTestDeepLinkHarnessAction = nil
+        case let .uiTesting(scenario, overrides):
             resolved = AppDependencies.uiTesting(scenario: scenario)
+            uiTestPresentationOverrides = overrides
+            uiTestDeepLinkHarnessAction = scenario.id.deepLinkHarnessAction
         case .invalidUITesting:
             resolved = nil
+            uiTestPresentationOverrides = nil
+            uiTestDeepLinkHarnessAction = nil
         }
 
         dependencies = resolved
@@ -96,7 +104,9 @@ struct AppTemplateApp: App {
                     servicesDependencies: servicesDependencies,
                     appFlowCoordinator: appFlowCoordinator,
                     sessionController: sessionController,
-                    navigationPersistencePolicy: sceneNavigationPersistencePolicy
+                    navigationPersistencePolicy: sceneNavigationPersistencePolicy,
+                    presentationOverrides: uiTestPresentationOverrides,
+                    uiTestDeepLinkHarnessAction: uiTestDeepLinkHarnessAction
                 )
                 #if os(macOS)
                 .frame(minWidth: 820, minHeight: 620)
@@ -126,6 +136,8 @@ private struct ConfiguredAppRootView: View {
     let appFlowCoordinator: AppFlowCoordinator
     let sessionController: SessionController
     let navigationPersistencePolicy: AppSceneNavigationPersistencePolicy
+    let presentationOverrides: UITestPresentationOverrides?
+    let uiTestDeepLinkHarnessAction: UITestDeepLinkHarnessAction?
 
     @State private var isReady: Bool
     @State private var bootstrapFailed = false
@@ -138,7 +150,9 @@ private struct ConfiguredAppRootView: View {
         servicesDependencies: ServicesDependencies,
         appFlowCoordinator: AppFlowCoordinator,
         sessionController: SessionController,
-        navigationPersistencePolicy: AppSceneNavigationPersistencePolicy
+        navigationPersistencePolicy: AppSceneNavigationPersistencePolicy,
+        presentationOverrides: UITestPresentationOverrides?,
+        uiTestDeepLinkHarnessAction: UITestDeepLinkHarnessAction?
     ) {
         self.dependencies = dependencies
         self.storeDependencies = storeDependencies
@@ -147,6 +161,8 @@ private struct ConfiguredAppRootView: View {
         self.appFlowCoordinator = appFlowCoordinator
         self.sessionController = sessionController
         self.navigationPersistencePolicy = navigationPersistencePolicy
+        self.presentationOverrides = presentationOverrides
+        self.uiTestDeepLinkHarnessAction = uiTestDeepLinkHarnessAction
         _isReady = State(initialValue: dependencies.uiTestScriptTracker == nil)
         _scriptPresentation = State(initialValue: .pending)
     }
@@ -163,7 +179,9 @@ private struct ConfiguredAppRootView: View {
                     storeDependencies: storeDependencies,
                     storeUISupport: storeUISupport,
                     servicesDependencies: servicesDependencies,
-                    navigationPersistencePolicy: navigationPersistencePolicy
+                    navigationPersistencePolicy: navigationPersistencePolicy,
+                    presentationOverrides: presentationOverrides,
+                    uiTestDeepLinkHarnessAction: uiTestDeepLinkHarnessAction
                 )
             } else {
                 ProgressView()

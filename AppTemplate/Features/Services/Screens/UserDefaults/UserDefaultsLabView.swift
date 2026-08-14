@@ -31,11 +31,17 @@ struct UserDefaultsLabView: View {
         .accessibilityIdentifier("screen.services.user-defaults")
     }
 
+    @ViewBuilder
     private func operationRow(_ kind: UserDefaultsLabKind) -> some View {
         VStack(alignment: .leading) {
             Text(kind.title).font(.headline)
             HStack {
-                Button(StoreServicesText.resource("Save")) { perform { try model.save(kind) } }
+                if kind == .bool {
+                    Button(StoreServicesText.resource("Save")) { perform { try model.save(kind) } }
+                        .accessibilityIdentifier(AppAccessibilityIdentifier.action(.tryService))
+                } else {
+                    Button(StoreServicesText.resource("Save")) { perform { try model.save(kind) } }
+                }
                 Button(StoreServicesText.resource("Read")) {
                     perform { try model.read(kind, locale: locale, timeZone: timeZone) }
                 }

@@ -116,6 +116,7 @@ struct CheckoutFlowView: View {
                 .buttonStyle(.borderedProminent)
                 .frame(minHeight: 44)
                 .keyboardShortcut(.defaultAction)
+                .accessibilityIdentifier("action.store.checkout.place")
             }
         }
     }
@@ -129,9 +130,15 @@ struct CheckoutFlowView: View {
             Button(StoreServicesText.resource("Done")) { viewModel.done() }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
+                .accessibilityIdentifier("action.store.checkout.done")
         }
-        .accessibilityFocused($resultIsFocused)
-        .accessibilityIdentifier(AppAccessibilityIdentifier.result(.actualSuccess))
+        .overlay(alignment: .topLeading) {
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityFocused($resultIsFocused)
+                .accessibilityIdentifier(AppAccessibilityIdentifier.result(.actualSuccess))
+        }
     }
 
     private func modelBinding(

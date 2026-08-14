@@ -85,6 +85,35 @@ struct AuthenticationViewModelTests {
     }
 
     @Test
+    func equivalentFieldWritesPreserveInvalidCredentialsUntilContentChanges() async {
+        let session = SessionActionsSpy(loginResults: [.failure(.invalidCredentials)])
+        let viewModel = AuthenticationViewModel(
+            session: session,
+            cancellation: AuthenticationCancellationSpy()
+        )
+        viewModel.username = "emilys"
+        viewModel.password = "wrong"
+        await viewModel.submit()
+
+        viewModel.username = "emilys"
+        viewModel.password = "wrong"
+
+        #expect(
+            viewModel.state == .invalidCredentials(
+                AuthenticationModel(username: "emilys", password: "wrong")
+            )
+        )
+
+        viewModel.password = "corrected"
+
+        #expect(
+            viewModel.state == .editing(
+                AuthenticationModel(username: "emilys", password: "corrected")
+            )
+        )
+    }
+
+    @Test
     func cancelledLoginRestoresEditingCredentials() async {
         let session = SessionActionsSpy(loginResults: [.cancelled])
         let viewModel = AuthenticationViewModel(

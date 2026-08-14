@@ -94,8 +94,10 @@ struct LocalDatabaseLabView: View {
             )
             HStack {
                 Button(StoreServicesText.resource("Search / First Page")) { Task { await model.refresh() } }
+                    .accessibilityIdentifier(AppAccessibilityIdentifier.action(.tryService))
                 Button(StoreServicesText.resource("Load More")) { Task { await model.loadMore() } }
                     .disabled(!model.state.hasMore)
+                    .accessibilityIdentifier("action.services.local-database.load-more")
             }
             LabeledContent(
                 StoreServicesText.resource("Next cursor"),

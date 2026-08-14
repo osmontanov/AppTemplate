@@ -19,11 +19,16 @@ struct RemoteAPILabView: View {
     }
 
     var body: some View {
-        ServiceLabGuideView(guide: guide, result: model.actualResult) {
+        ServiceLabGuideView(
+            guide: guide,
+            result: model.actualResult,
+            resetDemoData: { Task { await model.resetDemoData() } }
+        ) {
             TextField(StoreServicesText.resource("Product search"), text: $model.searchText)
                 .textFieldStyle(.roundedBorder)
             HStack {
                 Button(StoreServicesText.resource("Search")) { Task { await model.tryProductSearch() } }
+                    .accessibilityIdentifier(AppAccessibilityIdentifier.action(.tryService))
                 Button(StoreServicesText.resource("Load Products Page")) { Task { await model.loadMoreProducts() } }
             }
             productIDs

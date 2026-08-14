@@ -42,7 +42,7 @@ struct LocalNotificationLabView: View {
             Button(StoreServicesText.resource("Schedule Immediate Lab Notification")) {
                 Task { await model.scheduleLab(makeRequest(id: "services.lab.immediate", trigger: .immediate)) }
             }
-            .accessibilityIdentifier("action.services.notifications.schedule-immediate")
+            .accessibilityIdentifier(AppAccessibilityIdentifier.action(.tryService))
             labLists
             historyPanel
         } advanced: {

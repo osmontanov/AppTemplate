@@ -6,6 +6,7 @@ struct StoreFlowView: View {
     let uiSupport: StoreUISupport
     @Environment(ProtectedStoreActionExecutor.self) private var protectedActions
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var searchRequestID = 0
 
     var body: some View {
@@ -81,17 +82,7 @@ struct StoreFlowView: View {
             .toolbar {
                 ToolbarItem {
                     Button(StoreServicesText.resource("Favorite"), systemImage: "heart") {
-                        Task {
-                            await protectedActions.activateHeart(
-                                productID: id,
-                                session: dependencies.session.presentation.state
-                            )
-                            AccessibilityNotification.Announcement(
-                                protectedActions.error == nil
-                                    ? StoreServicesText.string("Favorite status updated")
-                                    : StoreServicesText.string("Favorite could not be updated")
-                            ).post()
-                        }
+                        requestProtected(.favorite(id))
                     }
                     .frame(minWidth: 44, minHeight: 44)
                     .accessibilityIdentifier(AppAccessibilityIdentifier.action(.favorite))
@@ -143,7 +134,11 @@ struct StoreFlowView: View {
     private var storeToolbar: some ToolbarContent {
         ToolbarItemGroup {
             ForEach(
-                Array(StoreToolbarPolicy.actions(horizontalSizeClass: horizontalSizeClass).enumerated()),
+                Array(StoreToolbarPolicy.actions(
+                    horizontalSizeClass: dynamicTypeSize.isAccessibilitySize
+                        ? .compact
+                        : horizontalSizeClass
+                ).enumerated()),
                 id: \.offset
             ) { _, action in
                 storeToolbarAction(action)
@@ -182,9 +177,11 @@ struct StoreFlowView: View {
                 Button(StoreServicesText.resource("Favorites"), systemImage: "heart") {
                     requestProtected(.openFavorites)
                 }
+                .accessibilityIdentifier("action.store.favorites")
                 Button(StoreServicesText.resource("Profile"), systemImage: "person.crop.circle") {
                     router.push(.profile)
                 }
+                .accessibilityIdentifier("action.store.profile")
             }
             .accessibilityIdentifier("action.store.more")
         }

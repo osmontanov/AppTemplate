@@ -8,10 +8,10 @@ struct AppLaunchConfigurationTests {
         let scenario = try UITestScenario.named(name.rawValue).preparedForLaunch()
         #expect(AppLaunchConfiguration(arguments: [
             "AppTemplate", "--ui-testing", "--ui-test-scenario", name.rawValue
-        ]) == .uiTesting(scenario))
+        ]) == .uiTesting(scenario, .standard))
         #expect(AppLaunchConfiguration(arguments: [
             "AppTemplate", "--ui-test-scenario", name.rawValue, "--ui-testing"
-        ]) == .uiTesting(scenario))
+        ]) == .uiTesting(scenario, .standard))
     }
 
     @Test
@@ -20,7 +20,7 @@ struct AppLaunchConfigurationTests {
         #expect(AppLaunchConfiguration(arguments: [
             "AppTemplate", "-NSDocumentRevisionsDebugMode", "YES",
             "--ui-testing", "--ui-test-scenario", "guest-store"
-        ]) == .uiTesting(scenario))
+        ]) == .uiTesting(scenario, .standard))
         #expect(AppLaunchConfiguration(arguments: ["AppTemplate", "-SomeFlag"]) == .live)
     }
 
@@ -31,7 +31,7 @@ struct AppLaunchConfigurationTests {
         #expect(AppLaunchConfiguration(arguments: [
             "AppTemplate", "-ApplePersistenceIgnoreState", "YES",
             "--ui-testing", "--ui-test-scenario", "services-basic"
-        ]) == .uiTesting(scenario))
+        ]) == .uiTesting(scenario, .standard))
     }
 
     @Test(arguments: [
@@ -66,10 +66,52 @@ struct AppLaunchConfigurationTests {
         #expect(AppLaunchConfiguration(arguments: arguments) == .invalidUITesting(error))
     }
 
+    @Test(arguments: [
+        (["--ui-test-content-size"], UITestConfigurationError.malformedValue(option: "--ui-test-content-size")),
+        (["--ui-test-content-size", "unknown"], .malformedValue(option: "--ui-test-content-size")),
+        (["--ui-test-layout-direction"], .malformedValue(option: "--ui-test-layout-direction")),
+        (["--ui-test-layout-direction", "upsideDown"], .malformedValue(option: "--ui-test-layout-direction")),
+        (["--ui-test-locale"], .malformedValue(option: "--ui-test-locale")),
+        (["--ui-test-locale", "en_GB"], .malformedValue(option: "--ui-test-locale")),
+        (["--ui-test-content-size", "standard", "--ui-test-content-size", "standard"], .duplicateOption("--ui-test-content-size")),
+        (["--ui-test-layout-direction", "leftToRight", "--ui-test-layout-direction", "rightToLeft"], .duplicateOption("--ui-test-layout-direction")),
+        (["--ui-test-locale", "system", "--ui-test-locale", "ar_SA"], .duplicateOption("--ui-test-locale")),
+        (["--ui-test-reduce-motion", "--ui-test-reduce-motion"], .duplicateOption("--ui-test-reduce-motion"))
+    ])
+    func malformedOrDuplicatePresentationOptionsFailClosed(
+        _ tail: [String],
+        _ expected: UITestConfigurationError
+    ) {
+        let arguments = [
+            "AppTemplate", "--ui-testing", "--ui-test-scenario", "accessibility-smoke"
+        ] + tail
+        #expect(AppLaunchConfiguration(arguments: arguments) == .invalidUITesting(expected))
+    }
+
+    @Test
+    func presentationOptionsAcceptArbitraryOrderAndDefaultUnspecifiedValues() throws {
+        let scenario = try UITestScenario.named("accessibility-smoke").preparedForLaunch()
+        #expect(AppLaunchConfiguration(arguments: [
+            "AppTemplate", "--ui-test-reduce-motion", "--ui-test-locale", "ar_SA",
+            "--ui-testing", "--ui-test-content-size", "accessibilityExtraExtraExtraLarge",
+            "--ui-test-scenario", "accessibility-smoke", "--ui-test-layout-direction",
+            "rightToLeft"
+        ]) == .uiTesting(scenario, .init(
+            contentSize: .accessibilityExtraExtraExtraLarge,
+            layoutDirection: .rightToLeft,
+            locale: .arabic,
+            reduceMotion: true
+        )))
+        #expect(AppLaunchConfiguration(arguments: [
+            "AppTemplate", "--ui-testing", "--ui-test-scenario", "accessibility-smoke",
+            "--ui-test-locale", "system"
+        ]) == .uiTesting(scenario, .standard))
+    }
+
     @Test
     func testLaunchesAlwaysUseEphemeralNavigationPersistence() throws {
         #expect(AppLaunchConfiguration.live.sceneNavigationPersistencePolicy == .restored)
-        #expect(AppLaunchConfiguration.uiTesting(try .named("guest-store")).sceneNavigationPersistencePolicy == .ephemeral)
+        #expect(AppLaunchConfiguration.uiTesting(try .named("guest-store"), .standard).sceneNavigationPersistencePolicy == .ephemeral)
         #expect(AppLaunchConfiguration.invalidUITesting(.missingScenario).sceneNavigationPersistencePolicy == .ephemeral)
     }
 
@@ -79,12 +121,13 @@ struct AppLaunchConfigurationTests {
             "AppTemplate", "--ui-testing", "--ui-test-scenario", "services-basic"
         ])
         let scenario = try #require({
-            if case let .uiTesting(value) = configuration { return value }
+            if case let .uiTesting(value, _) = configuration { return value }
             return nil
         }())
 
         #expect(scenario.networkPolicy == .failClosed)
-        #expect(scenario.remoteSteps.isEmpty)
+        #expect(scenario.remoteSteps.count == 3)
+        #expect(scenario.localDatabaseSeed.examples.count == 21)
         #expect(scenario.imageSeed.steps.isEmpty)
         #expect(scenario.notificationSeed.authorizationStatus == .authorized)
         #expect(scenario.notificationSeed.pendingRequests.map(\.id.value) == [
@@ -166,19 +209,6 @@ struct AppLaunchConfigurationTests {
             )
         }
 
-        func consumeCatalogReentry() async throws {
-            for _ in 0..<2 {
-                #expect(
-                    try await dependencies.remote.products(ProductPageRequest(
-                        mode: .all,
-                        sort: nil,
-                        limit: 10,
-                        skip: 0
-                    )).products.map(\.id) == [1, 2]
-                )
-            }
-        }
-
         #expect(try await dependencies.remote.categories().map(\.slug) == ["phones"])
         #expect(
             try await dependencies.remote.products(ProductPageRequest(
@@ -197,12 +227,9 @@ struct AppLaunchConfigurationTests {
             )).products.map(\.id) == [3]
         )
         try await consumeDetail(1)
-        #expect(try await dependencies.remote.product(id: 1).reviews.count == 1)
-        try await consumeDetail(1)
         try await consumeDetail(2)
         try await consumeDetail(1)
-        try await consumeCatalogReentry()
-        try await consumeCatalogReentry()
+        #expect(try await dependencies.remote.product(id: 1).reviews.count == 1)
 
         for step in scenario.imageSeed.steps {
             _ = try await dependencies.imageLoader.load(step.url, policy: .product)
@@ -249,7 +276,7 @@ struct AppLaunchConfigurationTests {
             "AppTemplate", "--ui-testing", "--ui-test-scenario", "protected-favorite"
         ])
         let scenario = try #require({
-            if case let .uiTesting(value) = configuration { return value }
+            if case let .uiTesting(value, _) = configuration { return value }
             return nil
         }())
 
@@ -258,7 +285,7 @@ struct AppLaunchConfigurationTests {
         #expect(scenario.localDatabaseSeed.favorites.isEmpty)
         #expect(scenario.localDatabaseSeed.cart?.lines.isEmpty == true)
         #expect(scenario.imageSeed.steps.isEmpty)
-        #expect(scenario.remoteSteps.count == 6)
+        #expect(scenario.remoteSteps.count == 7)
 
         let dependencies = AppDependencies.uiTesting(scenario: scenario)
         try await dependencies.bootstrap()
@@ -281,6 +308,9 @@ struct AppLaunchConfigurationTests {
             )).products.map(\.id) == [1]
         )
         #expect(
+            await invalidLoginFails(dependencies)
+        )
+        #expect(
             try await dependencies.remote.login(LoginRequestDTO(
                 username: "emilys",
                 password: "emilyspass",
@@ -288,10 +318,22 @@ struct AppLaunchConfigurationTests {
             )).id == 1
         )
         #expect(try await dependencies.remote.product(id: 1).id == 1)
-
         let tracker = try #require(dependencies.uiTestScriptTracker)
         var iterator = await tracker.updates().makeAsyncIterator()
         #expect(await iterator.next() == .exhausted)
+    }
+
+    private func invalidLoginFails(_ dependencies: AppDependencies) async -> Bool {
+        do {
+            _ = try await dependencies.remote.login(LoginRequestDTO(
+                username: "invalid-user",
+                password: "invalid-password",
+                expiresInMins: 30
+            ))
+            return false
+        } catch {
+            return true
+        }
     }
 
     @MainActor
@@ -301,7 +343,7 @@ struct AppLaunchConfigurationTests {
             "AppTemplate", "--ui-testing", "--ui-test-scenario", "product-reminder"
         ])
         let scenario = try #require({
-            if case let .uiTesting(value) = configuration { return value }
+            if case let .uiTesting(value, _) = configuration { return value }
             return nil
         }())
 
@@ -309,7 +351,7 @@ struct AppLaunchConfigurationTests {
         #expect(scenario.notificationSeed.authorizationStatus == .authorized)
         #expect(scenario.notificationSeed.pendingRequests.isEmpty)
         #expect(scenario.remoteSteps.count == 5)
-        #expect(scenario.imageSeed.steps.count == 3)
+        #expect(scenario.imageSeed.steps.count == 1)
 
         let dependencies = AppDependencies.uiTesting(scenario: scenario)
         try await dependencies.bootstrap()
@@ -346,7 +388,7 @@ struct AppLaunchConfigurationTests {
         let configuration = AppLaunchConfiguration(arguments: [
             "AppTemplate", "--ui-testing", "--ui-test-scenario", "guest-store"
         ])
-        guard case let .uiTesting(scenario) = configuration else {
+        guard case let .uiTesting(scenario, _) = configuration else {
             Issue.record("Guest Store did not produce a UI-test scenario")
             throw UITestConfigurationError.missingScenario
         }

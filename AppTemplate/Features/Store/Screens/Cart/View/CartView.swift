@@ -58,7 +58,7 @@ struct CartView: View {
             .disabled(!viewModel.canCheckout)
             .frame(minHeight: 44)
             .keyboardShortcut(.defaultAction)
-            .accessibilityIdentifier(AppAccessibilityIdentifier.action(.continueCheckout))
+            .accessibilityIdentifier("action.store.checkout")
             .padding()
         }
         .task {
@@ -84,6 +84,11 @@ struct CartView: View {
                 }
             )
         }
-        .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.cart))
+        .overlay(alignment: .topLeading) {
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.cart))
+        }
     }
 }

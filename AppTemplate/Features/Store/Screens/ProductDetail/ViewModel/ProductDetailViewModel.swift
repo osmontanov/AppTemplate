@@ -12,6 +12,7 @@ final class ProductDetailViewModel {
     private(set) var state: ProductDetailState = .idle
     private(set) var model: ProductDetailModel?
     private(set) var errorMessage: String?
+    private(set) var cartUpdateSucceeded: Bool?
 
     init(productID: Product.ID, products: any IProductRepository, cart: any ICartRepository) {
         self.productID = productID
@@ -44,11 +45,14 @@ final class ProductDetailViewModel {
 
     func addToCart() async {
         guard let product = model?.product else { return }
+        cartUpdateSucceeded = nil
         do {
             _ = try await cart.add(product.snapshot, quantity: 1)
             errorMessage = nil
+            cartUpdateSucceeded = true
         } catch {
             errorMessage = StoreServicesText.string("The cart could not be updated.")
+            cartUpdateSucceeded = false
         }
     }
 }

@@ -27,6 +27,7 @@ struct OnboardingView: View {
                 .frame(minHeight: 44)
                 .keyboardShortcut(.defaultAction)
                 .accessibilityFocused($primaryActionIsFocused)
+                .accessibilityIdentifier("action.onboarding.finish")
             }
         }
         .navigationTitle(StoreServicesText.resource("Onboarding"))

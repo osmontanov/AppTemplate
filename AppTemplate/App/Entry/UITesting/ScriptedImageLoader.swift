@@ -19,6 +19,7 @@ nonisolated struct ScriptedImageStep: Equatable, Sendable {
 
 actor ScriptedImageLoader: IImageLoader {
     private var remaining: [ScriptedImageStep]
+    private var successfulImagesByURL: [URL: LoadedImage] = [:]
     private let tracker: UITestScriptConsumptionTracker?
 
     init(steps: [ScriptedImageStep], tracker: UITestScriptConsumptionTracker? = nil) {
@@ -29,6 +30,7 @@ actor ScriptedImageLoader: IImageLoader {
     func load(_ url: URL, policy: ImageLoadPolicy) async throws -> LoadedImage {
         _ = policy
         try Task.checkCancellation()
+        if let cached = successfulImagesByURL[url] { return cached }
         guard let step = remaining.first else {
             await tracker?.didFail(.image)
             throw ScriptedImageLoaderError.unexpectedURL
@@ -41,7 +43,9 @@ actor ScriptedImageLoader: IImageLoader {
         let matched = remaining.removeFirst()
         await tracker?.didConsume(.image)
         switch matched.result {
-        case let .success(image): return image
+        case let .success(image):
+            successfulImagesByURL[url] = image
+            return image
         case .failure: throw ScriptedImageLoaderError.scriptedFailure
         }
     }

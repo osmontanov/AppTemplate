@@ -20,6 +20,27 @@ struct CatalogViewModelTests {
     }
 
     @Test
+    func catalogReappearanceDoesNotRepeatTheInitialOrBlankSearchPage() async {
+        let repository = ControlledProductRepository(pages: [
+            ProductPage(products: [.fixture(id: 1)], total: 1, skip: 0, limit: 20)
+        ])
+        let preferences = ControlledStorePreferencesRepository()
+        let viewModel = CatalogViewModel(
+            products: repository,
+            preferences: preferences,
+            clock: .immediate
+        )
+
+        await viewModel.loadInitial()
+        await viewModel.loadInitial()
+        await viewModel.search("")
+
+        #expect(await repository.recordedQueries() == [
+            ProductQuery(mode: .all, sort: nil, limit: 20, skip: 0)
+        ])
+    }
+
+    @Test
     func searchCapsAtOneHundredUnicodeScalarsAndDisablesSorting() async {
         let repository = ControlledProductRepository(pages: [ProductPage(products: [], total: 0, skip: 0, limit: 20)])
         let preferences = ControlledStorePreferencesRepository(StorePreferences(layout: .grid, sort: .titleDescending, preferredRemotePageSize: 20))

@@ -117,7 +117,7 @@ struct AppDependencies: Sendable {
         let fixedClock = AppClock(
             now: { Date(timeIntervalSince1970: 0) },
             monotonicNow: { fixedInstant },
-            sleep: { _ in try Task.checkCancellation() }
+            sleep: { try await Task.sleep(for: $0) }
         )
         let exampleProvider = NetworkProvider<ExampleTarget>(
             transport: transport,

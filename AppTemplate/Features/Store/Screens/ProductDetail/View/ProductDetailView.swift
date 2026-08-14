@@ -40,6 +40,15 @@ struct ProductDetailView: View {
                             HStack { actions(product: model.product) }
                             VStack { actions(product: model.product) }
                         }
+                        if viewModel.cartUpdateSucceeded == true {
+                            Label(StoreServicesText.resource("Added to cart"), systemImage: "checkmark.circle.fill")
+                                .accessibilityLabel(StoreServicesText.resource("Added to cart"))
+                                .accessibilityIdentifier(AppAccessibilityIdentifier.result(.actualSuccess))
+                        } else if viewModel.cartUpdateSucceeded == false {
+                            Label(StoreServicesText.resource("The cart could not be updated."), systemImage: "exclamationmark.triangle.fill")
+                                .accessibilityLabel(StoreServicesText.resource("The cart could not be updated."))
+                                .accessibilityIdentifier(AppAccessibilityIdentifier.result(.actualFailure))
+                        }
                         if !model.related.isEmpty {
                             Text(StoreServicesText.resource("Related products")).font(.headline)
                             ForEach(model.related) { product in
@@ -73,16 +82,27 @@ struct ProductDetailView: View {
 
     @ViewBuilder
     private func actions(product: Product) -> some View {
-        Button(StoreServicesText.resource("Add to cart")) { Task { await viewModel.addToCart() } }
+        Button(StoreServicesText.resource("Add to cart")) {
+            Task {
+                await viewModel.addToCart()
+                AccessibilityNotification.Announcement(
+                    viewModel.cartUpdateSucceeded == true
+                        ? StoreServicesText.string("Added to cart")
+                        : StoreServicesText.string("The cart could not be updated.")
+                ).post()
+            }
+        }
             .buttonStyle(.borderedProminent)
             .disabled(product.stock == 0)
             .frame(minHeight: 44)
+            .accessibilityIdentifier("action.store.add-to-cart")
         Button(StoreServicesText.resource("Reviews")) { router.push(.reviews(product.id)) }
             .frame(minHeight: 44)
+            .accessibilityIdentifier("action.store.reviews")
         Button(StoreServicesText.resource("Remind me"), systemImage: "bell") {
             router.presentation = .reminder(product.id)
         }
         .frame(minHeight: 44)
-        .accessibilityIdentifier(AppAccessibilityIdentifier.action(.scheduleReminder))
+        .accessibilityIdentifier("action.store.reminder")
     }
 }

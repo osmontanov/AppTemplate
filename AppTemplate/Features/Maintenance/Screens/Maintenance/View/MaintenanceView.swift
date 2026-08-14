@@ -27,6 +27,7 @@ struct MaintenanceView: View {
                 .frame(minHeight: 44)
                 .keyboardShortcut(.defaultAction)
                 .accessibilityFocused($primaryActionIsFocused)
+                .accessibilityIdentifier("action.maintenance.return")
             }
         }
         .navigationTitle(StoreServicesText.resource("Maintenance"))

@@ -81,6 +81,7 @@ struct AuthenticationView: View {
             if let message {
                 Label(message, systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.red)
+                    .accessibilityElement(children: .combine)
                     .accessibilityLabel(StoreServicesText.resource("Sign in failed. Check your entries and try again."))
                     .accessibilityFocused($accessibilityFocusedField, equals: .result)
                     .accessibilityIdentifier(AppAccessibilityIdentifier.result(.actualFailure))
@@ -98,6 +99,7 @@ struct AuthenticationView: View {
         Button(StoreServicesText.resource("Use demo credentials")) {
             viewModel.fillDemoCredentials()
         }
+        .accessibilityIdentifier("action.authentication.demo-credentials")
         Button(StoreServicesText.resource("Sign in")) {
             Task { await submit() }
         }

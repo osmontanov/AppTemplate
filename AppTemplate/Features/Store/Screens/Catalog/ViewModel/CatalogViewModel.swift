@@ -11,6 +11,8 @@ final class CatalogViewModel {
     private let clock: AppClock
     private var generation: UInt64 = 0
     private var hasLoadedCategories = false
+    private var hasLoadedInitialPage = false
+    private var isLoadingInitialPage = false
 
     private(set) var state: CatalogState = .idle
     private(set) var model: CatalogModel = .empty
@@ -30,6 +32,9 @@ final class CatalogViewModel {
     }
 
     func loadInitial() async {
+        guard !hasLoadedInitialPage, !isLoadingInitialPage else { return }
+        isLoadingInitialPage = true
+        defer { isLoadingInitialPage = false }
         model.preferences = await preferences.current()
         if !hasLoadedCategories {
             do {
@@ -42,16 +47,18 @@ final class CatalogViewModel {
             }
         }
         await reload(mode: .all)
+        hasLoadedInitialPage = state == .loaded
     }
 
     func search(_ text: String) async {
+        let capped = Self.capped(text).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !(capped.isEmpty && model.mode == .all && state == .loaded) else { return }
         do {
             try await clock.sleep(.milliseconds(300))
             try Task.checkCancellation()
         } catch {
             return
         }
-        let capped = Self.capped(text).trimmingCharacters(in: .whitespacesAndNewlines)
         await reload(mode: capped.isEmpty ? .all : .search(capped))
     }
 
