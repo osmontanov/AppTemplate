@@ -11,10 +11,37 @@ nonisolated
 enum ProductReminderOperation: Equatable, Sendable {
     case settings
     case authorization(LocalNotificationAuthorizationOptions)
+    case categoryBootstrap
     case imageLoad(URL, ImageLoadPolicy)
     case schedule
     case pending
     case removePending(Set<LocalNotificationID>)
+}
+
+actor ProductReminderCategoryCatalogSpy: IAppNotificationCategoryCatalog {
+    private let failure: (any Error & Sendable)?
+    private let trace: ProductReminderOperationTrace
+
+    init(
+        failure: (any Error & Sendable)? = nil,
+        trace: ProductReminderOperationTrace = ProductReminderOperationTrace()
+    ) {
+        self.failure = failure
+        self.trace = trace
+    }
+
+    func categories() async -> [LocalNotificationCategory] { [] }
+
+    func bootstrapIfNeeded() async throws {
+        await trace.append(.categoryBootstrap)
+        if let failure { throw failure }
+    }
+
+    func replaceLabCategories(_ categories: [LocalNotificationCategory]) async throws {
+        _ = categories
+    }
+
+    func resetLabCategories() async throws {}
 }
 
 actor ProductReminderOperationTrace {
@@ -34,22 +61,28 @@ actor ProductReminderNotificationServiceSpy: ILocalNotificationService {
     private let authorizationResult: Bool
     private let scheduleFailure: (any Error & Sendable)?
     private let trace: ProductReminderOperationTrace
+    private let categoryHandler: @Sendable ([LocalNotificationCategory]) async throws -> Void
     private var pendingSnapshots: [LocalNotificationPendingSnapshot]
     private var storedRequests: [LocalNotificationRequest] = []
     private var stagedFilesExistedDuringSchedule: [Bool] = []
+    private(set) var categoryWrites: [[LocalNotificationCategory]] = []
 
     init(
         status: LocalNotificationAuthorizationStatus = .authorized,
         authorizationResult: Bool = true,
         pending: [LocalNotificationPendingSnapshot] = [],
         scheduleFailure: (any Error & Sendable)? = nil,
-        trace: ProductReminderOperationTrace = ProductReminderOperationTrace()
+        trace: ProductReminderOperationTrace = ProductReminderOperationTrace(),
+        categoryHandler: @escaping @Sendable (
+            [LocalNotificationCategory]
+        ) async throws -> Void = { _ in }
     ) {
         configuredSettings = .productReminderFixture(status: status)
         self.authorizationResult = authorizationResult
         pendingSnapshots = pending
         self.scheduleFailure = scheduleFailure
         self.trace = trace
+        self.categoryHandler = categoryHandler
     }
 
     func settings() async -> LocalNotificationSettings {
@@ -65,7 +98,8 @@ actor ProductReminderNotificationServiceSpy: ILocalNotificationService {
     }
 
     func setCategories(_ categories: [LocalNotificationCategory]) async throws {
-        _ = categories
+        categoryWrites.append(categories)
+        try await categoryHandler(categories)
     }
 
     func schedule(_ request: LocalNotificationRequest) async throws {
@@ -172,12 +206,14 @@ enum ProductReminderFixtures {
     static func repository(
         service: ProductReminderNotificationServiceSpy,
         imageLoader: ProductReminderImageLoaderSpy,
-        directory: URL
+        directory: URL,
+        trace: ProductReminderOperationTrace
     ) -> ProductReminderRepository {
         ProductReminderRepository(
             service: service,
             imageLoader: imageLoader,
             attachmentStager: ReminderAttachmentStager(directory: directory),
+            categoryCatalog: ProductReminderCategoryCatalogSpy(trace: trace),
             clock: clock
         )
     }

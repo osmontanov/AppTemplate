@@ -242,15 +242,11 @@ struct AppSceneNavigationLifecycleTests {
     }
 
     @Test
-    func localNotificationReceiverUsesSameTypedSceneBridge() throws {
+    func lifecycleOwnsTypedSceneNavigationWithoutNotificationConformance() {
         let lifecycle = AppSceneNavigationLifecycle(router: makeRouter())
-        let receiver: any LocalNotificationSceneReceiving = lifecycle
-        receiver.receiveLocalNotificationURL(
-            try #require(URL(string: "apptemplate://store/product/12"))
-        )
-
         _ = lifecycle.restore(from: nil)
         _ = lifecycle.reconcile(.init(state: .guest, revision: 1))
+        lifecycle.handleSampleIntent(.openProduct(12))
 
         #expect(lifecycle.presentation().selectedSection == .store)
         #expect(lifecycle.presentation().storePath == [.product(12)])

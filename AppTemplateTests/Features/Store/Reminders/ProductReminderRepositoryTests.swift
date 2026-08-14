@@ -45,6 +45,7 @@ struct ProductReminderRepositoryTests {
         #expect(await fixture.trace.values == [
             .settings,
             .authorization([.alert, .sound]),
+            .categoryBootstrap,
             .imageLoad(URL(string: "https://cdn.dummyjson.com/product.png")!, .product),
             .schedule
         ])
@@ -59,9 +60,83 @@ struct ProductReminderRepositoryTests {
 
         #expect(await fixture.trace.values == [
             .settings,
+            .categoryBootstrap,
             .imageLoad(URL(string: "https://cdn.dummyjson.com/product.png")!, .product),
             .schedule
         ])
+    }
+
+    @Test
+    func categoryFailureStopsBeforeImageAndScheduleAndLaterRetrySucceeds() async throws {
+        let directory = try ProductReminderFixtures.temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let trace = ProductReminderOperationTrace()
+        let service = ProductReminderNotificationServiceSpy(trace: trace)
+        let catalog = RetryableProductReminderCatalog(trace: trace)
+        let repository = ProductReminderRepository(
+            service: service,
+            imageLoader: ProductReminderImageLoaderSpy(trace: trace),
+            attachmentStager: ReminderAttachmentStager(directory: directory),
+            categoryCatalog: catalog,
+            clock: ProductReminderFixtures.clock
+        )
+
+        await #expect(throws: ProductReminderError.categoryRegistrationFailed) {
+            try await repository.schedule(product: .fixture(id: 7), selection: .quickTest)
+        }
+        #expect(await trace.values == [.settings, .categoryBootstrap])
+
+        await catalog.allowSuccess()
+        _ = try await repository.schedule(product: .fixture(id: 7), selection: .quickTest)
+        #expect(await trace.values == [
+            .settings,
+            .categoryBootstrap,
+            .settings,
+            .categoryBootstrap,
+            .imageLoad(URL(string: "https://cdn.dummyjson.com/product.png")!, .product),
+            .schedule
+        ])
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func simultaneousSceneBootstrapAndFirstScheduleWriteCategoryUnionOnce() async throws {
+        let directory = try ProductReminderFixtures.temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let barrier = ProductReminderCategoryWriteBarrier()
+        let service = ProductReminderNotificationServiceSpy(
+            categoryHandler: { _ in await barrier.suspend() }
+        )
+        let gate = AsyncOperationGate()
+        let catalog = AppNotificationCategoryCatalog(
+            service: service,
+            storeCategory: StoreProductNotificationCategory.make(),
+            gate: gate
+        )
+        let repository = ProductReminderRepository(
+            service: service,
+            imageLoader: ProductReminderImageLoaderSpy(),
+            attachmentStager: ReminderAttachmentStager(directory: directory),
+            categoryCatalog: catalog,
+            clock: ProductReminderFixtures.clock
+        )
+        let sceneBootstrap = Task { try await catalog.bootstrapIfNeeded() }
+        await barrier.waitUntilSuspended()
+        let firstSchedule = Task {
+            try await repository.schedule(
+                product: .fixture(id: 7, thumbnailURL: nil),
+                selection: .quickTest
+            )
+        }
+        await gate.waitUntilWaiterCountForTesting(1)
+
+        await barrier.resume()
+        try await sceneBootstrap.value
+        _ = try await firstSchedule.value
+
+        #expect(await service.categoryWrites == [
+            [StoreProductNotificationCategory.make()]
+        ])
+        #expect(await service.requests.count == 1)
     }
 
     @Test
@@ -168,6 +243,7 @@ struct ProductReminderRepositoryTests {
             service: stageFailureService,
             imageLoader: stageFailureImage,
             attachmentStager: ReminderAttachmentStager(directory: invalidDirectory),
+            categoryCatalog: ProductReminderCategoryCatalogSpy(),
             clock: ProductReminderFixtures.clock
         )
 
@@ -326,6 +402,47 @@ struct ProductReminderRepositoryTests {
     }
 }
 
+private actor RetryableProductReminderCatalog: IAppNotificationCategoryCatalog {
+    private let trace: ProductReminderOperationTrace
+    private var shouldFail = true
+
+    init(trace: ProductReminderOperationTrace) { self.trace = trace }
+    func categories() async -> [LocalNotificationCategory] { [] }
+    func bootstrapIfNeeded() async throws {
+        await trace.append(.categoryBootstrap)
+        if shouldFail { throw ProductReminderTestFailure.schedule }
+    }
+    func replaceLabCategories(_ categories: [LocalNotificationCategory]) async throws {
+        _ = categories
+    }
+    func resetLabCategories() async throws {}
+    func allowSuccess() { shouldFail = false }
+}
+
+private actor ProductReminderCategoryWriteBarrier {
+    private var isSuspended = false
+    private var suspensionWaiters: [CheckedContinuation<Void, Never>] = []
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    func suspend() async {
+        isSuspended = true
+        let waiters = suspensionWaiters
+        suspensionWaiters.removeAll()
+        for waiter in waiters { waiter.resume() }
+        await withCheckedContinuation { continuation = $0 }
+    }
+
+    func waitUntilSuspended() async {
+        guard !isSuspended else { return }
+        await withCheckedContinuation { suspensionWaiters.append($0) }
+    }
+
+    func resume() {
+        continuation?.resume()
+        continuation = nil
+    }
+}
+
 private extension ProductReminderRepositoryTests {
     struct Fixture {
         let repository: ProductReminderRepository
@@ -359,7 +476,8 @@ private extension ProductReminderRepositoryTests {
             repository: ProductReminderFixtures.repository(
                 service: service,
                 imageLoader: imageLoader,
-                directory: directory
+                directory: directory,
+                trace: trace
             ),
             service: service,
             trace: trace,

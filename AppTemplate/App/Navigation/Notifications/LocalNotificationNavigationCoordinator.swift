@@ -2,44 +2,41 @@ import Foundation
 
 @MainActor
 final class LocalNotificationNavigationCoordinator {
-    private let eventHub: LocalNotificationEventHub
-    private let parser: DeepLinkParser
-    private var registrations: [UUID: SceneRegistration] = [:]
-    private var queuedURLs: [URL] = []
+    private let queueCapacity: Int
+    private let diagnosticSink: @MainActor @Sendable (NotificationQueueDiagnostic) async -> Void
+    private var registrations: [UUID: NotificationSceneRegistration] = [:]
+    private var queue: [NotificationNavigationCommand] = []
     private var nextEligibilitySequence: UInt64 = 0
-    private var consumerTask: Task<Void, Never>?
+    private var droppedCount = 0
+    private var isDraining = false
 
     init(
-        eventHub: LocalNotificationEventHub,
-        parser: DeepLinkParser
+        queueCapacity: Int = 32,
+        diagnosticSink: @escaping @MainActor @Sendable (
+            NotificationQueueDiagnostic
+        ) async -> Void = { _ in }
     ) {
-        self.eventHub = eventHub
-        self.parser = parser
+        precondition(queueCapacity > 0, "Notification queue capacity must be positive")
+        self.queueCapacity = queueCapacity
+        self.diagnosticSink = diagnosticSink
     }
 
-    deinit {
-        consumerTask?.cancel()
-    }
-
-    func register(
-        id: UUID,
-        receiver: any LocalNotificationSceneReceiving
-    ) {
-        registrations[id] = SceneRegistration(receiver: receiver)
+    func register(id: UUID, receiver: any LocalNotificationSceneReceiving) {
+        registrations[id] = NotificationSceneRegistration(receiver: receiver)
     }
 
     func unregister(id: UUID) {
         registrations[id] = nil
     }
 
-    func setEligible(_ isEligible: Bool, id: UUID) {
+    func setReadiness(_ readiness: NotificationSceneReadiness, id: UUID) {
         pruneDeallocatedReceivers()
         guard var registration = registrations[id] else { return }
-
-        if isEligible {
+        registration.readiness = readiness
+        if readiness.isEligible {
             precondition(
                 nextEligibilitySequence < UInt64.max,
-                "Local notification scene eligibility sequence exhausted"
+                "Notification scene eligibility sequence exhausted"
             )
             registration.eligibilitySequence = nextEligibilitySequence
             nextEligibilitySequence += 1
@@ -47,92 +44,39 @@ final class LocalNotificationNavigationCoordinator {
             registration.eligibilitySequence = nil
         }
         registrations[id] = registration
+        guard readiness.isEligible else { return }
+        Task { @MainActor [weak self] in await self?.drainIfPossible() }
+    }
 
-        if isEligible {
-            drainQueuedURLsIfPossible()
+    func deliver(_ command: NotificationNavigationCommand) async {
+        queue.append(command)
+        if queue.count > queueCapacity {
+            queue.removeFirst(queue.count - queueCapacity)
+            droppedCount += 1
+            await diagnosticSink(.queueOverflow(droppedCount: droppedCount))
+        }
+        await drainIfPossible()
+    }
+
+    private func drainIfPossible() async {
+        guard !isDraining else { return }
+        isDraining = true
+        defer { isDraining = false }
+
+        while !queue.isEmpty, let receiver = latestEligibleReceiver() {
+            let command = queue.removeFirst()
+            await receiver.receiveNotificationCommand(command)
         }
     }
 
-    func start() {
-        guard consumerTask == nil else { return }
-        let navigationEvents = eventHub.navigationEvents
-        consumerTask = Task { @MainActor [weak self, navigationEvents] in
-            for await event in navigationEvents {
-                guard !Task.isCancelled else { return }
-                guard let self else { return }
-                await self.consume(event)
-            }
-        }
-    }
-
-    private func consume(_ event: LocalNotificationEvent) async {
-        guard let candidate = routeCandidate(from: event) else { return }
-
-        guard case .success = parser.parse(candidate.url) else {
-            await eventHub.publish(
-                .diagnostic(
-                    LocalNotificationDiagnostic(
-                        id: candidate.requestID,
-                        reason: .invalidDeepLink
-                    )
-                )
-            )
-            return
-        }
-
-        guard let receiver = latestEligibleReceiver() else {
-            queuedURLs.append(candidate.url)
-            return
-        }
-        receiver.receiveLocalNotificationURL(candidate.url)
-    }
-
-    private func routeCandidate(
-        from event: LocalNotificationEvent
-    ) -> (requestID: LocalNotificationID, url: URL)? {
-        switch event {
-        case let .opened(notification, deepLink),
-             let .action(notification, _, deepLink),
-             let .textAction(notification, _, _, deepLink):
-            guard let deepLink else { return nil }
-            return (notification.id, deepLink)
-        case .foreground, .dismissed, .diagnostic:
-            return nil
-        }
-    }
-
-    private func drainQueuedURLsIfPossible() {
-        guard !queuedURLs.isEmpty,
-              let receiver = latestEligibleReceiver() else {
-            return
-        }
-
-        let urls = queuedURLs
-        queuedURLs.removeAll(keepingCapacity: true)
-        for url in urls {
-            receiver.receiveLocalNotificationURL(url)
-        }
-    }
-
-    private func latestEligibleReceiver()
-        -> (any LocalNotificationSceneReceiving)? {
+    private func latestEligibleReceiver() -> (any LocalNotificationSceneReceiving)? {
         pruneDeallocatedReceivers()
-        var selectedReceiver: (any LocalNotificationSceneReceiving)?
-        var selectedSequence: UInt64?
-
-        for registration in registrations.values {
-            guard let receiver = registration.receiver.value,
-                  let sequence = registration.eligibilitySequence else {
-                continue
-            }
-            if let selectedSequence, sequence <= selectedSequence {
-                continue
-            } else {
-                selectedReceiver = receiver
-                selectedSequence = sequence
-            }
-        }
-        return selectedReceiver
+        return registrations.values
+            .filter { $0.readiness.isEligible && $0.receiver.value != nil }
+            .max { lhs, rhs in
+                (lhs.eligibilitySequence ?? 0) < (rhs.eligibilitySequence ?? 0)
+            }?
+            .receiver.value
     }
 
     private func pruneDeallocatedReceivers() {
@@ -141,20 +85,23 @@ final class LocalNotificationNavigationCoordinator {
 }
 
 @MainActor
-private struct SceneRegistration {
-    let receiver: WeakSceneReceiver
+private struct NotificationSceneRegistration {
+    let receiver: WeakNotificationSceneReceiver
+    var readiness = NotificationSceneReadiness(
+        isRestored: false,
+        isMain: false,
+        isReady: false,
+        isPlatformEligible: false
+    )
     var eligibilitySequence: UInt64?
 
     init(receiver: any LocalNotificationSceneReceiving) {
-        self.receiver = WeakSceneReceiver(receiver)
+        self.receiver = WeakNotificationSceneReceiver(receiver)
     }
 }
 
 @MainActor
-private final class WeakSceneReceiver {
+private final class WeakNotificationSceneReceiver {
     weak var value: (any LocalNotificationSceneReceiving)?
-
-    init(_ value: any LocalNotificationSceneReceiving) {
-        self.value = value
-    }
+    init(_ value: any LocalNotificationSceneReceiving) { self.value = value }
 }

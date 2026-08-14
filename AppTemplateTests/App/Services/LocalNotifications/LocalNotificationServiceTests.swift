@@ -946,7 +946,7 @@ struct LocalNotificationServiceTests {
 
     @Test(.timeLimit(.minutes(1)))
     func eventsAreTheInjectedHubStream() async throws {
-        let hub = LocalNotificationEventHub()
+        let hub = makeLocalNotificationEventHub()
         let service = LocalNotificationService.fixture(
             client: ScriptedLocalNotificationCenterClient(),
             eventHub: hub
@@ -1208,7 +1208,7 @@ private extension LocalNotificationService {
         envelopeCodec: LocalNotificationServiceEnvelopeCodec = .live,
         stager: LocalNotificationServiceAttachmentStager? = nil,
         stagingRoot: URL? = nil,
-        eventHub: LocalNotificationEventHub = LocalNotificationEventHub(),
+        eventHub: LocalNotificationEventHub = makeLocalNotificationEventHub(),
         operationGateWaiterDidEnqueue: @escaping @Sendable () -> Void = {}
     ) -> LocalNotificationService {
         let root = stagingRoot ?? FileManager.default.temporaryDirectory.appending(

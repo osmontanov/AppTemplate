@@ -181,9 +181,3 @@ final class AppSceneNavigationLifecycle: ISceneNavigationActions {
         return intent
     }
 }
-
-extension AppSceneNavigationLifecycle: LocalNotificationSceneReceiving {
-    func receiveLocalNotificationURL(_ url: URL) {
-        _ = receive(url)
-    }
-}

@@ -1,58 +1,26 @@
 import Foundation
 
-nonisolated
-extension LocalNotificationEvent {
-    var navigationCandidate: URL? {
-        switch self {
-        case let .opened(_, deepLink),
-             let .action(_, _, deepLink),
-             let .textAction(_, _, _, deepLink):
-            deepLink
-        case .foreground, .dismissed, .diagnostic:
-            nil
-        }
-    }
-}
-
 actor LocalNotificationEventHub {
-    nonisolated let navigationEvents: AsyncStream<LocalNotificationEvent>
-
-    private let navigationContinuation: AsyncStream<LocalNotificationEvent>.Continuation
+    private let history: LocalNotificationEventHistory
+    private let publicCapacity: Int
     private var publicContinuations: [
         UUID: AsyncStream<LocalNotificationEvent>.Continuation
     ] = [:]
-    private var subscriptionCountWaiters: [SubscriptionCountWaiter] = []
-    private var nextEventSequence: UInt64 = 0
+    private var subscriptionCountWaiters: [EventHubSubscriptionCountWaiter] = []
 
-    init() {
-        let pair = AsyncStream.makeStream(
-            of: LocalNotificationEvent.self,
-            bufferingPolicy: .unbounded
-        )
-        navigationEvents = pair.stream
-        navigationContinuation = pair.continuation
+    init(history: LocalNotificationEventHistory, publicCapacity: Int = 100) {
+        precondition(publicCapacity > 0, "Event capacity must be positive")
+        self.history = history
+        self.publicCapacity = publicCapacity
     }
 
     var activeSubscriptionCount: Int { publicContinuations.count }
-
-    func waitUntilSubscriptionCountForTesting(_ expectedCount: Int) async {
-        precondition(expectedCount >= 0, "Subscription count cannot be negative")
-        guard publicContinuations.count != expectedCount else { return }
-        await withCheckedContinuation { continuation in
-            subscriptionCountWaiters.append(
-                SubscriptionCountWaiter(
-                    expectedCount: expectedCount,
-                    continuation: continuation
-                )
-            )
-        }
-    }
 
     func events() -> AsyncStream<LocalNotificationEvent> {
         let id = UUID()
         let pair = AsyncStream.makeStream(
             of: LocalNotificationEvent.self,
-            bufferingPolicy: .unbounded
+            bufferingPolicy: .bufferingNewest(publicCapacity)
         )
         pair.continuation.onTermination = { [weak self] _ in
             guard let self else { return }
@@ -63,21 +31,21 @@ actor LocalNotificationEventHub {
         return pair.stream
     }
 
-    func publish(_ event: LocalNotificationEvent) {
-        precondition(nextEventSequence < UInt64.max, "Event sequence exhausted")
-        let sequencedEvent = SequencedLocalNotificationEvent(
-            sequence: nextEventSequence,
-            event: event
-        )
-        nextEventSequence += 1
-
-        if sequencedEvent.event.navigationCandidate != nil {
-            navigationContinuation.yield(sequencedEvent.event)
+    func publish(_ event: LocalNotificationEvent) async {
+        await history.append(event)
+        for continuation in publicContinuations.values {
+            continuation.yield(event)
         }
+    }
 
-        let continuations = Array(publicContinuations.values)
-        for continuation in continuations {
-            continuation.yield(sequencedEvent.event)
+    func waitUntilSubscriptionCountForTesting(_ expectedCount: Int) async {
+        precondition(expectedCount >= 0, "Subscription count cannot be negative")
+        guard publicContinuations.count != expectedCount else { return }
+        await withCheckedContinuation { continuation in
+            subscriptionCountWaiters.append(.init(
+                expectedCount: expectedCount,
+                continuation: continuation
+            ))
         }
     }
 
@@ -88,20 +56,15 @@ actor LocalNotificationEventHub {
 
     private func resumeSatisfiedSubscriptionCountWaiters() {
         let currentCount = publicContinuations.count
-        let satisfiedWaiters = subscriptionCountWaiters.filter {
+        let satisfied = subscriptionCountWaiters.filter {
             $0.expectedCount == currentCount
         }
         subscriptionCountWaiters.removeAll { $0.expectedCount == currentCount }
-        for waiter in satisfiedWaiters { waiter.continuation.resume() }
+        for waiter in satisfied { waiter.continuation.resume() }
     }
 }
 
-private nonisolated struct SubscriptionCountWaiter: Sendable {
+private nonisolated struct EventHubSubscriptionCountWaiter: Sendable {
     let expectedCount: Int
     let continuation: CheckedContinuation<Void, Never>
-}
-
-private nonisolated struct SequencedLocalNotificationEvent: Sendable {
-    let sequence: UInt64
-    let event: LocalNotificationEvent
 }

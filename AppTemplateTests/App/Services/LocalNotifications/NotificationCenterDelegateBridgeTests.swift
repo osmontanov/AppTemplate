@@ -7,8 +7,34 @@ import UserNotifications
 @Suite(.serialized)
 struct NotificationCenterDelegateBridgeTests {
     @Test(.timeLimit(.minutes(1)))
+    func responseRecordsPublishesDispatchesThenCompletesOnce() async throws {
+        let trace = DelegateOrderTrace()
+        let history = LocalNotificationEventHistory(clock: .live)
+        let hub = LocalNotificationEventHub(history: history)
+        let bridge = NotificationCenterDelegateBridge(
+            namespace: try LocalNotificationNamespace(),
+            deepLinkPolicy: .init { $0.scheme == "apptemplate" },
+            eventPublisher: LocalNotificationDelegateEventPublisher { event in
+                await hub.publish(event)
+                trace.record(.history)
+                trace.record(.published)
+            },
+            responseDispatcher: DelegateOrderDispatcher(trace: trace),
+            unmanagedHandler: nil
+        )
+
+        await bridge.processResponse(
+            try .delegateFixture(kind: .defaultOpen),
+            completion: { trace.record(.completion) }
+        )
+
+        #expect(trace.values == [.history, .published, .dispatched, .completion])
+        #expect(await history.records().count == 1)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
     func foregroundPublishesFullPayloadBeforeCompletingWithEveryPresentationOption() async throws {
-        let hub = LocalNotificationEventHub()
+        let hub = makeLocalNotificationEventHub()
         let stream = await hub.events()
         let recorder = DelegateCallbackRecorder()
         let bridge = try NotificationCenterDelegateBridge.fixture(
@@ -78,7 +104,7 @@ struct NotificationCenterDelegateBridgeTests {
 
     @Test(.timeLimit(.minutes(1)))
     func defaultOpenUsesOnlyTheRequestDeepLinkAndCompletesOnceAfterPublishing() async throws {
-        let hub = LocalNotificationEventHub()
+        let hub = makeLocalNotificationEventHub()
         let stream = await hub.events()
         let recorder = DelegateCallbackRecorder()
         let bridge = try NotificationCenterDelegateBridge.fixture(
@@ -106,7 +132,7 @@ struct NotificationCenterDelegateBridgeTests {
 
     @Test(.timeLimit(.minutes(1)))
     func emptySystemCategoryIsSystemTruthAndReconstructsAsNil() async throws {
-        let hub = LocalNotificationEventHub()
+        let hub = makeLocalNotificationEventHub()
         let stream = await hub.events()
         let recorder = DelegateCallbackRecorder()
         let bridge = try NotificationCenterDelegateBridge.fixture(
@@ -407,7 +433,7 @@ struct NotificationCenterDelegateBridgeTests {
         let foregroundRecorder = DelegateCallbackRecorder()
         let responseRecorder = DelegateCallbackRecorder()
         let bridge = try NotificationCenterDelegateBridge.fixture(
-            eventHub: LocalNotificationEventHub(),
+            eventHub: makeLocalNotificationEventHub(),
             recorder: foregroundRecorder,
             unmanagedHandler: nil
         )
@@ -443,7 +469,7 @@ struct NotificationCenterDelegateBridgeTests {
             response: { _ in recorder.recordUnmanagedWork() }
         )
         let bridge = try NotificationCenterDelegateBridge.fixture(
-            eventHub: LocalNotificationEventHub(),
+            eventHub: makeLocalNotificationEventHub(),
             recorder: recorder,
             unmanagedHandler: handler
         )
@@ -472,7 +498,7 @@ struct NotificationCenterDelegateBridgeTests {
             response: { _ in recorder.recordUnmanagedWork() }
         )
         let bridge = try NotificationCenterDelegateBridge.fixture(
-            eventHub: LocalNotificationEventHub(),
+            eventHub: makeLocalNotificationEventHub(),
             recorder: recorder,
             unmanagedHandler: handler
         )
@@ -507,7 +533,7 @@ struct NotificationCenterDelegateBridgeTests {
             response: { _ in throw DelegateBridgeTestError.unmanaged }
         )
         let bridge = try NotificationCenterDelegateBridge.fixture(
-            eventHub: LocalNotificationEventHub(),
+            eventHub: makeLocalNotificationEventHub(),
             recorder: recorder,
             unmanagedHandler: handler
         )
@@ -538,7 +564,7 @@ struct NotificationCenterDelegateBridgeTests {
             response: { _ in throw CancellationError() }
         )
         let bridge = try NotificationCenterDelegateBridge.fixture(
-            eventHub: LocalNotificationEventHub(),
+            eventHub: makeLocalNotificationEventHub(),
             recorder: recorder,
             unmanagedHandler: handler
         )
@@ -564,7 +590,7 @@ struct NotificationCenterDelegateBridgeTests {
     @Test
     func bridgeIsOneNSObjectDelegateThatCanBeStronglyRetained() throws {
         let bridge = try NotificationCenterDelegateBridge.fixture(
-            eventHub: LocalNotificationEventHub(),
+            eventHub: makeLocalNotificationEventHub(),
             recorder: DelegateCallbackRecorder()
         )
         let retained: NSObject & UNUserNotificationCenterDelegate = bridge
@@ -582,7 +608,7 @@ struct NotificationCenterDelegateBridgeTests {
             installDelegate: { delegate in recorder.install(delegate) }
         )
         let bridge = try NotificationCenterDelegateBridge.fixture(
-            eventHub: LocalNotificationEventHub(),
+            eventHub: makeLocalNotificationEventHub(),
             recorder: DelegateCallbackRecorder()
         )
 
@@ -607,8 +633,37 @@ private extension NotificationCenterDelegateBridge {
                 await eventHub.publish(event)
                 recorder.recordPublishBoundary(event)
             },
+            responseDispatcher: DelegateDispatcherNoop(),
             unmanagedHandler: unmanagedHandler
         )
+    }
+}
+
+private actor DelegateDispatcherNoop: IStoreNotificationActionDispatching {
+    func handle(_ response: ManagedLocalNotificationResponse) async {
+        _ = response
+    }
+}
+
+private nonisolated final class DelegateOrderTrace: Sendable {
+    enum Step: Equatable, Sendable {
+        case history
+        case published
+        case dispatched
+        case completion
+    }
+
+    private let state = Mutex<[Step]>([])
+    var values: [Step] { state.withLock { $0 } }
+    func record(_ value: Step) { state.withLock { $0.append(value) } }
+}
+
+private actor DelegateOrderDispatcher: IStoreNotificationActionDispatching {
+    let trace: DelegateOrderTrace
+    init(trace: DelegateOrderTrace) { self.trace = trace }
+    func handle(_ response: ManagedLocalNotificationResponse) async {
+        _ = response
+        trace.record(.dispatched)
     }
 }
 
@@ -752,7 +807,7 @@ private struct OwnedResponseResult {
 private func processOwnedResponse(
     _ response: LocalNotificationSystemResponse
 ) async throws -> OwnedResponseResult {
-    let hub = LocalNotificationEventHub()
+    let hub = makeLocalNotificationEventHub()
     let stream = await hub.events()
     let recorder = DelegateCallbackRecorder()
     let bridge = try NotificationCenterDelegateBridge.fixture(
@@ -770,7 +825,7 @@ private func expectForegroundDiagnostic(
     request: LocalNotificationSystemRequest,
     reason: LocalNotificationDiagnosticReason
 ) async throws {
-    let hub = LocalNotificationEventHub()
+    let hub = makeLocalNotificationEventHub()
     let stream = await hub.events()
     let recorder = DelegateCallbackRecorder()
     let bridge = try NotificationCenterDelegateBridge.fixture(

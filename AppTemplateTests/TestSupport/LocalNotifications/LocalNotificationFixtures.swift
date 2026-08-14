@@ -1,6 +1,16 @@
 import Foundation
 @testable import AppTemplate
 
+nonisolated func makeLocalNotificationEventHub(
+    clock: AppClock = .live,
+    publicCapacity: Int = 100
+) -> LocalNotificationEventHub {
+    LocalNotificationEventHub(
+        history: LocalNotificationEventHistory(clock: clock),
+        publicCapacity: publicCapacity
+    )
+}
+
 nonisolated
 enum LocalNotificationFixtures {
     static func request(

@@ -46,11 +46,13 @@ struct ProjectConfigurationTests {
                 version: "1.0"
             )
         )
+        let notificationGraph = AppNotificationGraph.inMemory()
         let dependencies = AppDependencies.preview(
             settings: settings,
             remoteService: FailClosedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: FailClosedImageLoader()
+            imageLoader: FailClosedImageLoader(),
+            notificationGraph: notificationGraph
         )
         let projectSession = ProjectSessionActions()
         let storeDependencies = dependencies.makeStoreDependencies(session: projectSession)
@@ -65,7 +67,7 @@ struct ProjectConfigurationTests {
         _ = AppSceneView(
             appFlowCoordinator: appFlowCoordinator,
             session: session,
-            localNotifications: .inMemory(),
+            localNotifications: dependencies.localNotifications,
             storeDependencies: storeDependencies,
             storeUISupport: storeUISupport
         )

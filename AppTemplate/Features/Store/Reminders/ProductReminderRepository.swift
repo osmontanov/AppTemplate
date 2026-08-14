@@ -9,17 +9,20 @@ actor ProductReminderRepository: IProductReminderRepository {
     private let service: any ILocalNotificationService
     private let imageLoader: any IImageLoader
     private let attachmentStager: ReminderAttachmentStager
+    private let categoryCatalog: any IAppNotificationCategoryCatalog
     private let clock: AppClock
 
     init(
         service: any ILocalNotificationService,
         imageLoader: any IImageLoader,
         attachmentStager: ReminderAttachmentStager,
+        categoryCatalog: any IAppNotificationCategoryCatalog,
         clock: AppClock
     ) {
         self.service = service
         self.imageLoader = imageLoader
         self.attachmentStager = attachmentStager
+        self.categoryCatalog = categoryCatalog
         self.clock = clock
     }
 
@@ -45,6 +48,14 @@ actor ProductReminderRepository: IProductReminderRepository {
 
         try Task.checkCancellation()
         try await authorizeIfNeeded()
+        try Task.checkCancellation()
+        do {
+            try await categoryCatalog.bootstrapIfNeeded()
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            throw ProductReminderError.categoryRegistrationFailed
+        }
         try Task.checkCancellation()
 
         var stagedAttachment: StagedReminderAttachment?

@@ -17,11 +17,15 @@ struct AppDependencies: Sendable {
     let sessionStartupValidationPolicy: SessionStartupValidationPolicy
     let sessionRefreshSchedulePolicy: SessionRefreshSchedulePolicy
     let settings: SettingsDependencies
-    let localNotifications: LocalNotificationDependencies
+    let notificationGraph: AppNotificationGraph
     let diagnostics: NetworkDiagnosticRecorder
     let imageLoader: any IImageLoader
     let uiTestScriptTracker: UITestScriptConsumptionTracker?
     let bootstrap: @Sendable () async throws -> Void
+
+    var localNotifications: LocalNotificationDependencies {
+        notificationGraph.dependencies
+    }
 
     @MainActor
     static func live(
@@ -34,7 +38,7 @@ struct AppDependencies: Sendable {
             service: "AppTemplate"
         ),
         imageLoader: any IImageLoader = ProductImageLoader(),
-        localNotifications: LocalNotificationDependencies? = nil,
+        notificationGraph: AppNotificationGraph? = nil,
         localNotificationRuntimeResolver: @MainActor () -> UserNotificationCenterRuntime =
             UserNotificationCenterRuntimeFactory.live
     ) -> AppDependencies {
@@ -45,6 +49,11 @@ struct AppDependencies: Sendable {
         let remote = RemoteService(diagnosticRecorder: diagnostics)
         let clock = AppClock.live
         let appInfo = AppInfoService()
+        let resolvedNotificationGraph = notificationGraph ?? .live(
+            imageLoader: imageLoader,
+            clock: clock,
+            runtimeResolver: localNotificationRuntimeResolver
+        )
         return AppDependencies(
             localDatabase: database,
             favorites: FavoritesRepository(database: database),
@@ -65,9 +74,7 @@ struct AppDependencies: Sendable {
             sessionStartupValidationPolicy: .automatic,
             sessionRefreshSchedulePolicy: .automatic,
             settings: SettingsDependencies(appInfo: appInfo),
-            localNotifications: localNotifications ?? .live(
-                runtimeResolver: localNotificationRuntimeResolver
-            ),
+            notificationGraph: resolvedNotificationGraph,
             diagnostics: diagnostics,
             imageLoader: imageLoader,
             uiTestScriptTracker: nil,
@@ -129,7 +136,7 @@ struct AppDependencies: Sendable {
         let storePreferences = StorePreferencesRepository(
             userDefaults: preferencesService
         )
-        let notifications = LocalNotificationDependencies.inMemory(
+        let notificationGraph = AppNotificationGraph.inMemory(
             settings: LocalNotificationSettings(
                 authorizationStatus: scenario.notificationSeed.authorizationStatus,
                 alertSetting: .disabled,
@@ -141,8 +148,11 @@ struct AppDependencies: Sendable {
                 previewSetting: .never
             ),
             authorizationResult: [.authorized, .provisional, .ephemeral]
-                .contains(scenario.notificationSeed.authorizationStatus)
+                .contains(scenario.notificationSeed.authorizationStatus),
+            imageLoader: imageLoader,
+            clock: fixedClock
         )
+        let notifications = notificationGraph.dependencies
         let appInfo = AppInfoService(
             displayName: "AppTemplate UI Tests",
             version: "1.0"
@@ -168,7 +178,7 @@ struct AppDependencies: Sendable {
                 ? .automatic : .disabled,
             sessionRefreshSchedulePolicy: .disabled,
             settings: SettingsDependencies(appInfo: appInfo),
-            localNotifications: notifications,
+            notificationGraph: notificationGraph,
             diagnostics: diagnostics,
             imageLoader: imageLoader,
             uiTestScriptTracker: tracker,
@@ -196,7 +206,7 @@ struct AppDependencies: Sendable {
         remoteService: any IRemoteService,
         diagnostics: NetworkDiagnosticRecorder,
         imageLoader: any IImageLoader,
-        localNotifications: LocalNotificationDependencies? = nil
+        notificationGraph: AppNotificationGraph? = nil
     ) -> AppDependencies {
         let database = LocalDatabaseService(configuration: .inMemory())
         let keychain = InMemoryKeychainService()
@@ -204,6 +214,10 @@ struct AppDependencies: Sendable {
         let appInfo = AppInfoService(
             displayName: "AppTemplate UI Tests",
             version: "1.0"
+        )
+        let resolvedNotificationGraph = notificationGraph ?? .inMemory(
+            imageLoader: imageLoader,
+            clock: clock
         )
         return AppDependencies(
             localDatabase: database,
@@ -225,7 +239,7 @@ struct AppDependencies: Sendable {
             sessionStartupValidationPolicy: .disabled,
             sessionRefreshSchedulePolicy: .disabled,
             settings: SettingsDependencies(appInfo: appInfo),
-            localNotifications: localNotifications ?? .inMemory(),
+            notificationGraph: resolvedNotificationGraph,
             diagnostics: diagnostics,
             imageLoader: imageLoader,
             uiTestScriptTracker: nil,
@@ -245,10 +259,14 @@ struct AppDependencies: Sendable {
         ),
         storePreferencesService: any IUserDefaultsService = InMemoryUserDefaultsService(),
         keychainService: any IKeychainService = InMemoryKeychainService(),
-        localNotifications: LocalNotificationDependencies? = nil
+        notificationGraph: AppNotificationGraph? = nil
     ) -> AppDependencies {
         let clock = AppClock.live
         let appInfo = settings.appInfo
+        let resolvedNotificationGraph = notificationGraph ?? .inMemory(
+            imageLoader: imageLoader,
+            clock: clock
+        )
         return AppDependencies(
             localDatabase: localDatabaseService,
             favorites: FavoritesRepository(database: localDatabaseService),
@@ -269,7 +287,7 @@ struct AppDependencies: Sendable {
             sessionStartupValidationPolicy: .disabled,
             sessionRefreshSchedulePolicy: .disabled,
             settings: settings,
-            localNotifications: localNotifications ?? .inMemory(),
+            notificationGraph: resolvedNotificationGraph,
             diagnostics: diagnostics,
             imageLoader: imageLoader,
             uiTestScriptTracker: nil,
@@ -286,7 +304,7 @@ struct AppDependencies: Sendable {
         appStateStorage: any IAppStateStorage,
         keychainService: any IKeychainService,
         settings: SettingsDependencies,
-        localNotifications: LocalNotificationDependencies,
+        notificationGraph: AppNotificationGraph,
         storePreferencesService: any IUserDefaultsService = InMemoryUserDefaultsService()
     ) -> AppDependencies {
         let clock = AppClock.live
@@ -311,7 +329,7 @@ struct AppDependencies: Sendable {
             sessionStartupValidationPolicy: .disabled,
             sessionRefreshSchedulePolicy: .disabled,
             settings: settings,
-            localNotifications: localNotifications,
+            notificationGraph: notificationGraph,
             diagnostics: diagnostics,
             imageLoader: imageLoader,
             uiTestScriptTracker: nil,
@@ -329,6 +347,7 @@ struct AppDependencies: Sendable {
             favorites: favorites,
             cart: cart,
             preferences: storePreferences,
+            reminders: notificationGraph.reminders,
             appInfo: appInfo
         )
     }

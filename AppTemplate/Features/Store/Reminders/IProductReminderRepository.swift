@@ -33,6 +33,7 @@ enum ProductReminderError: Error, Equatable, Sendable {
     case calendarNotInFuture
     case calendarBeyondOneYear
     case invalidRescheduleSource
+    case categoryRegistrationFailed
 }
 
 nonisolated

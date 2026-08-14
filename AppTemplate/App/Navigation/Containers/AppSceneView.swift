@@ -12,6 +12,7 @@ struct AppSceneView: View {
 
     @State private var lifecycle: AppSceneNavigationLifecycle
     @State private var protectedStoreActionExecutor: ProtectedStoreActionExecutor
+    @State private var notificationCommandReceiver: AppSceneNotificationCommandReceiver
     @State private var onboardingRouter: FlowRouter
     @State private var maintenanceRouter: FlowRouter
     @State private var localNotificationRegistration:
@@ -44,11 +45,18 @@ struct AppSceneView: View {
         let sceneStoreRouter = AppSceneNavigationLifecycle(
             appFlowRouter: appFlowCoordinator.appFlowRouter
         )
-        _lifecycle = State(initialValue: sceneStoreRouter)
-        _protectedStoreActionExecutor = State(initialValue: ProtectedStoreActionExecutor(
+        let executor = ProtectedStoreActionExecutor(
             router: sceneStoreRouter.router.store,
             products: storeDependencies.products,
             favorites: storeDependencies.favorites,
+            session: storeDependencies.session
+        )
+        _lifecycle = State(initialValue: sceneStoreRouter)
+        _protectedStoreActionExecutor = State(initialValue: executor)
+        _notificationCommandReceiver = State(initialValue: AppSceneNotificationCommandReceiver(
+            navigation: sceneStoreRouter,
+            router: sceneStoreRouter.router.store,
+            executor: executor,
             session: storeDependencies.session
         ))
         _onboardingRouter = State(
@@ -85,8 +93,10 @@ struct AppSceneView: View {
                 ) != nil
                 protectedStoreActionExecutor.sessionDidChange(session)
                 execute(lifecycle.reconcile(session), presentation: session)
-                localNotificationRegistration.setNavigationReady(
-                    lifecycle.isNavigationReady
+                localNotificationRegistration.setNavigationState(
+                    isRestored: lifecycle.hasRestored,
+                    isMain: appFlowRouter.flow == .main,
+                    isReady: lifecycle.isNavigationReady
                 )
                 if shouldPersistRestoration || lifecycle.isNavigationReady {
                     persist()
@@ -99,8 +109,10 @@ struct AppSceneView: View {
                     lifecycle.reconcile(presentation),
                     presentation: presentation
                 )
-                localNotificationRegistration.setNavigationReady(
-                    lifecycle.isNavigationReady
+                localNotificationRegistration.setNavigationState(
+                    isRestored: lifecycle.hasRestored,
+                    isMain: appFlowRouter.flow == .main,
+                    isReady: lifecycle.isNavigationReady
                 )
                 persist()
             }
@@ -115,6 +127,11 @@ struct AppSceneView: View {
                     return
                 }
                 _ = lifecycle.apply(transition)
+                localNotificationRegistration.setNavigationState(
+                    isRestored: lifecycle.hasRestored,
+                    isMain: appFlowRouter.flow == .main,
+                    isReady: lifecycle.isNavigationReady
+                )
                 persist()
             }
             .onOpenURL { url in
@@ -124,7 +141,7 @@ struct AppSceneView: View {
             }
             .task {
                 await localNotificationRegistration.run(
-                    receiver: lifecycle,
+                    receiver: notificationCommandReceiver,
                     bootstrap: localNotifications.bootstrapCategoriesIfNeeded
                 )
             }
@@ -135,14 +152,14 @@ struct AppSceneView: View {
             }
             #if os(iOS)
             .onChange(of: scenePhase, initial: true) { _, phase in
-                localNotificationRegistration.setEligible(
+                localNotificationRegistration.setPlatformEligible(
                     LocalNotificationSceneEligibility.isEligible(phase)
                 )
             }
             #elseif os(macOS)
             .background {
                 LocalNotificationWindowActivityProbe { isKeyWindow in
-                    localNotificationRegistration.setEligible(isKeyWindow)
+                    localNotificationRegistration.setPlatformEligible(isKeyWindow)
                 }
             }
             #endif
@@ -218,32 +235,50 @@ enum LocalNotificationSceneEligibility {
 final class LocalNotificationSceneRegistration {
     private let id = UUID()
     private let coordinator: LocalNotificationNavigationCoordinator
-    private var currentEligibility = false
+    private var readiness = NotificationSceneReadiness(
+        isRestored: false,
+        isMain: false,
+        isReady: false,
+        isPlatformEligible: false
+    )
     private var nextGeneration: UInt64 = 0
     private var activeGeneration: UInt64?
     private var readyGeneration: UInt64?
-    private var isNavigationReady = false
 
     init(coordinator: LocalNotificationNavigationCoordinator) {
         self.coordinator = coordinator
     }
 
-    func setEligible(_ isEligible: Bool) {
-        currentEligibility = isEligible
+    func setPlatformEligible(_ isEligible: Bool) {
+        readiness = NotificationSceneReadiness(
+            isRestored: readiness.isRestored,
+            isMain: readiness.isMain,
+            isReady: readiness.isReady,
+            isPlatformEligible: isEligible
+        )
         guard let activeGeneration,
               readyGeneration == activeGeneration else {
             return
         }
-        coordinator.setEligible(isEligible && isNavigationReady, id: id)
+        coordinator.setReadiness(readiness, id: id)
     }
 
-    func setNavigationReady(_ isReady: Bool) {
-        isNavigationReady = isReady
+    func setNavigationState(
+        isRestored: Bool,
+        isMain: Bool,
+        isReady: Bool
+    ) {
+        readiness = NotificationSceneReadiness(
+            isRestored: isRestored,
+            isMain: isMain,
+            isReady: isReady,
+            isPlatformEligible: readiness.isPlatformEligible
+        )
         guard let activeGeneration,
               readyGeneration == activeGeneration else {
             return
         }
-        coordinator.setEligible(currentEligibility && isReady, id: id)
+        coordinator.setReadiness(readiness, id: id)
     }
 
     func run(
@@ -260,24 +295,19 @@ final class LocalNotificationSceneRegistration {
         readyGeneration = nil
         coordinator.register(id: id, receiver: receiver)
         defer { cleanup(generation: generation) }
-
-        do {
-            try await bootstrap()
-        } catch {
-            if error is CancellationError || Task.isCancelled {
-                return
+        let bootstrapTask = Task {
+            do {
+                try await bootstrap()
+            } catch {
+                // Category bootstrap is retried by each Store schedule and does
+                // not gate an otherwise ready scene.
             }
         }
+        defer { bootstrapTask.cancel() }
 
-        guard !Task.isCancelled,
-              activeGeneration == generation else {
-            return
-        }
+        guard !Task.isCancelled, activeGeneration == generation else { return }
         readyGeneration = generation
-        coordinator.setEligible(
-            currentEligibility && isNavigationReady,
-            id: id
-        )
+        coordinator.setReadiness(readiness, id: id)
 
         let lifetime = AsyncStream.makeStream(of: Void.self)
         defer { lifetime.continuation.finish() }

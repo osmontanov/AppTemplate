@@ -53,7 +53,7 @@ struct AppDependenciesTests {
         )
         let live = AppDependencies.live(
             imageLoader: imageLoader,
-            localNotifications: .inMemory()
+            notificationGraph: .inMemory()
         )
 
         let resolvedPreview = try #require(preview.imageLoader as? InjectedImageLoader)
@@ -123,12 +123,14 @@ struct AppDependenciesTests {
         let api = RecordingUserNotificationCenterAPI(recorder: recorder)
         let runtime = makeRuntime(api: api, recorder: recorder)
 
-        let dependencies = LocalNotificationDependencies.live(
+        let dependencies = AppNotificationGraph.live(
+            imageLoader: FailClosedImageLoader(),
+            clock: .live,
             runtimeResolver: {
                 recorder.record("resolve")
                 return runtime
             }
-        )
+        ).dependencies
 
         #expect(recorder.values == ["resolve", "install"])
         #expect(api.operations.isEmpty)
@@ -165,9 +167,11 @@ struct AppDependenciesTests {
             categories: [owned, foreign]
         )
         let runtime = makeRuntime(api: api, recorder: recorder)
-        let dependencies = LocalNotificationDependencies.live(
+        let dependencies = AppNotificationGraph.live(
+            imageLoader: FailClosedImageLoader(),
+            clock: .live,
             runtimeResolver: { runtime }
-        )
+        ).dependencies
 
         try await withThrowingTaskGroup(of: Void.self) { group in
             for _ in 0..<8 {
@@ -198,16 +202,18 @@ struct AppDependenciesTests {
             makeClient: { UserNotificationCenterClient(api: api) },
             installDelegate: { weakInstaller.install($0) }
         )
-        var dependencies: LocalNotificationDependencies? = .live(
+        var graph: AppNotificationGraph? = .live(
+            imageLoader: FailClosedImageLoader(),
+            clock: .live,
             runtimeResolver: { runtime }
         )
 
         #expect(weakInstaller.installCount == 1)
         #expect(weakInstaller.delegate != nil)
 
-        dependencies = nil
+        graph = nil
 
-        #expect(dependencies == nil)
+        #expect(graph == nil)
         #expect(weakInstaller.delegate == nil)
     }
 
@@ -232,7 +238,7 @@ struct AppDependenciesTests {
             diagnostics: NetworkDiagnosticRecorder(),
             imageLoader: InjectedImageLoader()
         )
-        let direct = LocalNotificationDependencies.inMemory()
+        let direct = AppNotificationGraph.inMemory().dependencies
 
         #expect(preview.localNotifications.service is InMemoryLocalNotificationService)
         #expect(uiTest.localNotifications.service is InMemoryLocalNotificationService)
@@ -267,7 +273,7 @@ struct AppDependenciesTests {
     @Test
     func pluralLabReplacementBuildsAValidatedSchedulableInMemoryCatalog() async throws {
         let category = try LocalNotificationFixtures.category(id: "configured")
-        let graph = LocalNotificationDependencies.inMemory()
+        let graph = AppNotificationGraph.inMemory().dependencies
         let request = LocalNotificationRequest(
             id: try LocalNotificationID("request"),
             content: LocalNotificationContent(
@@ -330,13 +336,15 @@ struct AppDependenciesTests {
 
     @Test
     func notificationBootstrapRoutesOnlyThroughTheInjectedCategoryCatalog() async throws {
-        let base = LocalNotificationDependencies.inMemory()
+        let base = AppNotificationGraph.inMemory().dependencies
         let catalog = NotificationCategoryCatalogRoutingSpy()
         let graph = LocalNotificationDependencies(
             service: base.service,
+            categoryCatalog: catalog,
             eventHub: base.eventHub,
+            eventHistory: base.eventHistory,
             navigationCoordinator: base.navigationCoordinator,
-            categoryCatalog: catalog
+            delegateBridge: nil
         )
 
         try await graph.bootstrapCategoriesIfNeeded()
@@ -350,7 +358,7 @@ struct AppDependenciesTests {
 
     @Test
     func appDependencyFactoriesKeepTheExactInjectedNotificationGraph() throws {
-        let notifications = LocalNotificationDependencies.inMemory()
+        let notifications = AppNotificationGraph.inMemory()
         let settings = SettingsDependencies(
             appInfo: AppInfoService(displayName: "Injected", version: "1")
         )
@@ -359,33 +367,42 @@ struct AppDependenciesTests {
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
             imageLoader: InjectedImageLoader(),
-            localNotifications: notifications
+            notificationGraph: notifications
         )
 
         #expect(
             dependencies.localNotifications.service as AnyObject
-                === notifications.service as AnyObject
+                === notifications.dependencies.service as AnyObject
         )
-        #expect(dependencies.localNotifications.eventHub === notifications.eventHub)
+        #expect(
+            dependencies.localNotifications.eventHub
+                === notifications.dependencies.eventHub
+        )
         #expect(
             dependencies.localNotifications.navigationCoordinator
-                === notifications.navigationCoordinator
+                === notifications.dependencies.navigationCoordinator
         )
         #expect(
             dependencies.localNotifications.categoryCatalog as AnyObject
-                === notifications.categoryCatalog as AnyObject
+                === notifications.dependencies.categoryCatalog as AnyObject
         )
     }
 
-    @Test
-    func sceneRegistrationPublishesLatestEligibilityOnlyAfterBootstrap() async throws {
-        let graph = LocalNotificationDependencies.inMemory()
+
+    @Test(.timeLimit(.minutes(1)))
+    func sceneEligibilityDoesNotWaitForCategoryBootstrap() async throws {
+        let dependencies = AppNotificationGraph.inMemory().dependencies
         let registration = LocalNotificationSceneRegistration(
-            coordinator: graph.navigationCoordinator
+            coordinator: dependencies.navigationCoordinator
         )
         let receiver = NotificationSceneReceiver()
         let bootstrap = ControlledNotificationBootstrap()
-        registration.setNavigationReady(true)
+        registration.setNavigationState(
+            isRestored: true,
+            isMain: true,
+            isReady: true
+        )
+        registration.setPlatformEligible(true)
         let runTask = Task {
             await registration.run(
                 receiver: receiver,
@@ -394,120 +411,15 @@ struct AppDependenciesTests {
         }
         await bootstrap.waitUntilEntered()
 
-        registration.setEligible(true)
-        registration.setEligible(false)
-        registration.setEligible(true)
+        await dependencies.navigationCoordinator.deliver(
+            .navigate(.openProduct(7))
+        )
+        await receiver.waitForCount(1)
+        #expect(receiver.commands == [.navigate(.openProduct(7))])
+
+        runTask.cancel()
         await bootstrap.resume()
-        await bootstrap.waitUntilReturned()
-
-        await graph.eventHub.publish(
-            try LocalNotificationFixtures.openedFixture(url: "apptemplate://store")
-        )
-        await receiver.waitForCount(1)
-        #expect(receiver.urls == [URL(string: "apptemplate://store")!])
-
-        runTask.cancel()
         await runTask.value
-    }
-
-    @Test
-    func sceneRegistrationContinuesNavigationAfterBootstrapFailure() async throws {
-        let graph = LocalNotificationDependencies.inMemory()
-        let registration = LocalNotificationSceneRegistration(
-            coordinator: graph.navigationCoordinator
-        )
-        let receiver = NotificationSceneReceiver()
-        registration.setNavigationReady(true)
-        registration.setEligible(true)
-        let runTask = Task {
-            await registration.run(
-                receiver: receiver,
-                bootstrap: { throw NotificationCompositionTestError.bootstrap }
-            )
-        }
-
-        await graph.eventHub.publish(
-            try LocalNotificationFixtures.openedFixture(url: "apptemplate://store")
-        )
-        await receiver.waitForCount(1)
-        #expect(receiver.urls == [URL(string: "apptemplate://store")!])
-
-        runTask.cancel()
-        await runTask.value
-    }
-
-    @Test
-    func cancellingSceneRegistrationUnregistersItsReceiver() async throws {
-        let graph = LocalNotificationDependencies.inMemory()
-        let registration = LocalNotificationSceneRegistration(
-            coordinator: graph.navigationCoordinator
-        )
-        let first = NotificationSceneReceiver()
-        registration.setNavigationReady(true)
-        registration.setEligible(true)
-        let runTask = Task {
-            await registration.run(receiver: first, bootstrap: {})
-        }
-        await graph.eventHub.publish(
-            try LocalNotificationFixtures.openedFixture(url: "apptemplate://store")
-        )
-        await first.waitForCount(1)
-
-        runTask.cancel()
-        await runTask.value
-        await graph.eventHub.publish(
-            try LocalNotificationFixtures.openedFixture(url: "apptemplate://services")
-        )
-
-        let second = NotificationSceneReceiver()
-        let secondID = UUID()
-        graph.navigationCoordinator.register(id: secondID, receiver: second)
-        graph.navigationCoordinator.setEligible(true, id: secondID)
-        await second.waitForCount(1)
-        #expect(first.urls == [URL(string: "apptemplate://store")!])
-        #expect(second.urls == [URL(string: "apptemplate://services")!])
-    }
-
-    @Test
-    func staleSceneTaskCleanupCannotUnregisterNewerGeneration() async throws {
-        let graph = LocalNotificationDependencies.inMemory()
-        let registration = LocalNotificationSceneRegistration(
-            coordinator: graph.navigationCoordinator
-        )
-        let receiver = NotificationSceneReceiver()
-        registration.setNavigationReady(true)
-        registration.setEligible(true)
-        let firstBootstrap = ControlledNotificationBootstrap()
-        let firstTask = Task {
-            await registration.run(
-                receiver: receiver,
-                bootstrap: { try await firstBootstrap.wait() }
-            )
-        }
-        await firstBootstrap.waitUntilEntered()
-        let secondTask = Task {
-            await registration.run(receiver: receiver, bootstrap: {})
-        }
-        await graph.eventHub.publish(
-            try LocalNotificationFixtures.openedFixture(url: "apptemplate://store")
-        )
-        await receiver.waitForCount(1)
-
-        await firstBootstrap.resume()
-        await firstTask.value
-        await graph.eventHub.publish(
-            try LocalNotificationFixtures.openedFixture(url: "apptemplate://services")
-        )
-        await receiver.waitForCount(2)
-        #expect(
-            receiver.urls == [
-                URL(string: "apptemplate://store")!,
-                URL(string: "apptemplate://services")!
-            ]
-        )
-
-        secondTask.cancel()
-        await secondTask.value
     }
 
     @Test
@@ -520,7 +432,7 @@ struct AppDependenciesTests {
     @Test
     func liveGraphUsesDeclaredServices() {
         let dependencies = AppDependencies.live(
-            localNotifications: .inMemory()
+            notificationGraph: .inMemory()
         )
         let remote = dependencies.remote as? RemoteService
 
@@ -538,7 +450,7 @@ struct AppDependenciesTests {
         let injected = KeychainServiceSpy()
         let dependencies = AppDependencies.live(
             keychainService: injected,
-            localNotifications: .inMemory()
+            notificationGraph: .inMemory()
         )
         let resolved = try #require(dependencies.keychain as? KeychainServiceSpy)
 
@@ -553,7 +465,7 @@ struct AppDependenciesTests {
         let spy = UserDefaultsServiceSpy(value: Data([0x01, 0x02]))
         let dependencies = AppDependencies.live(
             userDefaultsService: spy,
-            localNotifications: .inMemory()
+            notificationGraph: .inMemory()
         )
         let storage = dependencies.appStateStorage
 
@@ -578,7 +490,7 @@ struct AppDependenciesTests {
                 calls.withLock { $0 += 1 }
                 throw LocalDatabaseTestError.injectedFailure
             }),
-            localNotifications: .inMemory()
+            notificationGraph: .inMemory()
         )
 
         #expect(calls.withLock { $0 } == 0)
@@ -840,7 +752,7 @@ struct AppDependenciesTests {
             appStateStorage: appStateStorage,
             keychainService: keychainService,
             settings: settings,
-            localNotifications: .inMemory()
+            notificationGraph: .inMemory()
         )
         let resolvedLocalDatabaseService = try #require(
             dependencies.localDatabase as? InjectedLocalDatabaseService
@@ -1251,24 +1163,24 @@ private func makeRuntime(
 
 @MainActor
 private final class NotificationSceneReceiver: LocalNotificationSceneReceiving {
-    private(set) var urls: [URL] = []
+    private(set) var commands: [NotificationNavigationCommand] = []
     private var waiters: [CountWaiter] = []
 
-    func receiveLocalNotificationURL(_ url: URL) {
-        urls.append(url)
+    func receiveNotificationCommand(_ command: NotificationNavigationCommand) async {
+        commands.append(command)
         resumeSatisfiedWaiters()
     }
 
     func waitForCount(_ count: Int) async {
-        guard urls.count < count else { return }
+        guard commands.count < count else { return }
         await withCheckedContinuation { continuation in
             waiters.append(CountWaiter(count: count, continuation: continuation))
         }
     }
 
     private func resumeSatisfiedWaiters() {
-        let satisfied = waiters.filter { $0.count <= urls.count }
-        waiters.removeAll { $0.count <= urls.count }
+        let satisfied = waiters.filter { $0.count <= commands.count }
+        waiters.removeAll { $0.count <= commands.count }
         for waiter in satisfied {
             waiter.continuation.resume()
         }

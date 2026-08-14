@@ -81,7 +81,7 @@ struct InMemoryLocalNotificationServiceTests {
                 authorizationResult: true,
                 configuredCategories: [invalid],
                 deepLinkPolicy: LocalNotificationDeepLinkPolicy { _ in true },
-                eventHub: LocalNotificationEventHub()
+                eventHub: makeLocalNotificationEventHub()
             )
         }
     }
@@ -96,7 +96,7 @@ struct InMemoryLocalNotificationServiceTests {
                 authorizationResult: true,
                 configuredCategories: [duplicate, duplicate],
                 deepLinkPolicy: LocalNotificationDeepLinkPolicy { _ in true },
-                eventHub: LocalNotificationEventHub()
+                eventHub: makeLocalNotificationEventHub()
             )
         }
     }
@@ -118,7 +118,7 @@ struct InMemoryLocalNotificationServiceTests {
                 authorizationResult: true,
                 configuredCategories: [invalid],
                 deepLinkPolicy: LocalNotificationDeepLinkPolicy { _ in true },
-                eventHub: LocalNotificationEventHub()
+                eventHub: makeLocalNotificationEventHub()
             )
         }
     }
@@ -139,7 +139,7 @@ struct InMemoryLocalNotificationServiceTests {
                 deepLinkPolicy: LocalNotificationDeepLinkPolicy {
                     $0.scheme == "apptemplate"
                 },
-                eventHub: LocalNotificationEventHub()
+                eventHub: makeLocalNotificationEventHub()
             )
         }
     }
@@ -152,7 +152,7 @@ struct InMemoryLocalNotificationServiceTests {
             authorizationResult: true,
             configuredCategories: [category],
             deepLinkPolicy: LocalNotificationDeepLinkPolicy { _ in true },
-            eventHub: LocalNotificationEventHub()
+            eventHub: makeLocalNotificationEventHub()
         )
         let request = try makeRequest(id: "request", categoryID: category.id)
 
@@ -384,7 +384,7 @@ struct InMemoryLocalNotificationServiceTests {
 
     @Test(.timeLimit(.minutes(1)))
     func servicePublishesEventsThroughItsInjectedHub() async throws {
-        let hub = LocalNotificationEventHub()
+        let hub = makeLocalNotificationEventHub()
         let service = InMemoryLocalNotificationService.fixture(eventHub: hub)
         let stream = await service.events()
         let expected = try LocalNotificationFixtures.diagnostic(.missingEnvelope)
@@ -398,7 +398,7 @@ struct InMemoryLocalNotificationServiceTests {
 
     @Test(.timeLimit(.minutes(1)))
     func cancellingAServiceEventConsumerRemovesItsHubSubscription() async {
-        let hub = LocalNotificationEventHub()
+        let hub = makeLocalNotificationEventHub()
         let service = InMemoryLocalNotificationService.fixture(eventHub: hub)
         let stream = await service.events()
         let consumer = Task { await firstEvent(in: stream) }
@@ -530,7 +530,7 @@ private extension InMemoryLocalNotificationService {
     static func fixture(
         settings: LocalNotificationSettings = .fixture(),
         authorizationResult: Bool = true,
-        eventHub: LocalNotificationEventHub = LocalNotificationEventHub()
+        eventHub: LocalNotificationEventHub = makeLocalNotificationEventHub()
     ) -> InMemoryLocalNotificationService {
         let parser = DeepLinkParser(scheme: "apptemplate")
         let candidateURLs = [

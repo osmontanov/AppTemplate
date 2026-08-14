@@ -85,6 +85,7 @@ final class NotificationCenterDelegateBridge:
     private let namespace: LocalNotificationNamespace
     private let deepLinkPolicy: LocalNotificationDeepLinkPolicy
     private let eventPublisher: LocalNotificationDelegateEventPublisher
+    private let responseDispatcher: any IStoreNotificationActionDispatching
     private let unmanagedHandler: NotificationCenterUnmanagedHandler?
     private let frameworkCallbacks = Mutex(
         NotificationCenterFrameworkCallbacks()
@@ -94,11 +95,13 @@ final class NotificationCenterDelegateBridge:
         namespace: LocalNotificationNamespace,
         deepLinkPolicy: LocalNotificationDeepLinkPolicy,
         eventHub: LocalNotificationEventHub,
+        responseDispatcher: any IStoreNotificationActionDispatching,
         unmanagedHandler: NotificationCenterUnmanagedHandler?
     ) {
         self.namespace = namespace
         self.deepLinkPolicy = deepLinkPolicy
         eventPublisher = LocalNotificationDelegateEventPublisher(eventHub: eventHub)
+        self.responseDispatcher = responseDispatcher
         self.unmanagedHandler = unmanagedHandler
     }
 
@@ -106,11 +109,13 @@ final class NotificationCenterDelegateBridge:
         namespace: LocalNotificationNamespace,
         deepLinkPolicy: LocalNotificationDeepLinkPolicy,
         eventPublisher: LocalNotificationDelegateEventPublisher,
+        responseDispatcher: any IStoreNotificationActionDispatching,
         unmanagedHandler: NotificationCenterUnmanagedHandler?
     ) {
         self.namespace = namespace
         self.deepLinkPolicy = deepLinkPolicy
         self.eventPublisher = eventPublisher
+        self.responseDispatcher = responseDispatcher
         self.unmanagedHandler = unmanagedHandler
     }
 
@@ -193,6 +198,10 @@ final class NotificationCenterDelegateBridge:
                 logicalID: logicalID
             )
             await eventPublisher.publish(event)
+            await responseDispatcher.handle(.init(
+                event: event,
+                deliveredAt: response.deliveredAt
+            ))
             completion.complete(())
         } catch {
             await eventPublisher.publish(
