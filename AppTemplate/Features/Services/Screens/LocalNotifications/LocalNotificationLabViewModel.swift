@@ -9,6 +9,9 @@ final class LocalNotificationLabViewModel {
     private let history: any ILocalNotificationEventReading
     private let assets: LocalNotificationLabAssetProvider
     private var eventTask: Task<Void, Never>?
+    private var userIntentRevision: UInt64 = 0
+    private var inFlightUserIntentCount = 0
+    private var userIntentWaiters: [UUID: CheckedContinuation<Void, Never>] = [:]
 
     private(set) var settings: LocalNotificationSettings?
     private(set) var pendingLab: [LocalNotificationPendingSnapshot] = []
@@ -45,12 +48,46 @@ final class LocalNotificationLabViewModel {
         }
     }
 
+    func loadInitialState() async {
+        while !Task.isCancelled {
+            let initialRevision = userIntentRevision
+            async let loadedSettings = lab.settings()
+            async let loadedPendingLab = lab.pendingLab()
+            async let loadedDeliveredLab = lab.deliveredLab()
+            async let loadedPendingAppOwned = appWide.pendingAppOwned()
+            async let loadedDeliveredAppOwned = appWide.deliveredAppOwned()
+            let snapshot = await (
+                loadedSettings,
+                loadedPendingLab,
+                loadedDeliveredLab,
+                loadedPendingAppOwned,
+                loadedDeliveredAppOwned
+            )
+            guard !Task.isCancelled else { return }
+            guard userIntentRevision == initialRevision,
+                  inFlightUserIntentCount == 0 else {
+                await waitForInFlightUserIntents()
+                continue
+            }
+            settings = snapshot.0
+            pendingLab = snapshot.1
+            deliveredLab = snapshot.2
+            pendingAppOwned = snapshot.3
+            deliveredAppOwned = snapshot.4
+            return
+        }
+    }
+
     func refreshSettings() async {
+        beginUserIntent()
+        defer { endUserIntent() }
         settings = await lab.settings()
         actualResult = .success(StoreServicesText.string("Refreshed notification settings."))
     }
 
     func refreshLabLists() async {
+        beginUserIntent()
+        defer { endUserIntent() }
         async let pending = lab.pendingLab()
         async let delivered = lab.deliveredLab()
         pendingLab = await pending
@@ -59,6 +96,8 @@ final class LocalNotificationLabViewModel {
     }
 
     func refreshAppOwnedLists() async {
+        beginUserIntent()
+        defer { endUserIntent() }
         async let pending = appWide.pendingAppOwned()
         async let delivered = appWide.deliveredAppOwned()
         pendingAppOwned = await pending
@@ -67,6 +106,8 @@ final class LocalNotificationLabViewModel {
     }
 
     func requestSelectedAuthorization() async {
+        beginUserIntent()
+        defer { endUserIntent() }
         guard !authorizationOptions.isEmpty,
               authorizationOptions.subtracting(.allowed).isEmpty else {
             actualResult = .failure(StoreServicesText.string("Select at least one valid authorization option."))
@@ -78,36 +119,48 @@ final class LocalNotificationLabViewModel {
     }
 
     func replaceLabCategories(_ categories: [LocalNotificationCategory]) async {
+        beginUserIntent()
+        defer { endUserIntent() }
         await perform(StoreServicesText.string("Replaced the Services lab category set.")) {
             try await self.lab.replaceLabCategories(categories)
         }
     }
 
     func resetLabCategories() async {
+        beginUserIntent()
+        defer { endUserIntent() }
         await perform(StoreServicesText.string("Reset only the Services lab categories.")) {
             try await self.lab.resetLabCategories()
         }
     }
 
     func scheduleLab(_ request: LocalNotificationRequest) async {
+        beginUserIntent()
+        defer { endUserIntent() }
         await perform(StoreServicesText.string("Scheduled a Services lab notification.")) {
             try await self.lab.scheduleLab(request)
         }
     }
 
     func removeSelectedPending(_ ids: Set<LocalNotificationID>) async {
+        beginUserIntent()
+        defer { endUserIntent() }
         await lab.removeLabPending(ids)
         pendingLab.removeAll { ids.contains($0.id) }
         actualResult = .success(StoreServicesText.string("Removed selected lab-only pending notifications."))
     }
 
     func removeSelectedDelivered(_ ids: Set<LocalNotificationID>) async {
+        beginUserIntent()
+        defer { endUserIntent() }
         await lab.removeLabDelivered(ids)
         deliveredLab.removeAll { ids.contains($0.id) }
         actualResult = .success(StoreServicesText.string("Removed selected lab-only delivered notifications."))
     }
 
     func resetLabData() async {
+        beginUserIntent()
+        defer { endUserIntent() }
         await perform(StoreServicesText.string("Reset only Services lab categories and notifications.")) {
             try await self.lab.resetLabData()
             self.pendingLab = []
@@ -116,6 +169,8 @@ final class LocalNotificationLabViewModel {
     }
 
     func removeAllAppOwnedPendingConfirmed() async {
+        beginUserIntent()
+        defer { endUserIntent() }
         await appWide.removeAllPending()
         pendingAppOwned = []
         pendingLab = []
@@ -123,6 +178,8 @@ final class LocalNotificationLabViewModel {
     }
 
     func removeAllAppOwnedDeliveredConfirmed() async {
+        beginUserIntent()
+        defer { endUserIntent() }
         await appWide.removeAllDelivered()
         deliveredAppOwned = []
         deliveredLab = []
@@ -130,12 +187,16 @@ final class LocalNotificationLabViewModel {
     }
 
     func setBadgeCount(_ count: Int) async {
+        beginUserIntent()
+        defer { endUserIntent() }
         await perform(StoreServicesText.string("Set the app badge count.")) {
             try await self.appWide.setBadgeCount(count)
         }
     }
 
     func clearBadge() async {
+        beginUserIntent()
+        defer { endUserIntent() }
         await perform(StoreServicesText.string("Cleared the app badge.")) {
             try await self.appWide.clearBadge()
         }
@@ -176,6 +237,8 @@ final class LocalNotificationLabViewModel {
     }
 
     func clearEventHistory() async {
+        beginUserIntent()
+        defer { endUserIntent() }
         await history.clear()
         eventRecords = []
         actualResult = .success(StoreServicesText.string("Cleared the shared safe notification history."))
@@ -205,5 +268,44 @@ final class LocalNotificationLabViewModel {
         default:
             StoreServicesText.string("The notification lab operation could not complete.")
         }
+    }
+
+    private func beginUserIntent() {
+        precondition(userIntentRevision < UInt64.max, "Notification lab user-intent revision exhausted")
+        precondition(inFlightUserIntentCount < Int.max, "Notification lab user-intent count exhausted")
+        userIntentRevision += 1
+        inFlightUserIntentCount += 1
+    }
+
+    private func endUserIntent() {
+        precondition(inFlightUserIntentCount > 0, "Notification lab user-intent count underflow")
+        inFlightUserIntentCount -= 1
+        guard inFlightUserIntentCount == 0 else { return }
+        let waiters = Array(userIntentWaiters.values)
+        userIntentWaiters.removeAll()
+        waiters.forEach { $0.resume() }
+    }
+
+    private func waitForInFlightUserIntents() async {
+        while inFlightUserIntentCount > 0, !Task.isCancelled {
+            let waiterID = UUID()
+            await withTaskCancellationHandler {
+                await withCheckedContinuation { continuation in
+                    guard inFlightUserIntentCount > 0, !Task.isCancelled else {
+                        continuation.resume()
+                        return
+                    }
+                    userIntentWaiters[waiterID] = continuation
+                }
+            } onCancel: {
+                Task { @MainActor [weak self] in
+                    self?.resumeUserIntentWaiter(waiterID)
+                }
+            }
+        }
+    }
+
+    private func resumeUserIntentWaiter(_ waiterID: UUID) {
+        userIntentWaiters.removeValue(forKey: waiterID)?.resume()
     }
 }

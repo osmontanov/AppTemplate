@@ -3,9 +3,9 @@ import SwiftUI
 
 struct AdaptiveTabAppShellView: View {
     @Bindable var router: AppRouter
-    let session: SessionPresentation
     let storeDependencies: StoreDependencies
     let storeUISupport: StoreUISupport
+    let storeCatalogViewModel: CatalogViewModel
     let servicesDependencies: ServicesDependencies
     let sceneNavigation: any ISceneNavigationActions
 
@@ -17,9 +17,9 @@ struct AdaptiveTabAppShellView: View {
                         section: section,
                         storeRouter: router.store,
                         servicesRouter: router.services,
-                        session: session,
                         storeDependencies: storeDependencies,
                         storeUISupport: storeUISupport,
+                        storeCatalogViewModel: storeCatalogViewModel,
                         servicesDependencies: servicesDependencies,
                         sceneNavigation: sceneNavigation
                     )

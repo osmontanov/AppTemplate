@@ -12,14 +12,18 @@ final class CatalogViewModel {
     private var generation: UInt64 = 0
     private var hasLoadedCategories = false
     private var hasLoadedInitialPage = false
-    private var isLoadingInitialPage = false
+    private var initialLoadTask: Task<Bool, Never>?
+    private var initialLoadToken: UInt64 = 0
 
     private(set) var state: CatalogState = .idle
     private(set) var model: CatalogModel = .empty
     private(set) var errorMessage: String?
+    var searchText = ""
+    var selectedCategory = ""
 
     var isSortingEnabled: Bool { model.mode == .all }
     var canLoadMore: Bool { model.products.count < model.total && state != .loading }
+    var isInitialLoadComplete: Bool { hasLoadedInitialPage }
 
     init(
         products: any IProductRepository,
@@ -31,40 +35,106 @@ final class CatalogViewModel {
         self.clock = clock
     }
 
-    func loadInitial() async {
-        guard !hasLoadedInitialPage, !isLoadingInitialPage else { return }
-        isLoadingInitialPage = true
-        defer { isLoadingInitialPage = false }
+    @discardableResult
+    func loadInitial() async -> Bool {
+        if hasLoadedInitialPage { return true }
+        let task: Task<Bool, Never>
+        let token: UInt64
+        let joinedExistingTask: Bool
+        if let initialLoadTask {
+            task = initialLoadTask
+            token = initialLoadToken
+            joinedExistingTask = true
+        } else {
+            precondition(initialLoadToken < UInt64.max, "Catalog initial-load token exhausted")
+            initialLoadToken += 1
+            token = initialLoadToken
+            joinedExistingTask = false
+            task = Task { @MainActor [weak self] in
+                guard let self else { return false }
+                return await self.performInitialLoad()
+            }
+            initialLoadTask = task
+        }
+        let completed = await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            if !joinedExistingTask {
+                task.cancel()
+            }
+        }
+        if initialLoadToken == token {
+            initialLoadTask = nil
+            hasLoadedInitialPage = completed
+        }
+        if completed { return true }
+        guard joinedExistingTask, task.isCancelled, !Task.isCancelled else {
+            return false
+        }
+        return await loadInitial()
+    }
+
+    private func performInitialLoad() async -> Bool {
         model.preferences = await preferences.current()
         if !hasLoadedCategories {
             do {
                 model.categories = try await products.categories()
                 hasLoadedCategories = true
-            } catch is CancellationError {
-                return
             } catch {
+                if Self.isCancellation(error) { return false }
                 errorMessage = StoreServicesText.string("Categories are unavailable.")
             }
         }
-        await reload(mode: .all)
-        hasLoadedInitialPage = state == .loaded
+        guard await reload(mode: .all) else {
+            guard !Task.isCancelled, isLoaded(currentQueryMode()) else { return false }
+            return true
+        }
+        await reconcileCurrentQuery()
+        return true
+    }
+
+    private func reconcileCurrentQuery() async {
+        while !Task.isCancelled {
+            let requestedMode = currentQueryMode()
+            switch requestedMode {
+            case .all:
+                guard !isLoaded(.all) else { return }
+                await reload(mode: .all)
+            case let .category(slug):
+                await selectCategory(slug)
+            case let .search(text):
+                await search(text)
+            }
+            guard currentQueryMode() != requestedMode else { return }
+        }
+    }
+
+    private func currentQueryMode() -> ProductQueryMode {
+        let category = selectedCategory.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !category.isEmpty { return .category(category) }
+        let search = Self.capped(searchText).trimmingCharacters(in: .whitespacesAndNewlines)
+        return search.isEmpty ? .all : .search(search)
     }
 
     func search(_ text: String) async {
         let capped = Self.capped(text).trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !(capped.isEmpty && model.mode == .all && state == .loaded) else { return }
+        let requestedMode: ProductQueryMode = capped.isEmpty ? .all : .search(capped)
+        guard !isLoaded(requestedMode) else { return }
         do {
             try await clock.sleep(.milliseconds(300))
             try Task.checkCancellation()
         } catch {
             return
         }
-        await reload(mode: capped.isEmpty ? .all : .search(capped))
+        guard !isLoaded(requestedMode) else { return }
+        await reload(mode: requestedMode)
     }
 
     func selectCategory(_ slug: String?) async {
         let value = slug?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        await reload(mode: value.isEmpty ? .all : .category(value))
+        let requestedMode: ProductQueryMode = value.isEmpty ? .all : .category(value)
+        guard !isLoaded(requestedMode) else { return }
+        await reload(mode: requestedMode)
     }
 
     func loadNextPage() async {
@@ -99,11 +169,13 @@ final class CatalogViewModel {
         catch { errorMessage = StoreServicesText.string("Preferences could not be saved.") }
     }
 
-    private func reload(mode: ProductQueryMode) async {
+    @discardableResult
+    private func reload(mode: ProductQueryMode) async -> Bool {
         await load(mode: mode, skip: 0, appending: false)
     }
 
-    private func load(mode: ProductQueryMode, skip: Int, appending: Bool) async {
+    @discardableResult
+    private func load(mode: ProductQueryMode, skip: Int, appending: Bool) async -> Bool {
         precondition(generation < UInt64.max, "Catalog load generation exhausted")
         generation += 1
         let currentGeneration = generation
@@ -118,23 +190,35 @@ final class CatalogViewModel {
         do {
             let page = try await products.page(query)
             try Task.checkCancellation()
-            guard generation == currentGeneration else { return }
+            guard generation == currentGeneration else { return false }
             let source = appending ? model.products + page.products : page.products
             var ids: Set<Int> = []
             model.products = source.filter { ids.insert($0.id).inserted }
             model.mode = mode
             model.total = page.total
             state = .loaded
-        } catch is CancellationError {
-            return
+            return true
         } catch {
-            guard generation == currentGeneration else { return }
+            guard generation == currentGeneration else { return false }
+            if Self.isCancellation(error) {
+                state = model.products.isEmpty ? .idle : .loaded
+                return false
+            }
             state = .failed
             errorMessage = StoreServicesText.string("Products are unavailable.")
+            return false
         }
+    }
+
+    private nonisolated static func isCancellation(_ error: Error) -> Bool {
+        error is CancellationError || (error as? RemoteServiceError) == .cancelled
     }
 
     private nonisolated static func capped(_ value: String) -> String {
         String(String.UnicodeScalarView(value.unicodeScalars.prefix(100)))
+    }
+
+    private func isLoaded(_ mode: ProductQueryMode) -> Bool {
+        state == .loaded && model.mode == mode
     }
 }

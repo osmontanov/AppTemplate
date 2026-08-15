@@ -12,6 +12,36 @@ import Darwin
 nonisolated
 struct LocalNotificationAttachmentStagerTests {
     @Test
+    func absoluteRootAndSourceUseSingleAtomicNoFollowAnyOpens() throws {
+        let fixture = try AttachmentFileFixture()
+        defer { fixture.cleanup() }
+        let probe = AbsolutePathOpenProbe()
+        let fileSystem = POSIXLocalNotificationStagingFileSystem(
+            absolutePathOpener: { url, flags in
+                probe.open(url, flags: flags)
+            }
+        )
+
+        let rootDescriptor = try fileSystem.openDirectory(at: fixture.stagingRoot)
+        defer { fileSystem.close(rootDescriptor) }
+        let sourceDescriptor = try fileSystem.openSourceFile(at: fixture.sourceURL)
+        defer { fileSystem.close(sourceDescriptor) }
+
+        #expect(
+            probe.calls == [
+                .init(
+                    path: fixture.stagingRoot.path,
+                    flags: O_RDONLY | O_DIRECTORY | O_NOFOLLOW_ANY | O_CLOEXEC
+                ),
+                .init(
+                    path: fixture.sourceURL.path,
+                    flags: O_RDONLY | O_NONBLOCK | O_NOFOLLOW_ANY | O_CLOEXEC
+                )
+            ]
+        )
+    }
+
+    @Test
     func stagingCopiesARealPNGWithoutMovingOrRenamingTheSource() throws {
         let fixture = try AttachmentFileFixture(fileName: "private-user-name.png")
         defer { fixture.cleanup() }
@@ -887,6 +917,30 @@ private nonisolated final class FIFOStageProbe: Sendable {
 
     func finish(_ outcome: Outcome) {
         state.withLock { $0 = outcome }
+    }
+}
+
+private nonisolated final class AbsolutePathOpenProbe: Sendable {
+    struct Call: Equatable, Sendable {
+        let path: String
+        let flags: Int32
+    }
+
+    private let state = Mutex([Call]())
+
+    var calls: [Call] {
+        state.withLock { $0 }
+    }
+
+    func open(_ url: URL, flags: Int32) -> Int32 {
+        state.withLock { $0.append(.init(path: url.path, flags: flags)) }
+        return url.withUnsafeFileSystemRepresentation { representation in
+            guard let representation else {
+                errno = EINVAL
+                return Int32(-1)
+            }
+            return Darwin.open(representation, flags)
+        }
     }
 }
 

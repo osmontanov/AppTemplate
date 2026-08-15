@@ -4,12 +4,10 @@ import Testing
 
 struct RemoteServiceTests {
     @Test
-    func fetchExampleBuildsTargetQueryAndDecodesTransportResponse() async throws {
-        let responseData = Data(
-            #"{"id":"example-42","title":"Remote example"}"#.utf8
-        )
+    func defaultBoundaryUsesTheTrustedDummyJSONCategoriesEndpoint() async throws {
+        let responseData = Data(#"[]"#.utf8)
         let transport = InMemoryNetworkTransport { request in
-            let url = request.url ?? URL(string: "https://api.example.test")!
+            let url = request.url ?? URL(string: "https://dummyjson.com")!
             let response = HTTPURLResponse(
                 url: url,
                 statusCode: 200,
@@ -18,74 +16,26 @@ struct RemoteServiceTests {
             )!
             return (responseData, response)
         }
-        let provider = NetworkProvider<ExampleTarget>(transport: transport)
         let recorder = NetworkDiagnosticRecorder()
         let dummyProvider = NetworkProvider<DummyJSONTarget>(
-            transport: unexpectedRemoteTransport(),
+            transport: transport,
             diagnosticRecorder: recorder
         )
         let service = RemoteService(
-            baseURL: URL(string: "https://api.example.test/v1")!,
-            provider: provider,
             dummyJSONProvider: dummyProvider,
-            authenticationProvider: dummyProvider,
+            authenticationProvider: NetworkProvider(
+                transport: unexpectedRemoteTransport()
+            ),
             diagnosticRecorder: recorder
         )
 
-        let response = try await service.fetchExample(
-            ExampleRequest(query: "swift moya", page: 2)
-        )
+        let categories = try await service.categories()
         let requests = await transport.recordedRequests()
         let request = try #require(requests.first)
-        let queryItems = URLComponents(
-            url: try #require(request.url),
-            resolvingAgainstBaseURL: false
-        )?.queryItems
 
-        #expect(
-            response == ExampleResponse(
-                id: "example-42",
-                title: "Remote example"
-            )
-        )
+        #expect(categories.isEmpty)
         #expect(request.httpMethod == "GET")
-        #expect(request.url?.path == "/v1/examples")
-        #expect(queryItems?.first { $0.name == "query" }?.value == "swift moya")
-        #expect(queryItems?.first { $0.name == "page" }?.value == "2")
-    }
-
-    @Test
-    func fetchExampleSampleResponseDecodesWithoutTransport() async throws {
-        let transport = unexpectedRemoteTransport()
-        let provider = NetworkProvider<ExampleTarget>(
-            transport: transport,
-            stubBehavior: { _ in .immediate }
-        )
-        let recorder = NetworkDiagnosticRecorder()
-        let dummyProvider = NetworkProvider<DummyJSONTarget>(
-            transport: unexpectedRemoteTransport(),
-            diagnosticRecorder: recorder
-        )
-        let service = RemoteService(
-            baseURL: URL(string: "https://api.example.test")!,
-            provider: provider,
-            dummyJSONProvider: dummyProvider,
-            authenticationProvider: dummyProvider,
-            diagnosticRecorder: recorder
-        )
-
-        let response = try await service.fetchExample(
-            ExampleRequest(query: "sample", page: 1)
-        )
-        let requests = await transport.recordedRequests()
-
-        #expect(
-            response == ExampleResponse(
-                id: "sample-id",
-                title: "Sample response"
-            )
-        )
-        #expect(requests.isEmpty)
+        #expect(request.url?.absoluteString == "https://dummyjson.com/products/categories")
     }
 }
 

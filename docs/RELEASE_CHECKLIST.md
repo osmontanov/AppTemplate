@@ -89,6 +89,10 @@ Complete this checklist for the adopted product, not for the untouched sample.
 
 ## Behavior, tests, and migration
 
+- [ ] From a clean final candidate, run
+  `zsh Scripts/verify-connected-mini-store-release.zsh`. Retain its unique
+  result directory and confirm the required unit and UI manifests report no
+  failures or unauthorized skips on macOS, iPhone, and iPad.
 - [ ] For the active schema, confirm the production registry entity set and
   cardinality equal the active schema.
 - [ ] Verify schema-enforced unique business-ID behavior for every registered
@@ -110,18 +114,12 @@ Complete this checklist for the adopted product, not for the untouched sample.
 - [ ] Confirm local database privacy, retention, backup, sync, and
   cross-process decisions; the template enables no CloudKit sync or App Group
   sharing by default.
-- [ ] Run `AppTemplateTests` on macOS with Swift and Clang warnings treated as
-  errors and zero failures, skips, or expected failures.
-- [ ] Run `AppTemplateTests` on iPhone 17 / iOS 26.5 with the same requirements.
-- [ ] Run `AppTemplateTests` on iPad (A16) / iOS 26.5 with the same requirements.
-- [ ] Run `AppTemplateUITests` on macOS with zero failures, skips, or expected
-  failures.
-- [ ] Run `AppTemplateUITests` on iPhone 17 / iOS 26.5 with the same
-  requirements.
-- [ ] Run `AppTemplateUITests` on iPad (A16) / iOS 26.5 with the same
-  requirements.
-- [ ] Build Release for generic macOS and unsigned generic iOS with warnings
-  treated as errors; perform distribution signing/archive checks separately.
+- [ ] Inspect the release gate's full macOS unit bundle and macOS/iPhone/iPad
+  UI bundles with `verify-xcresult-required-tests.swift`; do not infer success
+  from the `xcodebuild` exit code alone.
+- [ ] Confirm macOS, iPhone 17 Pro / iOS 26.5, and iPad Pro 13-inch (M5) /
+  iOS 26.5 builds complete with warnings treated as errors. Perform
+  distribution signing and archive checks separately.
 - [ ] Review the schema-1 app-state model, storage key, recovery behavior, and
   migration policy against every previously shipped version.
 - [ ] Preserve the exact `AppTemplate.AppState` physical key and raw `Data`

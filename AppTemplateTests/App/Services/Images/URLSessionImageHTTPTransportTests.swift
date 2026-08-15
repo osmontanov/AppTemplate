@@ -3,6 +3,7 @@ import Synchronization
 import Testing
 @testable import AppTemplate
 
+@Suite(.serialized)
 struct URLSessionImageHTTPTransportTests {
     private let policy = ImageLoadPolicy(
         allowedHosts: ["images.example.test"],
@@ -191,6 +192,22 @@ struct URLSessionImageHTTPTransportTests {
         #expect(ImageURLProtocolFixture.stopCount == 1)
     }
 
+    @Test
+    func delayedStopFromPriorGenerationCannotPolluteCurrentScenario() {
+        let state = ImageURLProtocolFixtureState()
+        let url = URL(string: "https://images.example.test/image")!
+        state.reset(.hold)
+        let priorGeneration = state.recordStart(url).generation
+
+        state.reset(.hold)
+        let currentGeneration = state.recordStart(url).generation
+        state.recordStop(generation: priorGeneration)
+
+        #expect(state.stopCount == 0)
+        state.recordStop(generation: currentGeneration)
+        #expect(state.stopCount == 1)
+    }
+
     private func makeTransport() -> URLSessionImageHTTPTransport {
         URLSessionImageHTTPTransport(
             protocolClasses: [ImageURLProtocolFixture.self]
@@ -211,6 +228,7 @@ private final class ImageURLProtocolFixture: URLProtocol, @unchecked Sendable {
     }
 
     private static let state = ImageURLProtocolFixtureState()
+    private let loadGeneration = Mutex<UInt64?>(nil)
 
     static var requestedURLs: [URL] { state.requestedURLs }
     static var stopCount: Int { state.stopCount }
@@ -238,8 +256,9 @@ private final class ImageURLProtocolFixture: URLProtocol, @unchecked Sendable {
             client?.urlProtocol(self, didFailWithError: URLError(.badURL))
             return
         }
-        let scenario = Self.state.recordStart(url)
-        switch scenario {
+        let load = Self.state.recordStart(url)
+        loadGeneration.withLock { $0 = load.generation }
+        switch load.scenario {
         case let .success(data):
             respond(status: 200, headers: ["Content-Type": "image/png"], chunks: [data])
         case let .status(status, data):
@@ -280,7 +299,11 @@ private final class ImageURLProtocolFixture: URLProtocol, @unchecked Sendable {
     }
 
     override func stopLoading() {
-        Self.state.recordStop()
+        guard let generation = loadGeneration.withLock({ generation in
+            defer { generation = nil }
+            return generation
+        }) else { return }
+        Self.state.recordStop(generation: generation)
     }
 
     private func respond(
@@ -307,6 +330,7 @@ nonisolated
 private final class ImageURLProtocolFixtureState: @unchecked Sendable {
     private struct Storage {
         var scenario: ImageURLProtocolFixture.Scenario = .success(data: Data())
+        var generation: UInt64 = 0
         var requestedURLs: [URL] = []
         var stopCount = 0
         var started = false
@@ -321,23 +345,27 @@ private final class ImageURLProtocolFixtureState: @unchecked Sendable {
 
     func reset(_ scenario: ImageURLProtocolFixture.Scenario) {
         storage.withLock {
-            $0 = Storage(scenario: scenario)
+            precondition($0.generation < UInt64.max, "Image URL fixture generation exhausted")
+            $0 = Storage(scenario: scenario, generation: $0.generation + 1)
         }
     }
 
-    func recordStart(_ url: URL) -> ImageURLProtocolFixture.Scenario {
+    func recordStart(
+        _ url: URL
+    ) -> (scenario: ImageURLProtocolFixture.Scenario, generation: UInt64) {
         storage.withLock {
             $0.requestedURLs.append(url)
             $0.started = true
             let waiters = $0.waiters
             $0.waiters = []
             for waiter in waiters { waiter.resume() }
-            return $0.scenario
+            return ($0.scenario, $0.generation)
         }
     }
 
-    func recordStop() {
+    func recordStop(generation: UInt64) {
         storage.withLock {
+            guard $0.generation == generation else { return }
             $0.stopCount += 1
             let waiters = $0.stopWaiters
             $0.stopWaiters = []

@@ -179,8 +179,16 @@ protocol LocalNotificationStagingFileSystem: Sendable {
 
 nonisolated
 struct POSIXLocalNotificationStagingFileSystem: LocalNotificationStagingFileSystem {
+    private let absolutePathOpener: @Sendable (URL, Int32) -> Int32
+
+    init(
+        absolutePathOpener: @escaping @Sendable (URL, Int32) -> Int32 = Self.openAbsolutePath
+    ) {
+        self.absolutePathOpener = absolutePathOpener
+    }
+
     func openDirectory(at url: URL) throws -> LocalNotificationStagingFileDescriptor {
-        try openAbsolutePath(url, finalFlags: O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
+        try openAbsolutePath(url, finalFlags: O_RDONLY | O_DIRECTORY | O_CLOEXEC)
     }
 
     func createDirectory(
@@ -216,7 +224,7 @@ struct POSIXLocalNotificationStagingFileSystem: LocalNotificationStagingFileSyst
     func openSourceFile(at url: URL) throws -> LocalNotificationStagingFileDescriptor {
         let descriptor = try openAbsolutePath(
             url,
-            finalFlags: O_RDONLY | O_NONBLOCK | O_NOFOLLOW | O_CLOEXEC
+            finalFlags: O_RDONLY | O_NONBLOCK | O_CLOEXEC
         )
         do {
             var metadata = stat()
@@ -359,32 +367,22 @@ struct POSIXLocalNotificationStagingFileSystem: LocalNotificationStagingFileSyst
         _ url: URL,
         finalFlags: Int32
     ) throws -> LocalNotificationStagingFileDescriptor {
-        let components = try Self.pathComponents(of: url)
-        var current = LocalNotificationStagingFileDescriptor(
-            rawValue: Darwin.open("/", O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
-        )
-        guard current.rawValue >= 0 else {
-            throw Self.error(for: errno)
+        _ = try Self.pathComponents(of: url)
+        let rawDescriptor = absolutePathOpener(url, finalFlags | O_NOFOLLOW_ANY)
+        let capturedError = errno
+        guard rawDescriptor >= 0 else {
+            throw Self.error(for: capturedError)
         }
+        return LocalNotificationStagingFileDescriptor(rawValue: rawDescriptor)
+    }
 
-        do {
-            for (index, component) in components.enumerated() {
-                let isFinal = index == components.index(before: components.endIndex)
-                let flags = isFinal
-                    ? finalFlags
-                    : O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC
-                let nextRaw = openat(current.rawValue, component, flags)
-                guard nextRaw >= 0 else {
-                    throw Self.entryError(for: errno, name: component, parent: current)
-                }
-                let next = LocalNotificationStagingFileDescriptor(rawValue: nextRaw)
-                close(current)
-                current = next
+    private static func openAbsolutePath(at url: URL, flags: Int32) -> Int32 {
+        url.withUnsafeFileSystemRepresentation { representation in
+            guard let representation else {
+                errno = EINVAL
+                return Int32(-1)
             }
-            return current
-        } catch {
-            close(current)
-            throw error
+            return Darwin.open(representation, flags)
         }
     }
 

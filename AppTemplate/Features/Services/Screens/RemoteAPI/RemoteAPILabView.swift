@@ -43,7 +43,12 @@ struct RemoteAPILabView: View {
                 .foregroundStyle(.secondary)
         }
         .navigationTitle(StoreServicesText.resource("Remote API"))
-        .accessibilityIdentifier("screen.services.remote-api")
+        .overlay(alignment: .topLeading) {
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier("screen.services.remote-api")
+        }
         .onDisappear { model.cancelCurrentOperation() }
     }
 

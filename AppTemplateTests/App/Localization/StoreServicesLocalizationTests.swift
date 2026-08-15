@@ -28,14 +28,36 @@ struct StoreServicesLocalizationTests {
     }
 
     @Test
+    func missingArabicSharedKeysUseTheirEnglishVisibleCopyInsteadOfTheSymbolicKey() throws {
+        let catalog = try StoreServicesCatalogFixture.loadSourceCatalog()
+
+        for key in StoreServicesText.Key.allCases {
+            let entry = try #require(catalog.strings[key.rawValue])
+            let english = try #require(entry.localizations?["en"]?.stringUnit.value)
+            let expected = entry.localizations?["ar"]?.stringUnit.value ?? english
+            var resource = StoreServicesText.resource(key)
+            #expect(resource.key == key.rawValue)
+            resource.locale = Locale(identifier: "ar_SA")
+            let resolved = String(localized: resource)
+
+            #expect(resolved == expected)
+            #expect(resolved != key.rawValue)
+        }
+    }
+
+    @Test
     func producerManifestIsSortedCompleteAndCatalogBacked() throws {
         let fixture = StoreServicesCatalogFixture()
         let catalog = try fixture.loadSourceCatalog()
 
         #expect(Self.producerManifest == Self.producerManifest.sorted())
+        let expectedProducers = Set(Self.producerManifest)
+        let discoveredProducers = try fixture.discoveredVisibleProducers(
+            required: expectedProducers
+        )
         #expect(
-            try fixture.discoveredVisibleProducers(required: Set(Self.producerManifest))
-                == Set(Self.producerManifest)
+            discoveredProducers == expectedProducers,
+            "Unexpected producers: \(discoveredProducers.subtracting(expectedProducers).sorted()); missing producers: \(expectedProducers.subtracting(discoveredProducers).sorted())"
         )
 
         for relativePath in Self.producerManifest {
@@ -65,6 +87,8 @@ struct StoreServicesLocalizationTests {
     private static let producerManifest = [
         "AppTemplate/App/Navigation/Containers/AppSceneView.swift",
         "AppTemplate/App/Navigation/Containers/AppSectionPresentation.swift",
+        "AppTemplate/App/Navigation/Containers/Platforms/iOS/AdaptiveTabAppShellView.swift",
+        "AppTemplate/App/Navigation/Containers/Platforms/macOS/MacSidebarAppShellView.swift",
         "AppTemplate/App/Navigation/Containers/SessionRestoringView.swift",
         "AppTemplate/Features/Authentication/Flow/AuthenticationFlowView.swift",
         "AppTemplate/Features/Authentication/Screens/Authentication/State/AuthenticationState.swift",
@@ -76,6 +100,7 @@ struct StoreServicesLocalizationTests {
         "AppTemplate/Features/Onboarding/Flow/OnboardingFlowView.swift",
         "AppTemplate/Features/Onboarding/Screens/Onboarding/View/OnboardingView.swift",
         "AppTemplate/Features/Services/Flow/ServicesFlowView.swift",
+        "AppTemplate/Features/Services/Infrastructure/AppState/ServicesAppStateStatus.swift",
         "AppTemplate/Features/Services/Navigation/ServicesRoute.swift",
         "AppTemplate/Features/Services/Screens/AppInfo/ServicesAppInfoView.swift",
         "AppTemplate/Features/Services/Screens/AppState/ServicesAppStateView.swift",
@@ -147,6 +172,7 @@ private struct StoreServicesCatalogFixture {
         .deletingLastPathComponent()
         .deletingLastPathComponent()
         .deletingLastPathComponent()
+        .resolvingSymlinksInPath()
 
     static func loadSourceCatalog() throws -> Catalog {
         try StoreServicesCatalogFixture().loadSourceCatalog()
@@ -204,10 +230,11 @@ private struct StoreServicesCatalogFixture {
                 continue
             }
             for case let url as URL in enumerator where url.pathExtension == "swift" {
-                let relative = url.path.replacingOccurrences(
-                    of: Self.repositoryRoot.path + "/",
-                    with: ""
-                )
+                let repositoryPath = normalizedFileSystemPath(Self.repositoryRoot)
+                let sourcePath = normalizedFileSystemPath(url)
+                let repositoryPrefix = repositoryPath + "/"
+                guard sourcePath.hasPrefix(repositoryPrefix) else { continue }
+                let relative = String(sourcePath.dropFirst(repositoryPrefix.count))
                 let source = try String(contentsOf: url, encoding: .utf8)
                 let alwaysVisible = !relative.hasPrefix("AppTemplate/App/Navigation/Containers/")
                     && (url.lastPathComponent.hasSuffix("View.swift")
@@ -226,5 +253,13 @@ private struct StoreServicesCatalogFixture {
         }
 
         return result
+    }
+
+    private func normalizedFileSystemPath(_ url: URL) -> String {
+        let standardizedPath = url.standardizedFileURL.path
+        if standardizedPath.hasPrefix("/private/var/") {
+            return String(standardizedPath.dropFirst("/private".count))
+        }
+        return standardizedPath
     }
 }

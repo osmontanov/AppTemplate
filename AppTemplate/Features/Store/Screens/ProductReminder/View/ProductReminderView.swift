@@ -57,7 +57,12 @@ struct ProductReminderView: View {
             AccessibilityNotification.Announcement(value).post()
         }
         .frame(minWidth: 360, minHeight: 460)
-        .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.productReminder))
+        .overlay(alignment: .topLeading) {
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.productReminder))
+        }
     }
 
     private var productSection: some View {

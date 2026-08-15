@@ -205,13 +205,18 @@ private enum XCResultVerifierFixture {
         let testsURL = root.appendingPathComponent("tests.json")
         let requiredURL = root.appendingPathComponent("required.tsv")
         let resultURL = root.appendingPathComponent("Result ; literal.xcresult")
-        let runnerURL = root.appendingPathComponent("fixture-runner")
+        let runnerURL: URL
+        if let compiledRunner = try fixtureRunnerExecutableURL() {
+            runnerURL = compiledRunner
+        } else {
+            runnerURL = root.appendingPathComponent("fixture-runner")
+            try fixtureRunner.write(to: runnerURL, atomically: true, encoding: .utf8)
+            try manager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: runnerURL.path)
+        }
         try summary.write(to: summaryURL, atomically: true, encoding: .utf8)
         try tests.write(to: testsURL, atomically: true, encoding: .utf8)
         try required.write(to: requiredURL, atomically: true, encoding: .utf8)
         try manager.createDirectory(at: resultURL, withIntermediateDirectories: false)
-        try fixtureRunner.write(to: runnerURL, atomically: true, encoding: .utf8)
-        try manager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: runnerURL.path)
 
         var environment = ProcessInfo.processInfo.environment
         environment["XCRESULT_REQUIRED_TESTS_RUNNER"] = runnerURL.path
@@ -236,6 +241,10 @@ private enum XCResultVerifierFixture {
         try verifierExecutableResult.get()
     }
 
+    private static func fixtureRunnerExecutableURL() throws -> URL? {
+        try fixtureRunnerExecutableResult.get()
+    }
+
     private static let verifierExecutableResult: Result<URL, FixtureFailure> = {
         do {
             return .success(try prepareVerifierExecutable())
@@ -244,6 +253,18 @@ private enum XCResultVerifierFixture {
         } catch {
             return .failure(
                 FixtureFailure(description: "Could not prepare verifier executable: \(error)")
+            )
+        }
+    }()
+
+    private static let fixtureRunnerExecutableResult: Result<URL?, FixtureFailure> = {
+        do {
+            return .success(try prepareFixtureRunnerExecutable())
+        } catch let failure as FixtureFailure {
+            return .failure(failure)
+        } catch {
+            return .failure(
+                FixtureFailure(description: "Could not prepare fixture runner: \(error)")
             )
         }
     }()
@@ -261,6 +282,19 @@ private enum XCResultVerifierFixture {
             return URL(fileURLWithPath: injectedPath)
         }
 
+        if let preparedRoot = Bundle.main.object(
+            forInfoDictionaryKey: "XCResultVerifierRoot"
+        ) as? String {
+            let preparedExecutableURL = URL(fileURLWithPath: preparedRoot)
+                .appendingPathComponent("verifier")
+            guard manager.isExecutableFile(atPath: preparedExecutableURL.path) else {
+                throw FixtureFailure(
+                    description: "The per-run verifier executable is not executable."
+                )
+            }
+            return preparedExecutableURL
+        }
+
         let preparedExecutableURL = manager.temporaryDirectory
             .appendingPathComponent("AppTemplate-XCResultRequiredTestsVerifier")
             .appendingPathComponent("verifier")
@@ -272,6 +306,65 @@ private enum XCResultVerifierFixture {
                 + "\(preparedExecutableURL.path) before running this hosted suite."
         )
     }
+
+    private static func prepareFixtureRunnerExecutable() throws -> URL? {
+        let manager = FileManager.default
+        if let injectedPath = ProcessInfo.processInfo.environment[
+            "XCRESULT_FIXTURE_RUNNER_TEST_EXECUTABLE"
+        ] {
+            guard manager.isExecutableFile(atPath: injectedPath) else {
+                throw FixtureFailure(
+                    description: "XCRESULT_FIXTURE_RUNNER_TEST_EXECUTABLE is not executable."
+                )
+            }
+            return URL(fileURLWithPath: injectedPath)
+        }
+
+        if let preparedRoot = Bundle.main.object(
+            forInfoDictionaryKey: "XCResultVerifierRoot"
+        ) as? String {
+            let preparedExecutableURL = URL(fileURLWithPath: preparedRoot)
+                .appendingPathComponent("fixture-runner")
+            guard manager.isExecutableFile(atPath: preparedExecutableURL.path) else {
+                throw FixtureFailure(
+                    description: "The per-run fixture runner is not executable."
+                )
+            }
+            return preparedExecutableURL
+        }
+
+        let preparedExecutableURL = manager.temporaryDirectory
+            .appendingPathComponent("AppTemplate-XCResultRequiredTestsVerifier")
+            .appendingPathComponent("fixture-runner")
+        if manager.isExecutableFile(atPath: preparedExecutableURL.path) {
+            return preparedExecutableURL
+        }
+        guard !manager.temporaryDirectory.path.contains("/Library/Containers/") else {
+            throw FixtureFailure(
+                description: "Compile Scripts/xcresult-required-tests-fixture-runner.swift to "
+                    + "\(preparedExecutableURL.path) before running this hosted suite."
+            )
+        }
+        return nil
+    }
+
+    private static let fixtureRunner = #"""
+    #!/bin/sh
+    set -eu
+    test "$#" -eq 7
+    test "$1" = "xcresulttool"
+    test "$2" = "get"
+    test "$3" = "test-results"
+    test "$5" = "--path"
+    test "$6" = "$XCRESULT_FIXTURE_RESULT"
+    test "$7" = "--compact"
+    test "$XCRESULT_FIXTURE_EXIT" -eq 0 || exit "$XCRESULT_FIXTURE_EXIT"
+    case "$4" in
+      summary) exec /bin/cat "$XCRESULT_FIXTURE_SUMMARY" ;;
+      tests) exec /bin/cat "$XCRESULT_FIXTURE_TESTS" ;;
+      *) exit 64 ;;
+    esac
+    """#
 
     private static func execute(
         executableURL: URL,
@@ -340,23 +433,5 @@ private enum XCResultVerifierFixture {
             )
         )
     }
-
-    private static let fixtureRunner = #"""
-    #!/bin/sh
-    set -eu
-    test "$#" -eq 7
-    test "$1" = "xcresulttool"
-    test "$2" = "get"
-    test "$3" = "test-results"
-    test "$5" = "--path"
-    test "$6" = "$XCRESULT_FIXTURE_RESULT"
-    test "$7" = "--compact"
-    test "$XCRESULT_FIXTURE_EXIT" -eq 0 || exit "$XCRESULT_FIXTURE_EXIT"
-    case "$4" in
-      summary) exec /bin/cat "$XCRESULT_FIXTURE_SUMMARY" ;;
-      tests) exec /bin/cat "$XCRESULT_FIXTURE_TESTS" ;;
-      *) exit 64 ;;
-    esac
-    """#
 }
 #endif

@@ -29,6 +29,11 @@ struct ServicesAppInfoView: View {
                 .foregroundStyle(.secondary)
         }
         .navigationTitle(StoreServicesText.resource("App Info"))
-        .accessibilityIdentifier("screen.services.app-info")
+        .overlay(alignment: .topLeading) {
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier("screen.services.app-info")
+        }
     }
 }

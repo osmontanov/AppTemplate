@@ -4,29 +4,20 @@ struct CatalogView: View {
     @Bindable var router: StoreRouter
     let images: any IImageLoader
     @State private var viewModel: CatalogViewModel
-    @State private var searchText = ""
-    @State private var selectedCategory = ""
-    @State private var hasLoadedInitialCatalog = false
     @FocusState private var searchIsFocused: Bool
     @AccessibilityFocusState private var resultIsFocused: Bool
     let searchRequestID: Int
 
     init(
         router: StoreRouter,
-        products: any IProductRepository,
-        preferences: any IStorePreferencesRepository,
+        viewModel: CatalogViewModel,
         images: any IImageLoader,
-        clock: AppClock,
         searchRequestID: Int = 0
     ) {
         self.router = router
         self.images = images
         self.searchRequestID = searchRequestID
-        _viewModel = State(initialValue: CatalogViewModel(
-            products: products,
-            preferences: preferences,
-            clock: clock
-        ))
+        _viewModel = State(initialValue: viewModel)
     }
 
     var body: some View {
@@ -52,11 +43,11 @@ struct CatalogView: View {
             }
         }
         .navigationTitle(StoreServicesText.resource("Catalog"))
-        .searchable(text: $searchText, prompt: StoreServicesText.resource("Search products"))
+        .searchable(text: $viewModel.searchText, prompt: StoreServicesText.resource("Search products"))
         .searchFocused($searchIsFocused)
         .onChange(of: searchRequestID) { _, _ in searchIsFocused = true }
         .task {
-            await viewModel.loadInitial()
+            guard await viewModel.loadInitial() else { return }
             guard !Task.isCancelled else { return }
             resultIsFocused = viewModel.model.products.isEmpty
             AccessibilityNotification.Announcement(
@@ -64,15 +55,17 @@ struct CatalogView: View {
                     ? StoreServicesText.string("No products are available")
                     : StoreServicesText.string("Products loaded")
             ).post()
-            hasLoadedInitialCatalog = true
             await viewModel.observePreferences()
         }
-        .task(id: searchText) {
-            guard hasLoadedInitialCatalog else { return }
-            await viewModel.search(searchText)
+        .task(id: viewModel.searchText) {
+            guard viewModel.isInitialLoadComplete else { return }
+            await viewModel.search(viewModel.searchText)
         }
-        .onChange(of: selectedCategory) { _, value in
-            Task { await viewModel.selectCategory(value.isEmpty ? nil : value) }
+        .onChange(of: viewModel.selectedCategory) { _, value in
+            Task {
+                guard viewModel.isInitialLoadComplete else { return }
+                await viewModel.selectCategory(value.isEmpty ? nil : value)
+            }
         }
         .toolbar { toolbarContent }
         .safeAreaInset(edge: .bottom) {
@@ -123,7 +116,7 @@ struct CatalogView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItemGroup {
-            Picker(StoreServicesText.resource("Category"), selection: $selectedCategory) {
+            Picker(StoreServicesText.resource("Category"), selection: $viewModel.selectedCategory) {
                 Text(StoreServicesText.resource("All")).tag("")
                 ForEach(viewModel.model.categories) { category in
                     Text(verbatim: category.name).tag(category.slug)

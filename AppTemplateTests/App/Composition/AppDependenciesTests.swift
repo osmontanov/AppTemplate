@@ -44,9 +44,7 @@ struct AppDependenciesTests {
     func appDependencyFactoriesKeepExactInjectedImageLoaderWithoutLoading() throws {
         let imageLoader = InjectedImageLoader()
         let preview = AppDependencies.preview(
-            settings: SettingsDependencies(
-                appInfo: AppInfoService(displayName: "Preview", version: "1")
-            ),
+            appInfo: AppInfoService(displayName: "Preview", version: "1"),
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
             imageLoader: imageLoader
@@ -94,17 +92,15 @@ struct AppDependenciesTests {
     @MainActor
     @Test
     func previewGraphsUseFreshInMemoryNotifications() async throws {
-        let settings = SettingsDependencies(
-            appInfo: AppInfoService(displayName: "Preview", version: "1")
-        )
+        let appInfo = AppInfoService(displayName: "Preview", version: "1")
         let first = AppDependencies.preview(
-            settings: settings,
+            appInfo: appInfo,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
             imageLoader: InjectedImageLoader()
         )
         let second = AppDependencies.preview(
-            settings: settings,
+            appInfo: appInfo,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
             imageLoader: InjectedImageLoader()
@@ -219,15 +215,12 @@ struct AppDependenciesTests {
 
     @Test
     func previewUITestAndInMemoryFactoriesNeverResolveLiveRuntime() async throws {
-        let settings = SettingsDependencies(
-            appInfo: AppInfoService(displayName: "Preview", version: "1")
-        )
         let state = AppState(
             hasCompletedOnboarding: false,
             isMaintenanceEnabled: false
         )
         let preview = AppDependencies.preview(
-            settings: settings,
+            appInfo: AppInfoService(displayName: "Preview", version: "1"),
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
             imageLoader: InjectedImageLoader()
@@ -359,11 +352,8 @@ struct AppDependenciesTests {
     @Test
     func appDependencyFactoriesKeepTheExactInjectedNotificationGraph() throws {
         let notifications = AppNotificationGraph.inMemory()
-        let settings = SettingsDependencies(
-            appInfo: AppInfoService(displayName: "Injected", version: "1")
-        )
         let dependencies = AppDependencies.preview(
-            settings: settings,
+            appInfo: AppInfoService(displayName: "Injected", version: "1"),
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
             imageLoader: InjectedImageLoader(),
@@ -441,7 +431,7 @@ struct AppDependenciesTests {
         #expect(remote?.diagnosticRecorder === dependencies.diagnostics)
         #expect(dependencies.appStateStorage is UserDefaultsAppStateStorage)
         #expect(dependencies.keychain is KeychainService)
-        #expect(dependencies.settings.appInfo is AppInfoService)
+        #expect(dependencies.appInfo is AppInfoService)
         #expect(dependencies.imageLoader is ProductImageLoader)
     }
 
@@ -513,17 +503,15 @@ struct AppDependenciesTests {
 
     @Test
     func previewAndUITestingGraphsUseFreshDatabases() async throws {
-        let settings = SettingsDependencies(
-            appInfo: AppInfoService(displayName: "Preview", version: "1")
-        )
+        let appInfo = AppInfoService(displayName: "Preview", version: "1")
         let firstPreview = AppDependencies.preview(
-            settings: settings,
+            appInfo: appInfo,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
             imageLoader: InjectedImageLoader()
         )
         let secondPreview = AppDependencies.preview(
-            settings: settings,
+            appInfo: appInfo,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
             imageLoader: InjectedImageLoader()
@@ -568,17 +556,15 @@ struct AppDependenciesTests {
 
     @Test
     func previewAndUITestingGraphsUseFreshInMemoryKeychains() async throws {
-        let settings = SettingsDependencies(
-            appInfo: AppInfoService(displayName: "Preview", version: "1")
-        )
+        let appInfo = AppInfoService(displayName: "Preview", version: "1")
         let preview1 = AppDependencies.preview(
-            settings: settings,
+            appInfo: appInfo,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
             imageLoader: InjectedImageLoader()
         )
         let preview2 = AppDependencies.preview(
-            settings: settings,
+            appInfo: appInfo,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
             imageLoader: InjectedImageLoader()
@@ -608,11 +594,8 @@ struct AppDependenciesTests {
 
     @Test
     func previewAndUITestingGraphsRejectTestOnlyModel() async {
-        let settings = SettingsDependencies(
-            appInfo: AppInfoService(displayName: "Preview", version: "1")
-        )
         let preview = AppDependencies.preview(
-            settings: settings,
+            appInfo: AppInfoService(displayName: "Preview", version: "1"),
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
             imageLoader: InjectedImageLoader()
@@ -634,11 +617,9 @@ struct AppDependenciesTests {
     @Test
     func previewGraphUsesInMemoryStateStorageByDefault() {
         let dependencies = AppDependencies.preview(
-            settings: SettingsDependencies(
-                appInfo: AppInfoService(
-                    displayName: "Preview App",
-                    version: "9.8.7"
-                )
+            appInfo: AppInfoService(
+                displayName: "Preview App",
+                version: "9.8.7"
             ),
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
@@ -675,8 +656,8 @@ struct AppDependenciesTests {
 
         #expect(firstDependencies.localDatabase is LocalDatabaseService)
         #expect(firstDependencies.remote is InjectedRemoteService)
-        #expect(firstDependencies.settings.appInfo.displayName == "AppTemplate UI Tests")
-        #expect(firstDependencies.settings.appInfo.version == "1.0")
+        #expect(firstDependencies.appInfo.displayName == "AppTemplate UI Tests")
+        #expect(firstDependencies.appInfo.version == "1.0")
         #expect(try decodedState(from: firstStorage) == initialState)
 
         try firstStorage.remove()
@@ -692,14 +673,12 @@ struct AppDependenciesTests {
         let keychainService = KeychainServiceSpy()
         let imageLoader = InjectedImageLoader()
         let diagnostics = NetworkDiagnosticRecorder()
-        let settings = SettingsDependencies(
-            appInfo: AppInfoService(
-                displayName: "Preview App",
-                version: "9.8.7"
-            )
+        let appInfo = AppInfoService(
+            displayName: "Preview App",
+            version: "9.8.7"
         )
         let dependencies = AppDependencies.preview(
-            settings: settings,
+            appInfo: appInfo,
             remoteService: remoteService,
             diagnostics: diagnostics,
             imageLoader: imageLoader,
@@ -726,8 +705,8 @@ struct AppDependenciesTests {
         #expect(resolvedKeychainService === keychainService)
         #expect(dependencies.imageLoader as AnyObject === imageLoader)
         #expect(dependencies.diagnostics === diagnostics)
-        #expect(dependencies.settings.appInfo.displayName == "Preview App")
-        #expect(dependencies.settings.appInfo.version == "9.8.7")
+        #expect(dependencies.appInfo.displayName == "Preview App")
+        #expect(dependencies.appInfo.version == "9.8.7")
     }
 
     @Test
@@ -738,11 +717,9 @@ struct AppDependenciesTests {
         let keychainService = KeychainServiceSpy()
         let imageLoader = InjectedImageLoader()
         let diagnostics = NetworkDiagnosticRecorder()
-        let settings = SettingsDependencies(
-            appInfo: AppInfoService(
-                displayName: "Test App",
-                version: "3.2.1"
-            )
+        let appInfo = AppInfoService(
+            displayName: "Test App",
+            version: "3.2.1"
         )
         let dependencies = AppDependencies.test(
             localDatabaseService: localDatabaseService,
@@ -751,7 +728,7 @@ struct AppDependenciesTests {
             imageLoader: imageLoader,
             appStateStorage: appStateStorage,
             keychainService: keychainService,
-            settings: settings,
+            appInfo: appInfo,
             notificationGraph: .inMemory()
         )
         let resolvedLocalDatabaseService = try #require(
@@ -773,16 +750,14 @@ struct AppDependenciesTests {
         #expect(resolvedKeychainService === keychainService)
         #expect(dependencies.imageLoader as AnyObject === imageLoader)
         #expect(dependencies.diagnostics === diagnostics)
-        #expect(dependencies.settings.appInfo.displayName == "Test App")
-        #expect(dependencies.settings.appInfo.version == "3.2.1")
+        #expect(dependencies.appInfo.displayName == "Test App")
+        #expect(dependencies.appInfo.version == "3.2.1")
     }
 
     @Test
     func graphRetainsOneIdentityForEveryStoreRepository() {
         let dependencies = AppDependencies.preview(
-            settings: SettingsDependencies(
-                appInfo: AppInfoService(displayName: "Preview", version: "1")
-            ),
+            appInfo: AppInfoService(displayName: "Preview", version: "1"),
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
             imageLoader: InjectedImageLoader()
@@ -799,7 +774,7 @@ struct AppDependenciesTests {
         let imageLoader = InjectedImageLoader()
         let appInfo = AppInfoService(displayName: "Shared", version: "4.2")
         let dependencies = AppDependencies.preview(
-            settings: SettingsDependencies(appInfo: appInfo),
+            appInfo: appInfo,
             remoteService: remote,
             diagnostics: NetworkDiagnosticRecorder(),
             imageLoader: imageLoader
@@ -818,7 +793,6 @@ struct AppDependenciesTests {
         #expect(first.cart as AnyObject === dependencies.cart as AnyObject)
         #expect(first.preferences as AnyObject === dependencies.storePreferences as AnyObject)
         #expect(first.appInfo as AnyObject === dependencies.appInfo as AnyObject)
-        #expect(first.appInfo as AnyObject === dependencies.settings.appInfo as AnyObject)
         #expect(dependencies.storeUISupport.images as AnyObject === imageLoader)
 
         _ = await first.session.login(username: "emilys", password: "emilyspass")
@@ -829,9 +803,7 @@ struct AppDependenciesTests {
     func productRepositoryUsesTheExactGraphRemoteWithoutEagerTransport() async {
         let remote = InjectedRemoteService()
         let dependencies = AppDependencies.preview(
-            settings: SettingsDependencies(
-                appInfo: AppInfoService(displayName: "Preview", version: "1")
-            ),
+            appInfo: AppInfoService(displayName: "Preview", version: "1"),
             remoteService: remote,
             diagnostics: NetworkDiagnosticRecorder(),
             imageLoader: InjectedImageLoader()
@@ -844,17 +816,15 @@ struct AppDependenciesTests {
 
     @Test
     func previewStoreRepositoriesAreGraphLocalAndShareTheirGraphDatabase() async throws {
-        let settings = SettingsDependencies(
-            appInfo: AppInfoService(displayName: "Preview", version: "1")
-        )
+        let appInfo = AppInfoService(displayName: "Preview", version: "1")
         let first = AppDependencies.preview(
-            settings: settings,
+            appInfo: appInfo,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
             imageLoader: InjectedImageLoader()
         )
         let second = AppDependencies.preview(
-            settings: settings,
+            appInfo: appInfo,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
             imageLoader: InjectedImageLoader()
@@ -890,7 +860,7 @@ struct ServicesDependenciesCompositionTests {
             version: "8.4"
         )
         let dependencies = AppDependencies.preview(
-            settings: SettingsDependencies(appInfo: appInfo),
+            appInfo: appInfo,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
             imageLoader: InjectedImageLoader()
@@ -925,7 +895,7 @@ struct ServicesDependenciesCompositionTests {
             platformName: "Tests"
         )
         #expect(storeSlice.appInfo.displayName == "Shared App")
-        #expect(dependencies.settings.appInfo.version == "8.4")
+        #expect(dependencies.appInfo.version == "8.4")
         #expect(servicesModel.displayName == "Shared App")
         #expect(servicesModel.version == "8.4")
         #expect(appInfo.displayNameReads == 2)
@@ -938,9 +908,7 @@ struct ServicesDependenciesCompositionTests {
         let remote = Task3RemoteCompositionSpy()
         let diagnostics = NetworkDiagnosticRecorder()
         let dependencies = AppDependencies.preview(
-            settings: SettingsDependencies(
-                appInfo: AppInfoService(displayName: "Task 3", version: "1")
-            ),
+            appInfo: AppInfoService(displayName: "Task 3", version: "1"),
             remoteService: remote,
             diagnostics: diagnostics,
             imageLoader: InjectedImageLoader(),
@@ -996,9 +964,7 @@ struct AppDependenciesTask3Tests {
     @Test
     func storeFactoryUsesTheExactAppScopedFavoritesActor() {
         let dependencies = AppDependencies.preview(
-            settings: SettingsDependencies(
-                appInfo: AppInfoService(displayName: "Task 3", version: "1")
-            ),
+            appInfo: AppInfoService(displayName: "Task 3", version: "1"),
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
             imageLoader: InjectedImageLoader()
@@ -1207,7 +1173,6 @@ private actor Task3DatabaseCompositionSpy: ILocalDatabaseService {
 private actor Task3RemoteCompositionSpy: IRemoteService {
     private(set) var productRequests: [ProductPageRequest] = []
 
-    func fetchExample(_ request: ExampleRequest) async throws -> ExampleResponse { throw RemoteServiceError.invalidResponse }
     func products(_ request: ProductPageRequest) async throws -> ProductPageDTO {
         productRequests.append(request)
         return ProductPageDTO(products: [], total: 0, skip: request.skip, limit: request.limit)
@@ -1220,12 +1185,6 @@ private actor Task3RemoteCompositionSpy: IRemoteService {
     func diagnostic(_ request: HTTPDiagnosticRequest) async throws -> HTTPDiagnosticDTO { HTTPDiagnosticDTO(statusCode: 200) }
 }
 private actor InjectedRemoteService: IRemoteService {
-    func fetchExample(
-        _ request: ExampleRequest
-    ) async throws -> ExampleResponse {
-        ExampleResponse(id: "injected", title: request.query)
-    }
-
     func products(_ request: ProductPageRequest) async throws -> ProductPageDTO {
         _ = request
         throw RemoteServiceError.invalidResponse

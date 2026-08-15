@@ -1,8 +1,43 @@
+import SwiftUI
 import Testing
 @testable import AppTemplate
 
 @MainActor
 struct StoreRouterTests {
+    @Test
+    func inactiveStorePathTeardownIsIgnoredWhileActiveNavigationIsAccepted() {
+        let router = StoreRouter(path: [.product(7)])
+        let activation = NavigationActivation()
+        let path = StoreFlowView.navigationPathBinding(
+            router: router,
+            acceptsUpdates: { activation.value }
+        )
+
+        path.wrappedValue = []
+        #expect(router.path == [.product(7)])
+
+        activation.value = true
+        path.wrappedValue = [.cart]
+        #expect(router.path == [.cart])
+    }
+
+    @Test
+    func inactiveServicesPathTeardownIsIgnoredWhileActiveNavigationIsAccepted() {
+        let router = ServicesRouter(path: [.appInfo])
+        let activation = NavigationActivation()
+        let path = ServicesFlowView.navigationPathBinding(
+            router: router,
+            acceptsUpdates: { activation.value }
+        )
+
+        path.wrappedValue = []
+        #expect(router.path == [.appInfo])
+
+        activation.value = true
+        path.wrappedValue = [.keychain]
+        #expect(router.path == [.keychain])
+    }
+
     @Test
     func requestProtectedExecutesImmediatelyForAuthenticatedSession() {
         let router = StoreRouter(path: [.product(7)])
@@ -345,5 +380,104 @@ struct StoreRouterTests {
             displayName: "User \(userID)",
             availability: .online
         )
+    }
+}
+
+@MainActor
+private final class NavigationActivation {
+    var value = false
+}
+
+@MainActor
+struct StorePresentationHostPolicyTests {
+    @Test
+    func macOSSelectsExactlyOneHostForTheActiveNavigationLevel() {
+        let route = StoreRoute.product(7)
+
+        #expect(
+            StorePresentationHostPolicy.rootIsActive(
+                isMacOS: true,
+                path: []
+            )
+        )
+        #expect(
+            !StorePresentationHostPolicy.routeIsActive(
+                isMacOS: true,
+                path: [],
+                route: route
+            )
+        )
+        #expect(
+            !StorePresentationHostPolicy.rootIsActive(
+                isMacOS: true,
+                path: [route]
+            )
+        )
+        #expect(
+            StorePresentationHostPolicy.routeIsActive(
+                isMacOS: true,
+                path: [route],
+                route: route
+            )
+        )
+        #expect(
+            !StorePresentationHostPolicy.routeIsActive(
+                isMacOS: true,
+                path: [route],
+                route: .cart
+            )
+        )
+    }
+
+    @Test
+    func iOSKeepsTheSingleRootHostActiveAtEveryNavigationLevel() {
+        let route = StoreRoute.product(7)
+
+        #expect(
+            StorePresentationHostPolicy.rootIsActive(
+                isMacOS: false,
+                path: [route]
+            )
+        )
+        #expect(
+            !StorePresentationHostPolicy.routeIsActive(
+                isMacOS: false,
+                path: [route],
+                route: route
+            )
+        )
+    }
+
+    @Test
+    func onlyTheActiveHostReadsAndDismissesThePresentation() {
+        let router = StoreRouter()
+        router.presentation = .reminder(7)
+
+        #expect(
+            StorePresentationHostPolicy.presentation(
+                from: router,
+                isActive: false
+            ) == nil
+        )
+        StorePresentationHostPolicy.updatePresentation(
+            nil,
+            on: router,
+            isActive: false
+        )
+        #expect(router.presentation == .reminder(7))
+        #expect(
+            StorePresentationHostPolicy.presentation(
+                from: router,
+                isActive: true
+            ) == .reminder(7)
+        )
+
+        StorePresentationHostPolicy.updatePresentation(
+            nil,
+            on: router,
+            isActive: true
+        )
+
+        #expect(router.presentation == nil)
     }
 }

@@ -15,6 +15,7 @@ struct LocalNotificationLabView: View {
     @State private var selectedDelivered: Set<LocalNotificationID> = []
     @State private var confirmPendingRemoval = false
     @State private var confirmDeliveredRemoval = false
+    @State private var advancedIsExpanded = false
 
     init(
         guide: ServiceLabGuide,
@@ -46,17 +47,27 @@ struct LocalNotificationLabView: View {
             labLists
             historyPanel
         } advanced: {
-            settingsPanel
-            schedulingPanel
-            categoryPanel
-            contentPanel
-            attachmentPanel
-            labRemovalPanel
-            appWidePanel
-            badgePanel
+            DisclosureGroup(isExpanded: $advancedIsExpanded) {
+                settingsPanel
+                schedulingPanel
+                categoryPanel
+                contentPanel
+                attachmentPanel
+                labRemovalPanel
+                appWidePanel
+                badgePanel
+            } label: {
+                Text(StoreServicesText.resource(.advanced))
+            }
+            .accessibilityIdentifier("action.services.notifications.advanced")
         }
         .navigationTitle(StoreServicesText.resource("Local Notifications"))
-        .accessibilityIdentifier("screen.services.local-notifications")
+        .overlay(alignment: .topLeading) {
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier("screen.services.local-notifications")
+        }
         .confirmationDialog(
             StoreServicesText.resource("Remove every app-owned pending notification?"),
             isPresented: $confirmPendingRemoval,
@@ -77,9 +88,7 @@ struct LocalNotificationLabView: View {
         }
         .task {
             await model.startEventUpdates()
-            await model.refreshSettings()
-            await model.refreshLabLists()
-            await model.refreshAppOwnedLists()
+            await model.loadInitialState()
             do {
                 try await Task.sleep(for: .seconds(31_536_000))
             } catch {}

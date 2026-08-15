@@ -36,7 +36,12 @@ struct ServicesAppStateView: View {
             sceneSummary
         }
         .navigationTitle(StoreServicesText.resource("App State"))
-        .accessibilityIdentifier("screen.services.app-state")
+        .overlay(alignment: .topLeading) {
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier("screen.services.app-state")
+        }
         .confirmationDialog(
             StoreServicesText.resource("Confirm Application-wide Action"),
             isPresented: appActionConfirmation,

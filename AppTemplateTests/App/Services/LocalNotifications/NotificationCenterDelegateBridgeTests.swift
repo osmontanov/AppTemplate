@@ -7,6 +7,34 @@ import UserNotifications
 @Suite(.serialized)
 struct NotificationCenterDelegateBridgeTests {
     @Test(.timeLimit(.minutes(1)))
+    func frameworkCompletionsReturnToMainThreadAfterOffMainProcessing() async throws {
+        let callbackThreads = FrameworkCallbackThreadRecorder()
+        let bridge = try NotificationCenterDelegateBridge.fixture(
+            eventHub: makeLocalNotificationEventHub(),
+            recorder: DelegateCallbackRecorder()
+        )
+        let response = try LocalNotificationSystemResponse.delegateFixture(
+            kind: .defaultOpen
+        )
+        let delivery = LocalNotificationSystemDelivery(
+            request: response.request,
+            deliveredAt: response.deliveredAt
+        )
+
+        await Task.detached {
+            await bridge.processResponse(response) {
+                callbackThreads.completeResponse()
+            }
+            await bridge.processDelivery(delivery) { _ in
+                callbackThreads.completeForeground()
+            }
+        }.value
+
+        #expect(callbackThreads.responseMainThreadValues == [true])
+        #expect(callbackThreads.foregroundMainThreadValues == [true])
+    }
+
+    @Test(.timeLimit(.minutes(1)))
     func responseRecordsPublishesDispatchesThenCompletesOnce() async throws {
         let trace = DelegateOrderTrace()
         let history = LocalNotificationEventHistory(clock: .live)
@@ -916,6 +944,35 @@ private nonisolated final class DelegateCallbackRecorder: Sendable {
     func expectOneResponseCompletionAfterPublish() {
         #expect(completionCount == 1)
         #expect(order == [.published, .completion, .observedEvent])
+    }
+}
+
+private nonisolated final class FrameworkCallbackThreadRecorder: Sendable {
+    private struct State: Sendable {
+        var responseMainThreadValues: [Bool] = []
+        var foregroundMainThreadValues: [Bool] = []
+    }
+
+    private let state = Mutex(State())
+
+    var responseMainThreadValues: [Bool] {
+        state.withLock { $0.responseMainThreadValues }
+    }
+
+    var foregroundMainThreadValues: [Bool] {
+        state.withLock { $0.foregroundMainThreadValues }
+    }
+
+    func completeResponse() {
+        state.withLock {
+            $0.responseMainThreadValues.append(Thread.isMainThread)
+        }
+    }
+
+    func completeForeground() {
+        state.withLock {
+            $0.foregroundMainThreadValues.append(Thread.isMainThread)
+        }
     }
 }
 

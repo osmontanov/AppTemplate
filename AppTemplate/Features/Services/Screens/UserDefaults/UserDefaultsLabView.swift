@@ -28,7 +28,12 @@ struct UserDefaultsLabView: View {
                 .foregroundStyle(.secondary)
         }
         .navigationTitle(StoreServicesText.resource("UserDefaults"))
-        .accessibilityIdentifier("screen.services.user-defaults")
+        .overlay(alignment: .topLeading) {
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier("screen.services.user-defaults")
+        }
     }
 
     @ViewBuilder

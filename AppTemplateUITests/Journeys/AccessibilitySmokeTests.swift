@@ -18,9 +18,9 @@ final class AccessibilitySmokeTests: XCTestCase {
         let app = robot.launch(.accessibilitySmoke, overrides: .arabicRTL)
         try robot.completeOnboardingIfNeeded(in: app)
         let store = StoreRobot(app: app)
-        try store.assertPrimaryActionsReachable()
         try store.assertLocalizedPriceReachable()
         try robot.assertScenarioScriptsExhausted(in: app)
+        try store.assertPrimaryActionsReachable(allowsMacOSToolbarOverflow: true)
     }
 
     @MainActor

@@ -49,7 +49,18 @@ struct StoreRobot {
 
     func navigateBack() throws {
         #if os(macOS)
-        app.typeKey("[", modifierFlags: .command)
+        let backActions = app.buttons.matching(
+            NSPredicate(
+                format: "identifier IN %@",
+                ["BackButton", "chevron.backward"]
+            )
+        )
+        XCTAssertEqual(
+            backActions.count,
+            1,
+            "Expected exactly one semantic back action"
+        )
+        try robot.activate(backActions.firstMatch)
         #else
         try robot.activate(app.buttons["BackButton"])
         #endif
@@ -76,7 +87,15 @@ struct StoreRobot {
         _ = try robot.require("screen.store.profile", in: app)
     }
 
-    func assertPrimaryActionsReachable() throws {
+    func assertPrimaryActionsReachable(
+        allowsMacOSToolbarOverflow: Bool = false
+    ) throws {
+        #if os(macOS)
+        if allowsMacOSToolbarOverflow {
+            try assertMacOSToolbarOverflowActionsReachable()
+            return
+        }
+        #endif
         for identifier in ["action.store.search", "action.store.filter", "action.store.cart"] {
             let action = try robot.require(identifier, in: app)
             XCTAssertTrue(action.isHittable, "Expected reachable \(identifier)")
@@ -88,6 +107,47 @@ struct StoreRobot {
             "Favorites and Profile require either direct actions or More"
         )
     }
+
+    #if os(macOS)
+    private func assertMacOSToolbarOverflowActionsReachable() throws {
+        let toolbars = app.toolbars
+        XCTAssertEqual(toolbars.count, 1, "Expected exactly one app toolbar")
+        let toolbar = toolbars.firstMatch
+        let searchFields = toolbar.searchFields
+        XCTAssertEqual(
+            searchFields.count,
+            1,
+            "Expected exactly one native toolbar search field"
+        )
+        let searchField = searchFields.firstMatch
+        XCTAssertTrue(searchField.isHittable, "Expected reachable toolbar search")
+
+        let overflowActions = toolbar.popUpButtons
+        XCTAssertEqual(
+            overflowActions.count,
+            1,
+            "Expected exactly one native toolbar overflow action"
+        )
+        let overflow = overflowActions.firstMatch
+        XCTAssertTrue(overflow.isHittable, "Expected reachable toolbar overflow")
+        try robot.activate(overflow)
+
+        let menus = overflow.children(matching: .menu)
+        XCTAssertEqual(menus.count, 1, "Expected exactly one native overflow menu")
+        guard menus.count == 1 else { return }
+
+        let menuItems = menus.firstMatch.children(matching: .menuItem)
+        XCTAssertEqual(
+            menuItems.count,
+            8,
+            "Expected every primary and catalog toolbar action in the native overflow"
+        )
+        for menuItem in menuItems.allElementsBoundByIndex {
+            XCTAssertTrue(menuItem.isHittable, "Expected every overflow action to be reachable")
+        }
+        app.typeKey(.escape, modifierFlags: [])
+    }
+    #endif
 
     func assertLocalizedPriceReachable() throws {
         let product = app.buttons

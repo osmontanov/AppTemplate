@@ -111,9 +111,7 @@ struct ServicesLabIsolationTests {
 
     private func makePreviewGraph() -> AppDependencies {
         AppDependencies.preview(
-            settings: SettingsDependencies(
-                appInfo: AppInfoService(displayName: "Storage Lab", version: "1")
-            ),
+            appInfo: AppInfoService(displayName: "Storage Lab", version: "1"),
             remoteService: IsolationRemoteStub(),
             diagnostics: NetworkDiagnosticRecorder(),
             imageLoader: IsolationImageLoaderStub()
@@ -171,7 +169,6 @@ private actor StatefulServicesLabKeychainExecutor: KeychainSecItemExecuting {
 }
 
 private actor IsolationRemoteStub: IRemoteService {
-    func fetchExample(_ request: ExampleRequest) async throws -> ExampleResponse { throw RemoteServiceError.invalidResponse }
     func products(_ request: ProductPageRequest) async throws -> ProductPageDTO { throw RemoteServiceError.invalidResponse }
     func categories() async throws -> [ProductCategoryDTO] { throw RemoteServiceError.invalidResponse }
     func product(id: Int) async throws -> ProductDTO { throw RemoteServiceError.invalidResponse }

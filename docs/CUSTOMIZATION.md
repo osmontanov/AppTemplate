@@ -54,13 +54,12 @@ build/test commands, and run all destinations before deleting the old names.
 
 `IAppInfoService` currently exposes `displayName` and `version`.
 `AppInfoService` reads them from `Bundle.main`, and
-`AppDependencies.live()` injects it through
-`SettingsDependencies(appInfo:)`. Keep this implementation if bundle metadata
-is sufficient. To replace it:
+`AppDependencies.live()` exposes it to the Services application-information
+lab. Keep this implementation if bundle metadata is sufficient. To replace it:
 
-1. Update `IAppInfoService` with only the values Settings actually needs.
+1. Update `IAppInfoService` with only the values the Services lab needs.
 2. Implement those requirements in a `Sendable` concrete type.
-3. Change the `settings:` construction in `AppDependencies.live()`.
+3. Change the `appInfoService:` construction in `AppDependencies.live()`.
 4. Supply explicit preview, test, and UI-test values; do not add a global
    resolver or production fallback fixture.
 
@@ -309,14 +308,14 @@ migration strategy, tests, and release validation.
 
 ### Remote service
 
-The remote service now demonstrates a URLSession-backed, Moya-inspired
-target/provider flow with a reserved `https://example.invalid` base URL; it is
-not a configured production API. Before enabling remote product behavior:
+The remote service uses a URLSession-backed, Moya-inspired target/provider
+flow for the retained DummyJSON Store and Services-lab operations. Before
+pointing an adopted product at another API:
 
-1. Replace `ExampleTarget`, `ExampleRequest`, `ExampleResponse`, and
-   `fetchExample(_:)` with domain-specific operations and models.
-2. Supply the real environment base URL at the composition root; do not leave
-   the reserved placeholder or hide configuration in a global singleton.
+1. Replace `DummyJSONTarget` and its DTOs with domain-specific endpoints and
+   models while keeping `IRemoteService` semantic.
+2. Supply each real environment base URL at the composition root; do not hide
+   configuration in a global singleton.
 3. At the production composition root, create one long-lived `URLSession` from
    an explicit configuration and inject it into `URLSessionTransport`. Configure
    timeout, cache, cookie, connectivity, redirect, and trust policies there as

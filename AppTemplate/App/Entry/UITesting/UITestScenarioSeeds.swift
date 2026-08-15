@@ -535,7 +535,7 @@ private nonisolated enum ProtectedFavoriteUITestFixture {
                     path: "/auth/login",
                     shouldHandleCookies: false,
                     bodyExpectation: .json(Data(
-                        #"{"username":"invalid-user","password":"invalid-password","expiresInMins":30}"#.utf8
+                        #"{"username":"24680","password":"13579","expiresInMins":30}"#.utf8
                     )),
                     statusCode: 400,
                     body: #"{"message":"Invalid credentials"}"#

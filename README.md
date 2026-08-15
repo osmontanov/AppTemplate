@@ -41,7 +41,8 @@ The implemented examples focus on reusable application structure:
 - typed routes, deep-link parsing, root-flow policy, modal flows, and
   platform-adaptive shells;
 - explicit live, preview, test, and UI-test dependency construction;
-- static Home, Browse, Projects, and Settings content that is safe to replace.
+- a connected Store journey and a Services laboratory, both backed by explicit
+  production, preview, unit-test, and scripted UI-test graphs.
 
 The template includes a typed, explicitly registered SwiftData reference
 engine. `ExampleRecord` is its first detached local-persistence model, not a

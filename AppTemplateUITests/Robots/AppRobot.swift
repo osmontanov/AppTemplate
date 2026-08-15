@@ -91,6 +91,11 @@ final class AppRobot {
         app.launch()
         #if os(macOS)
         app.activate()
+        do {
+            try bootstrapInitialWindowIfNeeded(in: app)
+        } catch {
+            XCTFail("Could not bootstrap the initial macOS window: \(error)")
+        }
         #endif
 
         let expectedRoot = scenario == .accessibilitySmoke
@@ -104,8 +109,39 @@ final class AppRobot {
             element("ui-test.script-status.failed", in: app).exists,
             "Scenario script failed during launch"
         )
+        #if os(macOS)
+        XCTAssertEqual(
+            app.windows.count,
+            1,
+            "Expected exactly one initial application window"
+        )
+        #endif
         return app
     }
+
+    #if os(macOS)
+    private func bootstrapInitialWindowIfNeeded(in app: XCUIApplication) throws {
+        guard !app.windows.firstMatch.waitForExistence(timeout: 1) else { return }
+        let menuBar = try requireExistence(app.menuBars.firstMatch)
+        let fileMenuBarItem = try requireExistence(
+            menuBar.menuBarItems.element(boundBy: 2)
+        )
+        guard !app.windows.firstMatch.exists else { return }
+
+        fileMenuBarItem.click()
+        let fileMenu = try requireExistence(fileMenuBarItem.menus.firstMatch)
+        let newWindowActions = fileMenu.menuItems.matching(identifier: "menuAction:")
+        let newWindowAction = try requireSingleElement(
+            newWindowActions,
+            description: "File-menu window action"
+        )
+        let actionToInvoke = try XCTUnwrap(
+            app.windows.firstMatch.exists ? nil : newWindowAction,
+            "Initial window appeared while resolving the File-menu bootstrap action"
+        )
+        actionToInvoke.click()
+    }
+    #endif
 
     func completeOnboardingIfNeeded(in app: XCUIApplication) throws {
         guard element("screen.onboarding", in: app).exists else { return }
@@ -118,7 +154,7 @@ final class AppRobot {
         expecting destinationIdentifier: String,
         in app: XCUIApplication
     ) throws {
-        try activate(control(identifier, in: app))
+        try activate(element(identifier, in: app))
         _ = try require(destinationIdentifier, in: app)
     }
 
@@ -201,5 +237,34 @@ final class AppRobot {
         #else
         value.tap()
         #endif
+    }
+
+    private func requireExistence(
+        _ element: XCUIElement,
+        timeout: TimeInterval = 5,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws -> XCUIElement {
+        try XCTUnwrap(
+            element.waitForExistence(timeout: timeout) ? element : nil,
+            "Expected UI element to exist",
+            file: file,
+            line: line
+        )
+    }
+
+    private func requireSingleElement(
+        _ query: XCUIElementQuery,
+        description: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws -> XCUIElement {
+        let elementCount = query.count
+        return try XCTUnwrap(
+            elementCount == 1 ? query.firstMatch : nil,
+            "Expected exactly one \(description), found \(elementCount)",
+            file: file,
+            line: line
+        )
     }
 }

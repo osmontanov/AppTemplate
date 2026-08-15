@@ -39,7 +39,12 @@ struct KeychainLabView: View {
                 .foregroundStyle(.secondary)
         }
         .navigationTitle(StoreServicesText.resource("Keychain"))
-        .accessibilityIdentifier("screen.services.keychain")
+        .overlay(alignment: .topLeading) {
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier("screen.services.keychain")
+        }
         .onDisappear { model.hideValue() }
     }
 

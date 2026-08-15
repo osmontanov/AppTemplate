@@ -126,7 +126,6 @@ final class NotificationCenterDelegateBridge:
         ) -> Void
     ) async {
         let completion = NotificationCenterDelegateCompletion(completion)
-        defer { completion.complete([]) }
 
         guard let logicalID = namespace.logicalRequestID(
             delivery.request.identifier
@@ -137,7 +136,7 @@ final class NotificationCenterDelegateBridge:
             } catch {
                 presentation = []
             }
-            completion.complete(presentation)
+            await completion.complete(presentation)
             return
         }
 
@@ -152,7 +151,7 @@ final class NotificationCenterDelegateBridge:
                     presentation: decoded.envelope.foregroundPresentation
                 )
             )
-            completion.complete(decoded.envelope.foregroundPresentation)
+            await completion.complete(decoded.envelope.foregroundPresentation)
         } catch {
             await eventPublisher.publish(
                 .diagnostic(
@@ -162,7 +161,7 @@ final class NotificationCenterDelegateBridge:
                     )
                 )
             )
-            completion.complete([])
+            await completion.complete([])
         }
     }
 
@@ -173,7 +172,6 @@ final class NotificationCenterDelegateBridge:
         let completion = NotificationCenterDelegateCompletion<Void> { _ in
             completion()
         }
-        defer { completion.complete(()) }
 
         guard let logicalID = namespace.logicalRequestID(
             response.request.identifier
@@ -183,7 +181,7 @@ final class NotificationCenterDelegateBridge:
             } catch {
                 // Unmanaged failures are intentionally private to their owner.
             }
-            completion.complete(())
+            await completion.complete(())
             return
         }
 
@@ -202,7 +200,7 @@ final class NotificationCenterDelegateBridge:
                 event: event,
                 deliveredAt: response.deliveredAt
             ))
-            completion.complete(())
+            await completion.complete(())
         } catch {
             await eventPublisher.publish(
                 .diagnostic(
@@ -212,7 +210,7 @@ final class NotificationCenterDelegateBridge:
                     )
                 )
             )
-            completion.complete(())
+            await completion.complete(())
         }
     }
 
@@ -526,13 +524,16 @@ private nonisolated final class NotificationCenterDelegateCompletion<Value: Send
         state = Mutex(State(completion: completion))
     }
 
-    func complete(_ value: Value) {
+    func complete(_ value: Value) async {
         let callback: (@Sendable (Value) -> Void)? = state.withLock { state in
             guard !state.didComplete else { return nil }
             state.didComplete = true
             return state.completion
         }
-        callback?(value)
+        guard let callback else { return }
+        await MainActor.run {
+            callback(value)
+        }
     }
 }
 

@@ -186,9 +186,6 @@ actor BootstrapReadGate {
 }
 
 actor BootstrapUnusedRemoteService: IRemoteService {
-    func fetchExample(_ request: ExampleRequest) async throws -> ExampleResponse {
-        throw BootstrapTestFailure.injected
-    }
     func products(_ request: ProductPageRequest) async throws -> ProductPageDTO {
         throw BootstrapTestFailure.injected
     }

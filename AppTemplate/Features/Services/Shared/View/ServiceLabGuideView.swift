@@ -65,15 +65,20 @@ struct ServiceLabGuideView<TryItContent: View, AdvancedContent: View>: View {
             }
         }
         .controlSize(.large)
-        .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.serviceLab))
+        .overlay(alignment: .topLeading) {
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.serviceLab))
+        }
         .task {
+            resultIsFocused = result != .idle && result != .running
             guard result != .idle else { return }
-            resultIsFocused = result != .running
             AccessibilityNotification.Announcement(announcement(for: result)).post()
         }
         .onChange(of: result) { _, newValue in
+            resultIsFocused = newValue != .idle && newValue != .running
             guard newValue != .idle else { return }
-            resultIsFocused = newValue != .running
             AccessibilityNotification.Announcement(announcement(for: newValue)).post()
         }
     }

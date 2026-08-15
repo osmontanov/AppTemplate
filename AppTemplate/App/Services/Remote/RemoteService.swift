@@ -1,30 +1,21 @@
 import Foundation
 
 actor RemoteService: IRemoteService {
-    nonisolated static let defaultBaseURL = URL(
-        string: "https://example.invalid"
-    )!
     nonisolated static let defaultDummyJSONBaseURL = URL(
         string: "https://dummyjson.com"
     )!
 
-    private let baseURL: URL
-    private let provider: NetworkProvider<ExampleTarget>
     private let dummyJSONBaseURL: URL
     private let dummyJSONProvider: NetworkProvider<DummyJSONTarget>
     private let authenticationProvider: NetworkProvider<DummyJSONTarget>
     nonisolated let diagnosticRecorder: NetworkDiagnosticRecorder?
 
     init(
-        baseURL: URL = RemoteService.defaultBaseURL,
-        provider: NetworkProvider<ExampleTarget> = NetworkProvider(),
         dummyJSONBaseURL: URL = RemoteService.defaultDummyJSONBaseURL,
         dummyJSONProvider: NetworkProvider<DummyJSONTarget>? = nil,
         authenticationProvider: NetworkProvider<DummyJSONTarget>? = nil,
         diagnosticRecorder: NetworkDiagnosticRecorder? = nil
     ) {
-        self.baseURL = baseURL
-        self.provider = provider
         self.dummyJSONBaseURL = dummyJSONBaseURL
         self.diagnosticRecorder = diagnosticRecorder
         self.dummyJSONProvider = dummyJSONProvider ?? NetworkProvider(
@@ -35,15 +26,6 @@ actor RemoteService: IRemoteService {
             transport: URLSessionTransport.cookieFree(timeout: 15),
             diagnosticRecorder: diagnosticRecorder
         )
-    }
-
-    func fetchExample(
-        _ request: ExampleRequest
-    ) async throws -> ExampleResponse {
-        let response = try await provider.request(
-            .fetch(baseURL: baseURL, request: request)
-        )
-        return try response.decode(ExampleResponse.self)
     }
 
     func products(

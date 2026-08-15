@@ -3,9 +3,9 @@ import SwiftUI
 
 struct MacSidebarAppShellView: View {
     @Bindable var router: AppRouter
-    let session: SessionPresentation
     let storeDependencies: StoreDependencies
     let storeUISupport: StoreUISupport
+    let storeCatalogViewModel: CatalogViewModel
     let servicesDependencies: ServicesDependencies
     let sceneNavigation: any ISceneNavigationActions
 
@@ -29,11 +29,13 @@ struct MacSidebarAppShellView: View {
                 section: router.selectedSection,
                 storeRouter: router.store,
                 servicesRouter: router.services,
-                session: session,
                 storeDependencies: storeDependencies,
                 storeUISupport: storeUISupport,
+                storeCatalogViewModel: storeCatalogViewModel,
                 servicesDependencies: servicesDependencies,
-                sceneNavigation: sceneNavigation
+                sceneNavigation: sceneNavigation,
+                storeNavigationIsActive: { router.selectedSection == .store },
+                servicesNavigationIsActive: { router.selectedSection == .services }
             )
         }
         .frame(minWidth: 820, minHeight: 620)

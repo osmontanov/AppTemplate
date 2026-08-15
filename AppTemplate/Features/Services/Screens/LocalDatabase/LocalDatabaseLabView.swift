@@ -47,7 +47,12 @@ struct LocalDatabaseLabView: View {
                 .foregroundStyle(.secondary)
         }
         .navigationTitle(StoreServicesText.resource("Local Database"))
-        .accessibilityIdentifier("screen.services.local-database")
+        .overlay(alignment: .topLeading) {
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier("screen.services.local-database")
+        }
         .alert(StoreServicesText.resource("Delete all demo records?"), isPresented: $isDeleteAllConfirmationPresented) {
             Button(StoreServicesText.resource("Delete All"), role: .destructive) {
                 Task { await model.deleteAllConfirmed() }

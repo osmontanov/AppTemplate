@@ -151,7 +151,6 @@ actor LoginBarrierRemote: IRemoteService {
         releaseContinuation = nil
     }
 
-    func fetchExample(_ request: ExampleRequest) async throws -> ExampleResponse { throw SessionOperationFailure.injected }
     func products(_ request: ProductPageRequest) async throws -> ProductPageDTO { throw SessionOperationFailure.injected }
     func categories() async throws -> [ProductCategoryDTO] { throw SessionOperationFailure.injected }
     func product(id: Int) async throws -> ProductDTO { throw SessionOperationFailure.injected }
@@ -251,7 +250,6 @@ actor SessionOperationRemote: IRemoteService {
         (loginCallCount, meCallCount, refreshCallCount)
     }
 
-    func fetchExample(_ request: ExampleRequest) async throws -> ExampleResponse { throw SessionOperationFailure.injected }
     func products(_ request: ProductPageRequest) async throws -> ProductPageDTO { throw SessionOperationFailure.injected }
     func categories() async throws -> [ProductCategoryDTO] { throw SessionOperationFailure.injected }
     func product(id: Int) async throws -> ProductDTO { throw SessionOperationFailure.injected }

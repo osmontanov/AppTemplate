@@ -120,10 +120,11 @@ a successful navigation event.
 ## Scene navigation and restoration
 
 Each window owns an `AppSceneNavigationLifecycle`, which owns one `AppRouter`.
-That router contains an independent selected section, pending deep link, and
-`FlowRouter` for Authentication, Onboarding, Maintenance, Home, Browse,
-Projects, and Settings. Each flow view owns one `NavigationStack`; iOS uses an
-adaptive tab shell and macOS uses a sidebar split view.
+That router contains an independent selected section, pending deep link,
+`StoreRouter`, and `ServicesRouter`. Authentication, Onboarding, and
+Maintenance remain application-policy roots; the main application presents
+only the Store and Services sections. Each section owns one `NavigationStack`;
+iOS uses an adaptive tab shell and macOS uses a sidebar split view.
 
 `IFlowRouter` is deliberately narrow: `push`, `pop`, and `popToRoot` affect
 only the receiving flow's path. Semantic application commands are separate
@@ -133,13 +134,13 @@ by the scene's `AppRouter`, so cancellation clears only that scene's
 authentication path and pending intent.
 
 Each live scene stores `NavigationSnapshot` in `@SceneStorage` under
-`AppTemplate.NavigationSnapshot`. The current snapshot schema is 4 and
-contains the selected section, Home/Browse/Projects/Settings paths, and
+`AppTemplate.NavigationSnapshot`. The current snapshot schema is 5 and
+contains the selected section, Store and Services paths, and
 `lastAppliedTransitionID`. That transition ID is the scene's checkpoint: it
 prevents a shared root transition from being replayed after restoration.
-Schema 2 and 3 snapshots are migrated; corrupt or unsupported old snapshots
-are reset. Future-schema data is preserved and snapshot writes stop, avoiding
-destructive downgrade. UI tests use the ephemeral persistence policy.
+Earlier supported snapshot schemas are migrated; corrupt or unsupported old
+snapshots are reset. Future-schema data is preserved and snapshot writes stop,
+avoiding destructive downgrade. UI tests use the ephemeral persistence policy.
 
 Deep links received before restoration are queued. A scene outside Main keeps
 its pending intent locally; policy transitions can replay it when Main becomes
@@ -148,14 +149,15 @@ available. Signing out discards pending intent at the identity boundary.
 ## Dependency injection and services
 
 `AppDependencies` is an immutable, explicit graph with `live`, `uiTesting`,
-`preview`, and `test` factories. It owns application-level storage and example
-services, then passes only the dependency slice required downstream.
-`SettingsDependencies`, for example, contains `any IAppInfoService`; Settings
-does not receive the whole app graph. Other feature dependency structs are
-empty extension points until their features need a real dependency.
+`preview`, and `test` factories. It owns application-level storage, session,
+Store, notification, and Services-lab boundaries, then passes only the
+dependency slice required downstream. The live factory also accepts explicit
+inert seams so composition tests can construct the production topology without
+opening disk storage, Security Keychain, notification prompts, or network
+transport.
 
 `AppInfoService` reads display name and short version from the app bundle and
-is injected into Settings.
+is exposed to the Services application-information lab.
 
 ### Local Notification runtime
 
@@ -277,11 +279,13 @@ domain values, map those values to local records internally, and inject that
 feature protocol into its ViewModel. Features must not import SwiftData,
 `LocalDatabaseModel`, or `LocalEntityAdapter`.
 
-`IRemoteService` is the app-facing remote boundary. Its neutral
-`fetchExample(_:)` operation demonstrates a semantic service method without
-exposing targets, URL requests, or response decoding to features.
-`RemoteService` is an actor that owns `NetworkProvider<ExampleTarget>` and
-decodes the provider's raw response into `ExampleResponse`.
+`IRemoteService` is the app-facing remote boundary. It exposes semantic
+DummyJSON product paging, category, product-detail, authentication, profile,
+token-refresh, and diagnostic operations without exposing targets, URL
+requests, or response decoding to features. `RemoteService` is an actor that
+owns the public and authentication `NetworkProvider<DummyJSONTarget>`
+instances. Store repositories and the Services remote lab depend on this
+boundary rather than on a provider.
 
 The reusable implementation under `App/Networking` is Moya-inspired but uses
 Foundation directly. `NetworkTarget` values describe typed endpoints, and

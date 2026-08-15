@@ -96,7 +96,6 @@ private actor ProductRemoteSpy: IRemoteService {
 
     init(pageIDs: [Int] = []) { self.pageIDs = pageIDs }
 
-    func fetchExample(_ request: ExampleRequest) async throws -> ExampleResponse { throw RemoteServiceError.invalidResponse }
     func products(_ request: ProductPageRequest) async throws -> ProductPageDTO {
         requests.append(request)
         return ProductPageDTO(products: pageIDs.map { .fixture(id: $0) }, total: pageIDs.count, skip: request.skip, limit: request.limit)

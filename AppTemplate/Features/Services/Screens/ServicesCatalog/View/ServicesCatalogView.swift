@@ -24,6 +24,8 @@ struct ServicesCatalogView: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(.rect)
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier(

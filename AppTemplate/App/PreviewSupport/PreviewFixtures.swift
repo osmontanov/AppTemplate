@@ -20,7 +20,6 @@ enum PreviewFixtures {
         )
         return ContentView(
             appFlowCoordinator: graph.coordinator,
-            session: session.presentation,
             storeDependencies: dependencies.makeStoreDependencies(session: session),
             storeUISupport: dependencies.storeUISupport,
             servicesDependencies: servicesDependencies
@@ -45,31 +44,6 @@ enum PreviewFixtures {
         )
     }
 
-    static func homeFlow() -> HomeFlowView {
-        HomeFlowView(
-            router: flowRouter(state: mainState, isLocalSessionBootstrapResolved: true)
-        )
-    }
-
-    static func browseFlow() -> BrowseFlowView {
-        BrowseFlowView(
-            router: flowRouter(state: mainState, isLocalSessionBootstrapResolved: true)
-        )
-    }
-
-    static func projectsFlow() -> ProjectsFlowView {
-        ProjectsFlowView(
-            router: flowRouter(state: mainState, isLocalSessionBootstrapResolved: true)
-        )
-    }
-
-    static func settingsFlow() -> SettingsFlowView {
-        SettingsFlowView(
-            router: flowRouter(state: mainState, isLocalSessionBootstrapResolved: true),
-            dependencies: settingsDependencies()
-        )
-    }
-
     static func maintenanceFlow() -> MaintenanceFlowView {
         MaintenanceFlowView(
             router: flowRouter(
@@ -82,27 +56,12 @@ enum PreviewFixtures {
         )
     }
 
-    static func createProjectFlow() -> CreateProjectFlowView {
-        CreateProjectFlowView(
-            appFlowCoordinator: appFlowCoordinator(
-                state: mainState,
-                isLocalSessionBootstrapResolved: true
-            )
-        )
-    }
-
-    static func settingsDependencies() -> SettingsDependencies {
-        SettingsDependencies(
+    static func failClosedDependencies() -> AppDependencies {
+        AppDependencies.preview(
             appInfo: AppInfoService(
                 displayName: "AppTemplate Preview",
                 version: "1.0"
-            )
-        )
-    }
-
-    static func failClosedDependencies() -> AppDependencies {
-        AppDependencies.preview(
-            settings: settingsDependencies(),
+            ),
             remoteService: FailClosedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
             imageLoader: FailClosedImageLoader()
@@ -154,12 +113,6 @@ enum PreviewFixtures {
         )
     }
 
-    private static var mainState: AppState {
-        AppState(
-            hasCompletedOnboarding: true,
-            isMaintenanceEnabled: false
-        )
-    }
 }
 
 @MainActor

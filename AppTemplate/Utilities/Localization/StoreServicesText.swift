@@ -13,11 +13,35 @@ nonisolated enum StoreServicesText {
         case advanced
         case demoUSDAssumption
         case appWideImpact
+
+        var localization: (key: StaticString, defaultValue: String.LocalizationValue) {
+            switch self {
+            case .storeTitle: ("storeTitle", "Store")
+            case .servicesTitle: ("servicesTitle", "Services")
+            case .why: ("why", "Why")
+            case .preset: ("preset", "Preset")
+            case .tryIt: ("tryIt", "Try It")
+            case .expected: ("expected", "Expected")
+            case .actual: ("actual", "Actual")
+            case .resetDemoData: ("resetDemoData", "Reset Demo Data")
+            case .advanced: ("advanced", "Advanced")
+            case .demoUSDAssumption: (
+                "demoUSDAssumption",
+                "Demo prices are shown in USD."
+            )
+            case .appWideImpact: (
+                "appWideImpact",
+                "This action affects the entire app."
+            )
+            }
+        }
     }
 
     static func resource(_ key: Key) -> LocalizedStringResource {
-        LocalizedStringResource(
-            String.LocalizationValue(key.rawValue),
+        let localization = key.localization
+        return LocalizedStringResource(
+            localization.key,
+            defaultValue: localization.defaultValue,
             table: "StoreServices"
         )
     }

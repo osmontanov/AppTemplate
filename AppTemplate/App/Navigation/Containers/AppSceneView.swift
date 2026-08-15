@@ -43,6 +43,7 @@ struct AppSceneView: View {
     private let uiTestDeepLinkHarnessAction: UITestDeepLinkHarnessAction?
 
     @State private var lifecycle: AppSceneNavigationLifecycle
+    @State private var storeCatalogViewModel: CatalogViewModel
     @State private var protectedStoreActionExecutor: ProtectedStoreActionExecutor
     @State private var notificationCommandReceiver: AppSceneNotificationCommandReceiver
     @State private var onboardingRouter: FlowRouter
@@ -91,6 +92,11 @@ struct AppSceneView: View {
             session: storeDependencies.session
         )
         _lifecycle = State(initialValue: sceneStoreRouter)
+        _storeCatalogViewModel = State(initialValue: CatalogViewModel(
+            products: storeDependencies.products,
+            preferences: storeDependencies.preferences,
+            clock: storeUISupport.clock
+        ))
         _protectedStoreActionExecutor = State(initialValue: executor)
         _notificationCommandReceiver = State(initialValue: AppSceneNotificationCommandReceiver(
             navigation: sceneStoreRouter,
@@ -117,9 +123,9 @@ struct AppSceneView: View {
             router: lifecycle.router,
             onboardingRouter: onboardingRouter,
             maintenanceRouter: maintenanceRouter,
-            session: session,
             storeDependencies: storeDependencies,
             storeUISupport: storeUISupport,
+            storeCatalogViewModel: storeCatalogViewModel,
             servicesDependencies: servicesDependencies,
             sceneNavigation: lifecycle
         )
@@ -202,7 +208,7 @@ struct AppSceneView: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("UI test deep link")
+                    .accessibilityLabel(StoreServicesText.resource("UI test deep link"))
                     .accessibilityIdentifier(action.accessibilityIdentifier)
                 }
             }

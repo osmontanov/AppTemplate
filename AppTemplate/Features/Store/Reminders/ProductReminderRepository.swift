@@ -77,25 +77,41 @@ actor ProductReminderRepository: IProductReminderRepository {
         }
         defer { stagedAttachment?.cleanup() }
 
-        let request = LocalNotificationRequest(
-            id: requestID,
-            content: LocalNotificationContent(
-                title: StoreServicesText.string("Product reminder"),
-                subtitle: product.title,
-                body: StoreServicesText.string(
-                    "store.reminder.body",
-                    defaultValue: "Take another look at \(product.title)."
+        func makeRequest(
+            attachments: [LocalNotificationAttachment]
+        ) -> LocalNotificationRequest {
+            LocalNotificationRequest(
+                id: requestID,
+                content: LocalNotificationContent(
+                    title: StoreServicesText.string("Product reminder"),
+                    subtitle: product.title,
+                    body: StoreServicesText.string(
+                        "store.reminder.body",
+                        defaultValue: "Take another look at \(product.title)."
+                    ),
+                    sound: .default,
+                    categoryID: AppNotificationIdentifiers.storeCategory,
+                    attachments: attachments,
+                    metadata: metadata.notificationValues,
+                    deepLink: deepLink,
+                    foregroundPresentation: [.banner, .sound]
                 ),
-                sound: .default,
-                categoryID: AppNotificationIdentifiers.storeCategory,
-                attachments: stagedAttachment.map { [$0.attachment] } ?? [],
-                metadata: metadata.notificationValues,
-                deepLink: deepLink,
-                foregroundPresentation: [.banner, .sound]
-            ),
-            trigger: trigger
-        )
-        try await service.schedule(request)
+                trigger: trigger
+            )
+        }
+
+        let attachments = stagedAttachment.map { [$0.attachment] } ?? []
+        do {
+            try await service.schedule(makeRequest(attachments: attachments))
+        } catch let error as LocalNotificationServiceError {
+            guard case let .invalidAttachment(rejectedID, .systemRejected) = error,
+                  attachments.contains(where: { $0.id == rejectedID }) else {
+                throw error
+            }
+            try Task.checkCancellation()
+            usesTextOnlyFallback = true
+            try await service.schedule(makeRequest(attachments: []))
+        }
         return usesTextOnlyFallback
             ? .scheduledWithWarning(.textOnlyAttachmentFallback)
             : .scheduled

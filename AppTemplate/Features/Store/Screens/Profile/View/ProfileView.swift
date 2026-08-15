@@ -57,7 +57,12 @@ struct ProfileView: View {
         }
         .navigationTitle(StoreServicesText.resource("Profile"))
         .task { await viewModel.load() }
-        .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.profile))
+        .overlay(alignment: .topLeading) {
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.profile))
+        }
     }
 
     @ViewBuilder

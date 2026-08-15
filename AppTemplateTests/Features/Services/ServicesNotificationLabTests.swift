@@ -151,17 +151,113 @@ struct ServicesNotificationLabTests {
         await model.setBadgeCount(3)
         await model.clearBadge()
 
-        #expect(await lab.calls == [
-            .settings, .pending, .delivered, .authorization(3),
+        let labCalls = await lab.calls
+        let hydrationLabCalls = Array(labCalls.prefix(3))
+        #expect(hydrationLabCalls.count == 3)
+        #expect(hydrationLabCalls.filter { $0 == .settings }.count == 1)
+        #expect(hydrationLabCalls.filter { $0 == .pending }.count == 1)
+        #expect(hydrationLabCalls.filter { $0 == .delivered }.count == 1)
+        #expect(Array(labCalls.dropFirst(3)) == [
+            .authorization(3),
             .replaceCategories([labCategory]), .resetCategories, .schedule(labRequest),
             .removePending(selectedPending), .removeDelivered(selectedDelivered), .resetData
         ])
-        #expect(await appWide.calls == [
-            .pending, .delivered, .removeAllPending, .removeAllDelivered, .setBadge(3), .clearBadge
+        let appWideCalls = await appWide.calls
+        let hydrationAppWideCalls = Array(appWideCalls.prefix(2))
+        #expect(hydrationAppWideCalls.count == 2)
+        #expect(hydrationAppWideCalls.filter { $0 == .pending }.count == 1)
+        #expect(hydrationAppWideCalls.filter { $0 == .delivered }.count == 1)
+        #expect(Array(appWideCalls.dropFirst(2)) == [
+            .removeAllPending, .removeAllDelivered, .setBadge(3), .clearBadge
         ])
         #expect(model.authorizationOptions.rawValue == 3)
         #expect(try model.attachmentURL(.image).lastPathComponent == "image.png")
         #expect(try model.notificationSoundName() == "notification-demo.aiff")
+    }
+
+    @Test
+    func initialStateLoadPopulatesSnapshotsWithoutPublishingAUserActionResult() async {
+        let lab = NotificationLabFacadeSpy()
+        let appWide = NotificationAppWideSpy()
+        let model = LocalNotificationLabViewModel(
+            lab: lab,
+            appWide: appWide,
+            history: LocalNotificationEventHistory(clock: fixedClock),
+            assets: injectedAssetProvider
+        )
+
+        await model.loadInitialState()
+
+        #expect(model.settings == .inMemoryDefault)
+        #expect(model.pendingLab.isEmpty)
+        #expect(model.deliveredLab.isEmpty)
+        #expect(model.pendingAppOwned.isEmpty)
+        #expect(model.deliveredAppOwned.isEmpty)
+        #expect(model.actualResult == .idle)
+        let labCalls = await lab.calls
+        #expect(labCalls.count == 3)
+        #expect(labCalls.filter { $0 == .settings }.count == 1)
+        #expect(labCalls.filter { $0 == .pending }.count == 1)
+        #expect(labCalls.filter { $0 == .delivered }.count == 1)
+        let appWideCalls = await appWide.calls
+        #expect(appWideCalls.count == 2)
+        #expect(appWideCalls.filter { $0 == .pending }.count == 1)
+        #expect(appWideCalls.filter { $0 == .delivered }.count == 1)
+
+        await model.refreshSettings()
+        #expect(model.actualResult == .success("Refreshed notification settings."))
+    }
+
+    @Test
+    func initialHydrationWaitsForAnInFlightResetBeforeRetryingACompleteSnapshot() async {
+        let stalePending = pending("services.lab.stale")
+        let staleDelivered = delivered("services.lab.stale")
+        let freshAppPending = pending("store.pending.fresh")
+        let freshAppDelivered = delivered("store.delivered.fresh")
+        let lab = DeferredInitialNotificationLabSpy(
+            stalePending: stalePending,
+            staleDelivered: staleDelivered
+        )
+        let appWide = RetryingInitialNotificationAppWideSpy(
+            freshPending: freshAppPending,
+            freshDelivered: freshAppDelivered
+        )
+        let model = LocalNotificationLabViewModel(
+            lab: lab,
+            appWide: appWide,
+            history: LocalNotificationEventHistory(clock: fixedClock),
+            assets: injectedAssetProvider
+        )
+        let hydration = Task { await model.loadInitialState() }
+        await lab.waitForPendingRequest()
+
+        let reset = Task { await model.resetLabData() }
+        await lab.waitForResetRequest()
+        await lab.resumePendingRequest()
+        for _ in 0..<1_000 {
+            if await lab.snapshotRequestCounts[1] > 1 { break }
+            await Task.yield()
+        }
+        let pendingRequestsBeforeResetCompleted = await lab.snapshotRequestCounts[1]
+        for _ in 0..<1_000 {
+            if model.pendingLab == [stalePending] { break }
+            await Task.yield()
+        }
+        let staleSnapshotCommittedBeforeResetCompleted = model.pendingLab == [stalePending]
+        await lab.resumeResetRequest()
+        await reset.value
+        await hydration.value
+
+        #expect(pendingRequestsBeforeResetCompleted == 1)
+        #expect(!staleSnapshotCommittedBeforeResetCompleted)
+        #expect(model.settings == .inMemoryDefault)
+        #expect(model.pendingLab.isEmpty)
+        #expect(model.deliveredLab.isEmpty)
+        #expect(model.pendingAppOwned.map(\.id) == [freshAppPending.id])
+        #expect(model.deliveredAppOwned.map(\.id) == [freshAppDelivered.id])
+        #expect(model.actualResult == .success("Reset only Services lab categories and notifications."))
+        #expect(await lab.snapshotRequestCounts == [2, 2, 2])
+        #expect(await appWide.snapshotRequestCounts == [2, 2])
     }
 
     @Test
@@ -416,6 +512,118 @@ private actor NotificationLabFacadeSpy: ILocalNotificationLabService {
     func removeLabPending(_ ids: Set<LocalNotificationID>) { calls.append(.removePending(ids)) }
     func removeLabDelivered(_ ids: Set<LocalNotificationID>) { calls.append(.removeDelivered(ids)) }
     func resetLabData() { calls.append(.resetData) }
+}
+
+private actor DeferredInitialNotificationLabSpy: ILocalNotificationLabService {
+    private let stalePending: LocalNotificationPendingSnapshot
+    private let staleDelivered: LocalNotificationDeliveredSnapshot
+    private var pendingContinuation: CheckedContinuation<[LocalNotificationPendingSnapshot], Never>?
+    private var pendingWaiters: [CheckedContinuation<Void, Never>] = []
+    private var resetContinuation: CheckedContinuation<Void, Never>?
+    private var resetWaiters: [CheckedContinuation<Void, Never>] = []
+    private var resetIsInFlight = false
+    private var settingsRequestCount = 0
+    private var pendingRequestCount = 0
+    private var deliveredRequestCount = 0
+
+    init(
+        stalePending: LocalNotificationPendingSnapshot,
+        staleDelivered: LocalNotificationDeliveredSnapshot
+    ) {
+        self.stalePending = stalePending
+        self.staleDelivered = staleDelivered
+    }
+
+    func settings() -> LocalNotificationSettings {
+        settingsRequestCount += 1
+        return .inMemoryDefault
+    }
+    func requestAuthorization(_ options: LocalNotificationAuthorizationOptions) -> Bool { true }
+    func replaceLabCategories(_ categories: [LocalNotificationCategory]) {}
+    func resetLabCategories() {}
+    func scheduleLab(_ request: LocalNotificationRequest) {}
+    func pendingLab() async -> [LocalNotificationPendingSnapshot] {
+        pendingRequestCount += 1
+        guard pendingRequestCount == 1 else {
+            return resetIsInFlight ? [stalePending] : []
+        }
+        pendingWaiters.forEach { $0.resume() }
+        pendingWaiters.removeAll()
+        return await withCheckedContinuation { pendingContinuation = $0 }
+    }
+    func deliveredLab() -> [LocalNotificationDeliveredSnapshot] {
+        deliveredRequestCount += 1
+        return deliveredRequestCount == 1 ? [staleDelivered] : []
+    }
+    func removeLabPending(_ ids: Set<LocalNotificationID>) {}
+    func removeLabDelivered(_ ids: Set<LocalNotificationID>) {}
+    func resetLabData() async {
+        resetIsInFlight = true
+        resetWaiters.forEach { $0.resume() }
+        resetWaiters.removeAll()
+        await withCheckedContinuation { resetContinuation = $0 }
+        resetIsInFlight = false
+    }
+
+    func waitForPendingRequest() async {
+        guard pendingContinuation == nil else { return }
+        await withCheckedContinuation { pendingWaiters.append($0) }
+    }
+
+    func resumePendingRequest() {
+        guard let pendingContinuation else { return }
+        self.pendingContinuation = nil
+        pendingContinuation.resume(returning: [stalePending])
+    }
+
+    func waitForResetRequest() async {
+        guard !resetIsInFlight else { return }
+        await withCheckedContinuation { resetWaiters.append($0) }
+    }
+
+    func resumeResetRequest() {
+        guard let resetContinuation else { return }
+        self.resetContinuation = nil
+        resetContinuation.resume()
+    }
+
+    var snapshotRequestCounts: [Int] {
+        [settingsRequestCount, pendingRequestCount, deliveredRequestCount]
+    }
+}
+
+private actor RetryingInitialNotificationAppWideSpy: ILocalNotificationAppWideCapabilities {
+    private let freshPending: LocalNotificationPendingSnapshot
+    private let freshDelivered: LocalNotificationDeliveredSnapshot
+    private var pendingRequestCount = 0
+    private var deliveredRequestCount = 0
+
+    init(
+        freshPending: LocalNotificationPendingSnapshot,
+        freshDelivered: LocalNotificationDeliveredSnapshot
+    ) {
+        self.freshPending = freshPending
+        self.freshDelivered = freshDelivered
+    }
+
+    func pendingAppOwned() -> [LocalNotificationPendingSnapshot] {
+        pendingRequestCount += 1
+        return pendingRequestCount == 1 ? [pending("store.pending.stale")] : [freshPending]
+    }
+
+    func deliveredAppOwned() -> [LocalNotificationDeliveredSnapshot] {
+        deliveredRequestCount += 1
+        return deliveredRequestCount == 1 ? [delivered("store.delivered.stale")] : [freshDelivered]
+    }
+
+    func removeAllPending() {}
+    func removeAllDelivered() {}
+    func setBadgeCount(_ count: Int) {}
+    func clearBadge() {}
+
+    var snapshotRequestCounts: [Int] {
+        [pendingRequestCount, deliveredRequestCount]
+    }
 }
 
 private nonisolated enum NotificationAppWideCall: Equatable, Sendable {

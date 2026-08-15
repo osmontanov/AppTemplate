@@ -5,10 +5,26 @@ struct ServicesFlowView: View {
     let dependencies: ServicesDependencies
     let sceneNavigation: any ISceneNavigationActions
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    private let acceptsNavigationPathUpdates: @MainActor () -> Bool
+
+    init(
+        router: ServicesRouter,
+        dependencies: ServicesDependencies,
+        sceneNavigation: any ISceneNavigationActions,
+        acceptsNavigationPathUpdates: @escaping @MainActor () -> Bool = { true }
+    ) {
+        self.router = router
+        self.dependencies = dependencies
+        self.sceneNavigation = sceneNavigation
+        self.acceptsNavigationPathUpdates = acceptsNavigationPathUpdates
+    }
 
     var body: some View {
         AdaptiveFlowNavigationContainer(
-            path: $router.path,
+            path: Self.navigationPathBinding(
+                router: router,
+                acceptsUpdates: acceptsNavigationPathUpdates
+            ),
             layout: AdaptiveFlowLayoutPolicy.resolve(horizontalSizeClass: horizontalSizeClass, isMacOS: isMacOS)
         ) {
             ServicesCatalogView(router: router)
@@ -17,6 +33,20 @@ struct ServicesFlowView: View {
         } destination: { route in
             destination(for: route)
         }
+    }
+
+    @MainActor
+    static func navigationPathBinding(
+        router: ServicesRouter,
+        acceptsUpdates: @escaping @MainActor () -> Bool
+    ) -> Binding<[ServicesRoute]> {
+        Binding(
+            get: { router.path },
+            set: { path in
+                guard acceptsUpdates() else { return }
+                router.path = path
+            }
+        )
     }
 
     @ViewBuilder

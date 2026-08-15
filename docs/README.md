@@ -2,8 +2,8 @@
 
 Use these documents for the current template:
 
-- [Architecture](ARCHITECTURE.md) — ownership, state, navigation, persistence,
-  dependency injection, and service boundaries.
+- [Architecture](ARCHITECTURE.md) — ownership, state, Store and Services
+  navigation, persistence, dependency injection, and service boundaries.
 - [Customization](CUSTOMIZATION.md) — identifiers, names, assets, services,
   features, and signing.
 - [Release checklist](RELEASE_CHECKLIST.md) — validation required before

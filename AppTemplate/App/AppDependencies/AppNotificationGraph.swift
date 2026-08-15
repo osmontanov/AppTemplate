@@ -160,14 +160,22 @@ struct AppNotificationGraph: Sendable {
             service: service,
             imageLoader: imageLoader,
             attachmentStager: ReminderAttachmentStager(
-                directory: FileManager.default.temporaryDirectory
-                    .appendingPathComponent(
-                        "AppTemplate-ProductReminderAttachments",
-                        isDirectory: true
-                    )
+                directory: liveReminderAttachmentDirectory()
             ),
             categoryCatalog: catalog,
             clock: clock
         )
+    }
+
+    static func liveReminderAttachmentDirectory(
+        temporaryDirectory: URL = FileManager.default.temporaryDirectory
+    ) -> URL {
+        temporaryDirectory
+            .resolvingSymlinksInPath()
+            .standardizedFileURL
+            .appendingPathComponent(
+                "AppTemplate-ProductReminderAttachments",
+                isDirectory: true
+            )
     }
 }

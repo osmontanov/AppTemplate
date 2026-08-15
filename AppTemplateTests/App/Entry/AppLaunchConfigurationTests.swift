@@ -326,8 +326,8 @@ struct AppLaunchConfigurationTests {
     private func invalidLoginFails(_ dependencies: AppDependencies) async -> Bool {
         do {
             _ = try await dependencies.remote.login(LoginRequestDTO(
-                username: "invalid-user",
-                password: "invalid-password",
+                username: "24680",
+                password: "13579",
                 expiresInMins: 30
             ))
             return false

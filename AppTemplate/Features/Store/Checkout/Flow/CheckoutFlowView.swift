@@ -55,7 +55,12 @@ struct CheckoutFlowView: View {
             accessibilityFocusedField = field
         }
         .frame(minWidth: 360, minHeight: 420)
-        .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.checkout))
+        .overlay(alignment: .topLeading) {
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.checkout))
+        }
     }
 
     private func delivery(_ model: CheckoutModel) -> some View {

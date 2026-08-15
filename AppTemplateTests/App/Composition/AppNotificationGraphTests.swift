@@ -5,6 +5,34 @@ import Testing
 @MainActor
 struct AppNotificationGraphTests {
     @Test
+    func liveReminderAttachmentDirectoryCanonicalizesTheTrustedTemporaryRoot() throws {
+        let fileManager = FileManager.default
+        let fixtureRoot = fileManager.temporaryDirectory
+            .resolvingSymlinksInPath()
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let physicalRoot = fixtureRoot.appendingPathComponent("physical", isDirectory: true)
+        let lexicalRoot = fixtureRoot.appendingPathComponent("lexical", isDirectory: true)
+        try fileManager.createDirectory(
+            at: physicalRoot,
+            withIntermediateDirectories: true
+        )
+        try fileManager.createSymbolicLink(
+            at: lexicalRoot,
+            withDestinationURL: physicalRoot
+        )
+        defer { try? fileManager.removeItem(at: fixtureRoot) }
+
+        let directory = AppNotificationGraph.liveReminderAttachmentDirectory(
+            temporaryDirectory: lexicalRoot
+        )
+
+        #expect(directory == physicalRoot.appendingPathComponent(
+            "AppTemplate-ProductReminderAttachments",
+            isDirectory: true
+        ))
+    }
+
+    @Test
     func graphExposesOneServiceCatalogHistoryAndReminderIdentity() async throws {
         let graph = AppNotificationGraph.inMemory(
             settings: .productReminderFixture(status: .authorized),
@@ -12,9 +40,7 @@ struct AppNotificationGraphTests {
             clock: ProductReminderFixtures.clock
         )
         let app = AppDependencies.preview(
-            settings: SettingsDependencies(
-                appInfo: AppInfoService(displayName: "Graph", version: "1")
-            ),
+            appInfo: AppInfoService(displayName: "Graph", version: "1"),
             remoteService: FailClosedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
             imageLoader: FailClosedImageLoader(),

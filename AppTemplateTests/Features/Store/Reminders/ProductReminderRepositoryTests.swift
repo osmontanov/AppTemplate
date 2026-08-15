@@ -263,6 +263,74 @@ struct ProductReminderRepositoryTests {
     }
 
     @Test
+    func systemRejectedOwnedAttachmentRetriesTextOnlyWithWarning() async throws {
+        let attachmentID = try LocalNotificationAttachmentID("store.product.thumbnail")
+        let fixture = try makeFixture(
+            scheduleFailure: LocalNotificationServiceError.invalidAttachment(
+                attachmentID,
+                .systemRejected
+            )
+        )
+        defer { fixture.cleanup() }
+
+        let result = try await fixture.repository.schedule(
+            product: .fixture(id: 7),
+            selection: .quickTest
+        )
+
+        #expect(result == .scheduledWithWarning(.textOnlyAttachmentFallback))
+        let requests = await fixture.service.requests
+        #expect(requests.count == 2)
+        #expect(requests.first?.content.attachments.map(\.id) == [attachmentID])
+        #expect(requests.last?.content.attachments == [])
+        #expect(requests.first?.id == requests.last?.id)
+        #expect(requests.first?.trigger == requests.last?.trigger)
+        #expect(requests.first?.content.title == requests.last?.content.title)
+        #expect(requests.first?.content.subtitle == requests.last?.content.subtitle)
+        #expect(requests.first?.content.body == requests.last?.content.body)
+        #expect(requests.first?.content.sound == requests.last?.content.sound)
+        #expect(requests.first?.content.categoryID == requests.last?.content.categoryID)
+        #expect(requests.first?.content.metadata == requests.last?.content.metadata)
+        #expect(requests.first?.content.deepLink == requests.last?.content.deepLink)
+        #expect(
+            requests.first?.content.foregroundPresentation
+                == requests.last?.content.foregroundPresentation
+        )
+        #expect(await fixture.service.attachmentExistence == [true, true])
+        let stagedURL = try #require(requests.first?.content.attachments.first?.fileURL)
+        #expect(!FileManager.default.fileExists(atPath: stagedURL.path))
+    }
+
+    @Test
+    func onlyOwnedSystemRejectedAttachmentUsesTextOnlyRetry() async throws {
+        let ownedID = try LocalNotificationAttachmentID("store.product.thumbnail")
+        let foreignID = try LocalNotificationAttachmentID("other.thumbnail")
+        let failures: [LocalNotificationServiceError] = [
+            .invalidAttachment(foreignID, .systemRejected),
+            .invalidAttachment(ownedID, .stagingFailed),
+        ]
+
+        for failure in failures {
+            let fixture = try makeFixture(scheduleFailure: failure)
+            defer { fixture.cleanup() }
+
+            await #expect(throws: failure) {
+                try await fixture.repository.schedule(
+                    product: .fixture(id: 7),
+                    selection: .quickTest
+                )
+            }
+
+            let requests = await fixture.service.requests
+            #expect(requests.count == 1)
+            #expect(requests.first?.content.attachments.map(\.id) == [ownedID])
+            #expect(await fixture.service.attachmentExistence == [true])
+            let stagedURL = try #require(requests.first?.content.attachments.first?.fileURL)
+            #expect(!FileManager.default.fileExists(atPath: stagedURL.path))
+        }
+    }
+
+    @Test
     func cancellationPropagatesAndScheduleFailureStillCleansAttachment() async throws {
         let imageCancellation = try makeFixture(
             imageResult: .failure(CancellationError())

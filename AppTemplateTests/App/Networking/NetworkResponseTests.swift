@@ -13,10 +13,10 @@ struct NetworkResponseTests {
             data: Data(#"{"id":"example-42","title":"Remote example"}"#.utf8)
         )
 
-        let value = try response.decode(ExampleResponse.self)
+        let value = try response.decode(NetworkResponseFixture.self)
 
         #expect(
-            value == ExampleResponse(
+            value == NetworkResponseFixture(
                 id: "example-42",
                 title: "Remote example"
             )
@@ -29,7 +29,7 @@ struct NetworkResponseTests {
         let response = makeResponse(data: Data(#"{"id":42}"#.utf8))
 
         do {
-            let _: ExampleResponse = try response.decode(ExampleResponse.self)
+            let _: NetworkResponseFixture = try response.decode(NetworkResponseFixture.self)
             Issue.record("Expected decoding to fail")
         } catch let NetworkError.decoding(underlying, retainedResponse) {
             #expect(underlying is DecodingError)
@@ -41,6 +41,11 @@ struct NetworkResponseTests {
             Issue.record("Unexpected error: \(error)")
         }
     }
+}
+
+private struct NetworkResponseFixture: Decodable, Equatable {
+    let id: String
+    let title: String
 }
 
 private func makeResponse(data: Data) -> NetworkResponse {

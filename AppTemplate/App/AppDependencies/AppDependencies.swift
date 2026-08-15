@@ -20,7 +20,6 @@ struct AppDependencies: Sendable {
     let clock: AppClock
     let sessionStartupValidationPolicy: SessionStartupValidationPolicy
     let sessionRefreshSchedulePolicy: SessionRefreshSchedulePolicy
-    let settings: SettingsDependencies
     let notificationGraph: AppNotificationGraph
     let diagnostics: NetworkDiagnosticRecorder
     let imageLoader: any IImageLoader
@@ -34,31 +33,40 @@ struct AppDependencies: Sendable {
 
     @MainActor
     static func live(
+        localDatabaseService: (any ILocalDatabaseService)? = nil,
         localDatabaseStoreLocationResolver:
-            LocalDatabaseStoreLocationResolver = .live(),
+            LocalDatabaseStoreLocationResolver? = nil,
         userDefaultsService: any IUserDefaultsService = UserDefaultsService(
             namespace: "AppTemplate"
         ),
         keychainService: any IKeychainService = KeychainService(
             service: "AppTemplate"
         ),
+        servicesLabUserDefaultsService: (any IUserDefaultsService)? = nil,
+        servicesLabKeychainService: (any IKeychainService)? = nil,
+        remoteService: (any IRemoteService)? = nil,
+        appInfoService: any IAppInfoService = AppInfoService(),
         imageLoader: any IImageLoader = ProductImageLoader(),
+        clock: AppClock? = nil,
+        sessionStartupValidationPolicy: SessionStartupValidationPolicy = .automatic,
+        sessionRefreshSchedulePolicy: SessionRefreshSchedulePolicy = .automatic,
         notificationGraph: AppNotificationGraph? = nil,
         localNotificationRuntimeResolver: @MainActor () -> UserNotificationCenterRuntime =
             UserNotificationCenterRuntimeFactory.live
     ) -> AppDependencies {
         let diagnostics = NetworkDiagnosticRecorder()
-        let database = LocalDatabaseService(
-            configuration: .live(locationResolver: localDatabaseStoreLocationResolver)
-        )
-        let remote = RemoteService(diagnosticRecorder: diagnostics)
+        let database: any ILocalDatabaseService = localDatabaseService
+            ?? LocalDatabaseService(configuration: .live(
+                locationResolver: localDatabaseStoreLocationResolver ?? .live()
+            ))
+        let remote: any IRemoteService = remoteService
+            ?? RemoteService(diagnosticRecorder: diagnostics)
         let localDatabaseExamples = LocalDatabaseExampleRepository(database: database)
         let remoteAPILab = RemoteAPILabService(remote: remote)
-        let clock = AppClock.live
-        let appInfo = AppInfoService()
+        let resolvedClock = clock ?? .live
         let resolvedNotificationGraph = notificationGraph ?? .live(
             imageLoader: imageLoader,
-            clock: clock,
+            clock: resolvedClock,
             runtimeResolver: localNotificationRuntimeResolver
         )
         return AppDependencies(
@@ -68,28 +76,27 @@ struct AppDependencies: Sendable {
             cart: CartRepository(database: database),
             storePreferences: StorePreferencesRepository(userDefaults: userDefaultsService),
             products: ProductRepository(remote: remote),
-            appInfo: appInfo,
-            storeUISupport: StoreUISupport(images: imageLoader, clock: clock),
+            appInfo: appInfoService,
+            storeUISupport: StoreUISupport(images: imageLoader, clock: resolvedClock),
             remote: remote,
             remoteAPILab: remoteAPILab,
             appStateStorage: UserDefaultsAppStateStorage(userDefaults: userDefaultsService),
             keychain: keychainService,
-            servicesLabUserDefaults: UserDefaultsService(
-                namespace: "AppTemplate.ServicesLab",
-                userDefaults: .standard
-            ),
-            servicesLabKeychain: KeychainService(
-                service: "AppTemplate.ServicesLab"
-            ),
+            servicesLabUserDefaults: servicesLabUserDefaultsService
+                ?? UserDefaultsService(
+                    namespace: "AppTemplate.ServicesLab",
+                    userDefaults: .standard
+                ),
+            servicesLabKeychain: servicesLabKeychainService
+                ?? KeychainService(service: "AppTemplate.ServicesLab"),
             sessionRepository: SessionRepository(
                 remote: remote,
                 secureStore: SessionSecureStore(keychain: keychainService),
-                clock: clock
+                clock: resolvedClock
             ),
-            clock: clock,
-            sessionStartupValidationPolicy: .automatic,
-            sessionRefreshSchedulePolicy: .automatic,
-            settings: SettingsDependencies(appInfo: appInfo),
+            clock: resolvedClock,
+            sessionStartupValidationPolicy: sessionStartupValidationPolicy,
+            sessionRefreshSchedulePolicy: sessionRefreshSchedulePolicy,
             notificationGraph: resolvedNotificationGraph,
             diagnostics: diagnostics,
             imageLoader: imageLoader,
@@ -119,11 +126,6 @@ struct AppDependencies: Sendable {
             monotonicNow: { fixedInstant },
             sleep: { try await Task.sleep(for: $0) }
         )
-        let exampleProvider = NetworkProvider<ExampleTarget>(
-            transport: transport,
-            clock: fixedClock,
-            diagnosticRecorder: diagnostics
-        )
         let publicProvider = NetworkProvider<DummyJSONTarget>(
             transport: transport,
             clock: fixedClock,
@@ -135,7 +137,6 @@ struct AppDependencies: Sendable {
             diagnosticRecorder: diagnostics
         )
         let remote = RemoteService(
-            provider: exampleProvider,
             dummyJSONProvider: publicProvider,
             authenticationProvider: authenticationProvider,
             diagnosticRecorder: diagnostics
@@ -205,7 +206,6 @@ struct AppDependencies: Sendable {
             sessionStartupValidationPolicy: scenario.sessionSeed.validationMode == .scripted
                 ? .automatic : .disabled,
             sessionRefreshSchedulePolicy: .disabled,
-            settings: SettingsDependencies(appInfo: appInfo),
             notificationGraph: notificationGraph,
             diagnostics: diagnostics,
             imageLoader: imageLoader,
@@ -279,7 +279,6 @@ struct AppDependencies: Sendable {
             clock: clock,
             sessionStartupValidationPolicy: .disabled,
             sessionRefreshSchedulePolicy: .disabled,
-            settings: SettingsDependencies(appInfo: appInfo),
             notificationGraph: resolvedNotificationGraph,
             diagnostics: diagnostics,
             imageLoader: imageLoader,
@@ -291,7 +290,7 @@ struct AppDependencies: Sendable {
 
     @MainActor
     static func preview(
-        settings: SettingsDependencies,
+        appInfo: any IAppInfoService,
         remoteService: any IRemoteService,
         diagnostics: NetworkDiagnosticRecorder,
         imageLoader: any IImageLoader,
@@ -306,7 +305,6 @@ struct AppDependencies: Sendable {
         notificationGraph: AppNotificationGraph? = nil
     ) -> AppDependencies {
         let clock = AppClock.live
-        let appInfo = settings.appInfo
         let servicesLabUserDefaults = InMemoryUserDefaultsService(
             namespace: "AppTemplate.ServicesLab"
         )
@@ -342,7 +340,6 @@ struct AppDependencies: Sendable {
             clock: clock,
             sessionStartupValidationPolicy: .disabled,
             sessionRefreshSchedulePolicy: .disabled,
-            settings: settings,
             notificationGraph: resolvedNotificationGraph,
             diagnostics: diagnostics,
             imageLoader: imageLoader,
@@ -360,14 +357,13 @@ struct AppDependencies: Sendable {
         imageLoader: any IImageLoader,
         appStateStorage: any IAppStateStorage,
         keychainService: any IKeychainService,
-        settings: SettingsDependencies,
+        appInfo: any IAppInfoService,
         notificationGraph: AppNotificationGraph,
         storePreferencesService: any IUserDefaultsService = InMemoryUserDefaultsService(
             namespace: "AppTemplate"
         )
     ) -> AppDependencies {
         let clock = AppClock.live
-        let appInfo = settings.appInfo
         let servicesLabUserDefaults = InMemoryUserDefaultsService(
             namespace: "AppTemplate.ServicesLab"
         )
@@ -399,7 +395,6 @@ struct AppDependencies: Sendable {
             clock: clock,
             sessionStartupValidationPolicy: .disabled,
             sessionRefreshSchedulePolicy: .disabled,
-            settings: settings,
             notificationGraph: notificationGraph,
             diagnostics: diagnostics,
             imageLoader: imageLoader,
@@ -481,11 +476,6 @@ struct FailClosedImageLoader: IImageLoader {
 }
 
 actor FailClosedRemoteService: IRemoteService {
-    func fetchExample(_ request: ExampleRequest) async throws -> ExampleResponse {
-        _ = request
-        throw RemoteServiceError.invalidResponse
-    }
-
     func products(_ request: ProductPageRequest) async throws -> ProductPageDTO {
         _ = request
         throw RemoteServiceError.invalidResponse

@@ -510,7 +510,6 @@ private actor RemoteServiceBoundarySpy: IRemoteService {
     private(set) var calls: [RemoteBoundaryCall] = []
     private(set) var authenticationCallCount = 0
 
-    func fetchExample(_ request: ExampleRequest) async throws -> ExampleResponse { throw RemoteServiceError.invalidResponse }
     func products(_ request: ProductPageRequest) async throws -> ProductPageDTO {
         calls.append(.products(request)); return .fixture(ids: [], total: 0, skip: request.skip, limit: request.limit)
     }

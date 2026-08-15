@@ -4,14 +4,33 @@ struct StoreFlowView: View {
     @Bindable var router: StoreRouter
     let dependencies: StoreDependencies
     let uiSupport: StoreUISupport
+    let catalogViewModel: CatalogViewModel
     @Environment(ProtectedStoreActionExecutor.self) private var protectedActions
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var searchRequestID = 0
+    private let acceptsNavigationPathUpdates: @MainActor () -> Bool
+
+    init(
+        router: StoreRouter,
+        dependencies: StoreDependencies,
+        uiSupport: StoreUISupport,
+        catalogViewModel: CatalogViewModel,
+        acceptsNavigationPathUpdates: @escaping @MainActor () -> Bool = { true }
+    ) {
+        self.router = router
+        self.dependencies = dependencies
+        self.uiSupport = uiSupport
+        self.catalogViewModel = catalogViewModel
+        self.acceptsNavigationPathUpdates = acceptsNavigationPathUpdates
+    }
 
     var body: some View {
         AdaptiveFlowNavigationContainer(
-            path: $router.path,
+            path: Self.navigationPathBinding(
+                router: router,
+                acceptsUpdates: acceptsNavigationPathUpdates
+            ),
             layout: AdaptiveFlowLayoutPolicy.resolve(
                 horizontalSizeClass: horizontalSizeClass,
                 isMacOS: isMacOS
@@ -19,21 +38,46 @@ struct StoreFlowView: View {
         ) {
             CatalogView(
                 router: router,
-                products: dependencies.products,
-                preferences: dependencies.preferences,
+                viewModel: catalogViewModel,
                 images: uiSupport.images,
-                clock: uiSupport.clock,
                 searchRequestID: searchRequestID
             )
             .toolbar { storeToolbar }
+            .storePresentationHost(
+                router: router,
+                isActive: isMacOS && StorePresentationHostPolicy.rootIsActive(
+                    isMacOS: isMacOS,
+                    path: router.path
+                ),
+                presentedContent: presentedContent
+            )
         } placeholder: {
             ContentUnavailableView(StoreServicesText.resource("Select a Store destination"), systemImage: "storefront")
         } destination: { route in
             destination(route)
         }
-        .sheet(item: $router.presentation) { presentation in
-            presentedContent(presentation)
-        }
+        .storePresentationHost(
+            router: router,
+            isActive: !isMacOS && StorePresentationHostPolicy.rootIsActive(
+                isMacOS: isMacOS,
+                path: router.path
+            ),
+            presentedContent: presentedContent
+        )
+    }
+
+    @MainActor
+    static func navigationPathBinding(
+        router: StoreRouter,
+        acceptsUpdates: @escaping @MainActor () -> Bool
+    ) -> Binding<[StoreRoute]> {
+        Binding(
+            get: { router.path },
+            set: { path in
+                guard acceptsUpdates() else { return }
+                router.path = path
+            }
+        )
     }
 
     @ViewBuilder
@@ -68,48 +112,58 @@ struct StoreFlowView: View {
         }
     }
 
-    @ViewBuilder
     private func destination(_ route: StoreRoute) -> some View {
-        switch route {
-        case let .product(id):
-            ProductDetailView(
-                productID: id,
-                router: router,
-                products: dependencies.products,
-                cart: dependencies.cart,
-                images: uiSupport.images
-            )
-            .toolbar {
-                ToolbarItem {
-                    Button(StoreServicesText.resource("Favorite"), systemImage: "heart") {
-                        requestProtected(.favorite(id))
-                    }
-                    .frame(minWidth: 44, minHeight: 44)
-                    .accessibilityIdentifier(AppAccessibilityIdentifier.action(.favorite))
-                }
-            }
-        case let .reviews(id):
-            ReviewsView(productID: id, products: dependencies.products)
-        case .favorites:
-            if case let .authenticated(profile, _) = dependencies.session.presentation.state {
-                FavoritesView(
+        Group {
+            switch route {
+            case let .product(id):
+                ProductDetailView(
+                    productID: id,
                     router: router,
-                    repository: dependencies.favorites,
-                    userID: profile.id
+                    products: dependencies.products,
+                    cart: dependencies.cart,
+                    images: uiSupport.images
                 )
-            } else {
-                ContentUnavailableView(StoreServicesText.resource("Favorites require sign in"), systemImage: "heart")
+                .toolbar {
+                    ToolbarItem {
+                        Button(StoreServicesText.resource("Favorite"), systemImage: "heart") {
+                            requestProtected(.favorite(id))
+                        }
+                        .frame(minWidth: 44, minHeight: 44)
+                        .accessibilityIdentifier(AppAccessibilityIdentifier.action(.favorite))
+                    }
+                }
+            case let .reviews(id):
+                ReviewsView(productID: id, products: dependencies.products)
+            case .favorites:
+                if case let .authenticated(profile, _) = dependencies.session.presentation.state {
+                    FavoritesView(
+                        router: router,
+                        repository: dependencies.favorites,
+                        userID: profile.id
+                    )
+                } else {
+                    ContentUnavailableView(StoreServicesText.resource("Favorites require sign in"), systemImage: "heart")
+                }
+            case .cart:
+                CartView(repository: dependencies.cart)
+            case .profile:
+                ProfileView(
+                    router: router,
+                    session: dependencies.session,
+                    appInfo: dependencies.appInfo,
+                    preferences: dependencies.preferences
+                )
             }
-        case .cart:
-            CartView(repository: dependencies.cart)
-        case .profile:
-            ProfileView(
-                router: router,
-                session: dependencies.session,
-                appInfo: dependencies.appInfo,
-                preferences: dependencies.preferences
-            )
         }
+        .storePresentationHost(
+            router: router,
+            isActive: StorePresentationHostPolicy.routeIsActive(
+                isMacOS: isMacOS,
+                path: router.path,
+                route: route
+            ),
+            presentedContent: presentedContent
+        )
     }
 
     private func requestProtected(_ action: ProtectedStoreAction) {
@@ -193,6 +247,67 @@ struct StoreFlowView: View {
         #else
         false
         #endif
+    }
+}
+
+@MainActor
+enum StorePresentationHostPolicy {
+    static func rootIsActive(
+        isMacOS: Bool,
+        path: [StoreRoute]
+    ) -> Bool {
+        !isMacOS || path.isEmpty
+    }
+
+    static func routeIsActive(
+        isMacOS: Bool,
+        path: [StoreRoute],
+        route: StoreRoute
+    ) -> Bool {
+        isMacOS && path.last == route
+    }
+
+    static func presentation(
+        from router: StoreRouter,
+        isActive: Bool
+    ) -> StorePresentation? {
+        isActive ? router.presentation : nil
+    }
+
+    static func updatePresentation(
+        _ presentation: StorePresentation?,
+        on router: StoreRouter,
+        isActive: Bool
+    ) {
+        guard isActive else { return }
+        router.presentation = presentation
+    }
+}
+
+private extension View {
+    func storePresentationHost<PresentedContent: View>(
+        router: StoreRouter,
+        isActive: Bool,
+        @ViewBuilder presentedContent: @escaping (StorePresentation) -> PresentedContent
+    ) -> some View {
+        sheet(
+            item: Binding(
+                get: {
+                    StorePresentationHostPolicy.presentation(
+                        from: router,
+                        isActive: isActive
+                    )
+                },
+                set: {
+                    StorePresentationHostPolicy.updatePresentation(
+                        $0,
+                        on: router,
+                        isActive: isActive
+                    )
+                }
+            ),
+            content: presentedContent
+        )
     }
 }
 

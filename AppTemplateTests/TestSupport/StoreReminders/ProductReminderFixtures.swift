@@ -59,7 +59,7 @@ actor ProductReminderOperationTrace {
 actor ProductReminderNotificationServiceSpy: ILocalNotificationService {
     private let configuredSettings: LocalNotificationSettings
     private let authorizationResult: Bool
-    private let scheduleFailure: (any Error & Sendable)?
+    private var scheduleFailure: (any Error & Sendable)?
     private let trace: ProductReminderOperationTrace
     private let categoryHandler: @Sendable ([LocalNotificationCategory]) async throws -> Void
     private var pendingSnapshots: [LocalNotificationPendingSnapshot]
@@ -110,7 +110,10 @@ actor ProductReminderNotificationServiceSpy: ILocalNotificationService {
                 FileManager.default.fileExists(atPath: $0.fileURL.path)
             }
         )
-        if let scheduleFailure { throw scheduleFailure }
+        if let scheduleFailure {
+            self.scheduleFailure = nil
+            throw scheduleFailure
+        }
     }
 
     func pending() async -> [LocalNotificationPendingSnapshot] {

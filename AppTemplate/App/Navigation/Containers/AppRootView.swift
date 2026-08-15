@@ -5,9 +5,9 @@ struct AppRootView: View {
     let router: AppRouter
     let onboardingRouter: FlowRouter
     let maintenanceRouter: FlowRouter
-    let session: SessionPresentation
     let storeDependencies: StoreDependencies
     let storeUISupport: StoreUISupport
+    let storeCatalogViewModel: CatalogViewModel
     let servicesDependencies: ServicesDependencies
     let sceneNavigation: any ISceneNavigationActions
 
@@ -21,9 +21,9 @@ struct AppRootView: View {
             case .main:
                 AppShellView(
                     router: router,
-                    session: session,
                     storeDependencies: storeDependencies,
                     storeUISupport: storeUISupport,
+                    storeCatalogViewModel: storeCatalogViewModel,
                     servicesDependencies: servicesDependencies,
                     sceneNavigation: sceneNavigation
                 )

@@ -1,34 +1,76 @@
+import CryptoKit
 import Foundation
-import Observation
 import SwiftUI
 import Testing
 @testable import AppTemplate
 
-#if os(macOS)
-import AppKit
-#endif
-
 struct ProjectConfigurationTests {
     @MainActor
     @Test
-    func createProjectFlowKeepsItsNavigationPathIsolated() {
-        let coordinator = makeTestAppFlowCoordinator()
-        let presentingRouter = FlowRouter(
-            appFlowCoordinator: coordinator
+    func navigationRootCanBeConstructed() async throws {
+        let fixedInstant = ContinuousClock().now
+        let fixedClock = AppClock(
+            now: { Date(timeIntervalSince1970: 2_000_000_000) },
+            monotonicNow: { fixedInstant },
+            sleep: { _ in }
         )
-        let flow = CreateProjectFlowView(
-            appFlowCoordinator: presentingRouter
+        let remote = ProjectRemoteService()
+        let imageLoader = ProjectImageLoader()
+        let appInfo = AppInfoService(displayName: "AppTemplate", version: "1.0")
+        let live = AppDependencies.live(
+            localDatabaseService: LocalDatabaseService(configuration: .inMemory()),
+            userDefaultsService: InMemoryUserDefaultsService(namespace: "Project.Live"),
+            keychainService: InMemoryKeychainService(),
+            servicesLabUserDefaultsService: InMemoryUserDefaultsService(
+                namespace: "Project.Live.Services"
+            ),
+            servicesLabKeychainService: InMemoryKeychainService(),
+            remoteService: remote,
+            appInfoService: appInfo,
+            imageLoader: imageLoader,
+            clock: fixedClock,
+            sessionStartupValidationPolicy: .disabled,
+            sessionRefreshSchedulePolicy: .disabled,
+            notificationGraph: .inMemory(imageLoader: imageLoader, clock: fixedClock)
+        )
+        let preview = AppDependencies.preview(
+            appInfo: appInfo,
+            remoteService: remote,
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: imageLoader,
+            notificationGraph: .inMemory(imageLoader: imageLoader, clock: fixedClock)
+        )
+        let unitTest = AppDependencies.test(
+            localDatabaseService: LocalDatabaseService(configuration: .inMemory()),
+            remoteService: remote,
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: imageLoader,
+            appStateStorage: InMemoryAppStateStorage(),
+            keychainService: InMemoryKeychainService(),
+            appInfo: appInfo,
+            notificationGraph: .inMemory(imageLoader: imageLoader, clock: fixedClock)
+        )
+        let uiTest = AppDependencies.uiTesting(
+            initialState: AppState(
+                hasCompletedOnboarding: true,
+                isMaintenanceEnabled: false
+            ),
+            remoteService: remote,
+            diagnostics: NetworkDiagnosticRecorder(),
+            imageLoader: imageLoader,
+            notificationGraph: .inMemory(imageLoader: imageLoader, clock: fixedClock)
+        )
+        let scriptedUITest = AppDependencies.uiTesting(
+            scenario: try UITestScenario.named("services-basic")
         )
 
-        flow.localRouter.push(ProjectBasicsRoute.options)
+        for graph in [live, preview, unitTest, uiTest, scriptedUITest] {
+            #expect(graph.localDatabase is LocalDatabaseService)
+            #expect(graph.notificationGraph.dependencies.service is InMemoryLocalNotificationService)
+        }
+        #expect(live.sessionStartupValidationPolicy == .disabled)
+        #expect(live.sessionRefreshSchedulePolicy == .disabled)
 
-        #expect(flow.localRouter.path.count == 1)
-        #expect(presentingRouter.path.isEmpty)
-    }
-
-    @MainActor
-    @Test
-    func navigationRootCanBeConstructed() {
         let appFlowCoordinator = makeTestAppFlowCoordinator(
             visibleFlow: .main
         )
@@ -38,30 +80,20 @@ struct ProjectConfigurationTests {
         )
         let onboardingRouter = FlowRouter(appFlowCoordinator: appFlowCoordinator)
         let maintenanceRouter = FlowRouter(appFlowCoordinator: appFlowCoordinator)
-        let legacyRouter = FlowRouter(appFlowCoordinator: appFlowCoordinator)
-        let session = SessionPresentation(state: .guest, revision: 1)
-        let settings = SettingsDependencies(
-            appInfo: AppInfoService(
-                displayName: "AppTemplate",
-                version: "1.0"
-            )
-        )
-        let notificationGraph = AppNotificationGraph.inMemory()
-        let dependencies = AppDependencies.preview(
-            settings: settings,
-            remoteService: FailClosedRemoteService(),
-            diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: FailClosedImageLoader(),
-            notificationGraph: notificationGraph
-        )
         let projectSession = ProjectSessionActions()
-        let storeDependencies = dependencies.makeStoreDependencies(session: projectSession)
-        let storeUISupport = dependencies.storeUISupport
+        let session = projectSession.presentation
+        let storeDependencies = preview.makeStoreDependencies(session: projectSession)
+        let storeUISupport = preview.storeUISupport
+        let storeCatalogViewModel = CatalogViewModel(
+            products: storeDependencies.products,
+            preferences: storeDependencies.preferences,
+            clock: storeUISupport.clock
+        )
         let appStateInspector = AppStateInspector(
             store: AppStateStore(storage: InMemoryAppStateStorage()),
             router: appFlowRouter
         )
-        let servicesDependencies = dependencies.makeServicesDependencies(
+        let servicesDependencies = preview.makeServicesDependencies(
             appState: appStateInspector,
             appFlowCoordinator: appFlowCoordinator,
             sessionActions: projectSession,
@@ -71,7 +103,6 @@ struct ProjectConfigurationTests {
 
         _ = ContentView(
             appFlowCoordinator: appFlowCoordinator,
-            session: session,
             storeDependencies: storeDependencies,
             storeUISupport: storeUISupport,
             servicesDependencies: servicesDependencies
@@ -79,7 +110,7 @@ struct ProjectConfigurationTests {
         _ = AppSceneView(
             appFlowCoordinator: appFlowCoordinator,
             session: session,
-            localNotifications: dependencies.localNotifications,
+            localNotifications: preview.localNotifications,
             storeDependencies: storeDependencies,
             storeUISupport: storeUISupport,
             servicesDependencies: servicesDependencies
@@ -89,17 +120,17 @@ struct ProjectConfigurationTests {
             router: router,
             onboardingRouter: onboardingRouter,
             maintenanceRouter: maintenanceRouter,
-            session: session,
             storeDependencies: storeDependencies,
             storeUISupport: storeUISupport,
+            storeCatalogViewModel: storeCatalogViewModel,
             servicesDependencies: servicesDependencies,
             sceneNavigation: sceneNavigation
         )
         _ = AppShellView(
             router: router,
-            session: session,
             storeDependencies: storeDependencies,
             storeUISupport: storeUISupport,
+            storeCatalogViewModel: storeCatalogViewModel,
             servicesDependencies: servicesDependencies,
             sceneNavigation: sceneNavigation
         )
@@ -107,27 +138,27 @@ struct ProjectConfigurationTests {
             section: .services,
             storeRouter: router.store,
             servicesRouter: router.services,
-            session: session,
             storeDependencies: storeDependencies,
             storeUISupport: storeUISupport,
+            storeCatalogViewModel: storeCatalogViewModel,
             servicesDependencies: servicesDependencies,
             sceneNavigation: sceneNavigation
         )
         #if os(macOS)
         _ = MacSidebarAppShellView(
             router: router,
-            session: session,
             storeDependencies: storeDependencies,
             storeUISupport: storeUISupport,
+            storeCatalogViewModel: storeCatalogViewModel,
             servicesDependencies: servicesDependencies,
             sceneNavigation: sceneNavigation
         )
         #else
         _ = AdaptiveTabAppShellView(
             router: router,
-            session: session,
             storeDependencies: storeDependencies,
             storeUISupport: storeUISupport,
+            storeCatalogViewModel: storeCatalogViewModel,
             servicesDependencies: servicesDependencies,
             sceneNavigation: sceneNavigation
         )
@@ -135,7 +166,8 @@ struct ProjectConfigurationTests {
         _ = StoreFlowView(
             router: router.store,
             dependencies: storeDependencies,
-            uiSupport: storeUISupport
+            uiSupport: storeUISupport,
+            catalogViewModel: storeCatalogViewModel
         )
         _ = ServicesFlowView(
             router: router.services,
@@ -151,50 +183,24 @@ struct ProjectConfigurationTests {
         _ = AuthenticationHelpView()
         _ = OnboardingFlowView(router: onboardingRouter)
         _ = OnboardingView(router: onboardingRouter)
-        _ = HomeFlowView(router: legacyRouter)
-        _ = GuideTopicView(id: "screen-owned-routes")
-        _ = QuickStartView()
-        _ = BrowseFlowView(router: legacyRouter)
-        _ = BrowseView(router: legacyRouter)
-        _ = BrowseOptionsView()
-        _ = BrowseDetailView(id: "source", router: legacyRouter)
-        _ = RelatedItemsView(sourceItemID: "source", router: legacyRouter)
-        _ = RelatedItemDetailView(id: "related")
-        _ = ProjectsFlowView(router: legacyRouter)
-        _ = ProjectsView(router: legacyRouter)
-        _ = ProjectDetailsView(
-            projectID: "project-from-deep-link",
-            router: legacyRouter
+        _ = ProfileView(
+            router: router.store,
+            session: projectSession,
+            appInfo: preview.appInfo,
+            preferences: preview.storePreferences
         )
-        _ = TaskDetailsView(
-            projectID: "project-from-deep-link",
-            taskID: "task-from-restored-navigation"
+        _ = StoreSettingsSceneView(dependencies: storeDependencies)
+        _ = CheckoutFlowView(
+            cart: CartAggregate(id: CartAggregate.singletonID, revision: 0, lines: []),
+            repository: preview.cart,
+            onDone: {},
+            onRevisionConflict: {}
         )
-        let createProjectFlowState = CreateProjectFlowState()
-        _ = CreateProjectFlowView(appFlowCoordinator: legacyRouter)
-        _ = ProjectInfoView(projectID: "project-from-deep-link")
-        _ = ProjectBasicsView(
-            router: makeTestFlowRouter(),
-            flowState: createProjectFlowState
-        )
-        _ = ProjectOptionsView(
-            router: makeTestFlowRouter(),
-            flowState: createProjectFlowState
-        )
-        _ = ProjectReviewView(flowState: createProjectFlowState)
-        _ = SettingsFlowView(
-            router: legacyRouter,
-            dependencies: settings
-        )
-        _ = SettingsView(
-            router: legacyRouter,
-            dependencies: settings
-        )
-        _ = AboutView(router: legacyRouter)
-        _ = PlatformDetailsView(platform: .macOS)
-        _ = SessionInfoView()
         _ = MaintenanceFlowView(router: maintenanceRouter)
         _ = MaintenanceView(router: maintenanceRouter)
+
+        #expect(await remote.callCount == 0)
+        #expect(imageLoader.loadCount == 0)
     }
 }
 
@@ -234,83 +240,6 @@ private final class ProjectSessionActions: ISessionActions {
     func signOut() async -> SessionSignOutResult { .cancelled }
 }
 
-#if os(macOS)
-extension ProjectConfigurationTests {
-    @MainActor
-    @Test
-    func completingCreateProjectFlowDismissesItsContainingSheet() async throws {
-        let flowState = CreateProjectFlowState()
-        let presentation = CreateProjectSheetPresentation()
-        let controller = NSHostingController(
-            rootView: CreateProjectSheetHarness(
-                presentation: presentation,
-                flowState: flowState,
-                appFlowCoordinator: makeTestFlowRouter()
-            )
-        )
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 600, height: 600),
-            styleMask: [.titled, .closable],
-            backing: .buffered,
-            defer: false
-        )
-        window.contentViewController = controller
-        window.makeKeyAndOrderFront(nil)
-        defer {
-            window.close()
-        }
-
-        let didPresent = try await eventually {
-            window.attachedSheet != nil
-        }
-        #expect(didPresent)
-
-        ProjectReviewViewModel(flowState: flowState).finish()
-
-        let didDismiss = try await eventually {
-            !presentation.isPresented && window.attachedSheet == nil
-        }
-
-        #expect(didDismiss)
-    }
-}
-
-@MainActor
-@Observable
-private final class CreateProjectSheetPresentation {
-    var isPresented = true
-}
-
-private struct CreateProjectSheetHarness: View {
-    @Bindable var presentation: CreateProjectSheetPresentation
-    let flowState: CreateProjectFlowState
-    let appFlowCoordinator: any IAppFlowCoordinator
-
-    var body: some View {
-        Color.clear
-            .sheet(isPresented: $presentation.isPresented) {
-                CreateProjectFlowView(
-                    flowState: flowState,
-                    appFlowCoordinator: appFlowCoordinator
-                )
-            }
-    }
-}
-
-@MainActor
-private func eventually(
-    _ condition: @escaping @MainActor () -> Bool
-) async throws -> Bool {
-    for _ in 0..<100 {
-        if condition() {
-            return true
-        }
-        try await Task.sleep(for: .milliseconds(20))
-    }
-    return condition()
-}
-#endif
-
 extension ProjectConfigurationTests {
     @Test
     func applicationRegistersCustomURLScheme() throws {
@@ -324,4 +253,158 @@ extension ProjectConfigurationTests {
 
         #expect(schemes.contains("apptemplate"))
     }
+
+    @Test
+    func releaseGateFreezesCriticalRowsAndUsesPerRunVerifierHelpers() throws {
+        let projectRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let predeleteData = try Data(contentsOf: projectRoot.appending(
+            path: "Scripts/connected-mini-store-required-unit-tests-predelete.tsv"
+        ))
+        let finalData = try Data(contentsOf: projectRoot.appending(
+            path: "Scripts/connected-mini-store-required-unit-tests-final.tsv"
+        ))
+        let uiData = try Data(contentsOf: projectRoot.appending(
+            path: "Scripts/connected-mini-store-required-ui-tests.tsv"
+        ))
+        let finalManifestData = try Data(contentsOf: projectRoot.appending(
+            path: "Scripts/connected-mini-store-final-change-paths.txt"
+        ))
+        let scriptData = try Data(contentsOf: projectRoot.appending(
+            path: "Scripts/verify-connected-mini-store-release.zsh"
+        ))
+        let script = try #require(String(data: scriptData, encoding: .utf8))
+        let predeleteHash = SHA256.hash(data: predeleteData).map {
+            String(format: "%02x", $0)
+        }.joined()
+        let finalHash = SHA256.hash(data: finalData).map {
+            String(format: "%02x", $0)
+        }.joined()
+        let uiHash = SHA256.hash(data: uiData).map {
+            String(format: "%02x", $0)
+        }.joined()
+        let finalManifestHash = SHA256.hash(data: finalManifestData).map {
+            String(format: "%02x", $0)
+        }.joined()
+
+        #expect(predeleteHash == "24a58469b053431beff914adc227605d50c9d5227c57e0a175938699b38b306f")
+        #expect(finalHash == "9c2ed088e0f39eac824c1a34e79f41013f7cdb0f5f617a938eb5ff076b483709")
+        #expect(uiHash == "263d944b6275632c909cfa48ea823907dcd8f08a74475c148717a5f87863d375")
+        #expect(finalManifestHash == "ded52afd2152598f2b20bf7fba5b125758c760ed41bb2b31abd039a32d13b4a4")
+        #expect(predeleteData.split(separator: 0x0a).count == 34)
+        #expect(finalData.split(separator: 0x0a).count == 35)
+        #expect(finalManifestData.split(separator: 0x0a).count == 227)
+        let projectGateRow = Data(
+            "all\tProjectConfigurationTests/releaseGateFreezesCriticalRowsAndUsesPerRunVerifierHelpers()\n".utf8
+        )
+        #expect(predeleteData.range(of: projectGateRow) != nil)
+        #expect(finalData.range(of: projectGateRow) != nil)
+        let attachmentGateRow = Data(
+            "all\tLocalNotificationAttachmentStagerTests/absoluteRootAndSourceUseSingleAtomicNoFollowAnyOpens()\n".utf8
+        )
+        #expect(predeleteData.range(of: attachmentGateRow) != nil)
+        #expect(finalData.range(of: attachmentGateRow) != nil)
+        let trustedReminderRootRow = Data(
+            "all\tAppNotificationGraphTests/liveReminderAttachmentDirectoryCanonicalizesTheTrustedTemporaryRoot()\n".utf8
+        )
+        #expect(predeleteData.range(of: trustedReminderRootRow) != nil)
+        #expect(finalData.range(of: trustedReminderRootRow) != nil)
+        let sharedLocalizationFallbackRow = Data(
+            "all\tStoreServicesLocalizationTests/missingArabicSharedKeysUseTheirEnglishVisibleCopyInsteadOfTheSymbolicKey()\n".utf8
+        )
+        #expect(predeleteData.range(of: sharedLocalizationFallbackRow) != nil)
+        #expect(finalData.range(of: sharedLocalizationFallbackRow) != nil)
+        let productAttachmentFallbackRow = Data(
+            "all\tProductReminderRepositoryTests/systemRejectedOwnedAttachmentRetriesTextOnlyWithWarning()\n".utf8
+        )
+        #expect(predeleteData.range(of: productAttachmentFallbackRow) != nil)
+        #expect(finalData.range(of: productAttachmentFallbackRow) != nil)
+        let delegateMainThreadRow = Data(
+            "all\tNotificationCenterDelegateBridgeTests/frameworkCompletionsReturnToMainThreadAfterOffMainProcessing()\n".utf8
+        )
+        #expect(predeleteData.range(of: delegateMainThreadRow) != nil)
+        #expect(finalData.range(of: delegateMainThreadRow) != nil)
+        #expect(script.contains("predelete_required_hash=\"$(shasum -a 256 \"$predelete_required\")\""))
+        #expect(script.contains("final_required_hash=\"$(shasum -a 256 \"$final_required\")\""))
+        #expect(script.contains("ui_required_hash=\"$(shasum -a 256 \"$ui_required\")\""))
+        #expect(script.contains("final_manifest_hash=\"$(shasum -a 256 \"$final_manifest\")\""))
+        #expect(script.contains("== 227 ]] || exit 66"))
+        #expect(script.contains("== 33 ]] || exit 66"))
+        #expect(script.contains("== 34 ]] || exit 66"))
+        #expect(script.contains("ded52afd2152598f2b20bf7fba5b125758c760ed41bb2b31abd039a32d13b4a4"))
+        #expect(script.contains("24a58469b053431beff914adc227605d50c9d5227c57e0a175938699b38b306f"))
+        #expect(script.contains("9c2ed088e0f39eac824c1a34e79f41013f7cdb0f5f617a938eb5ff076b483709"))
+        #expect(script.contains("AppTemplate-XCResultRequiredTestsVerifier.XXXXXX"))
+        #expect(script.contains("INFOPLIST_KEY_XCResultVerifierRoot=\"$helper_run_root\""))
+        #expect(script.contains("rmdir \"$helper_run_root\""))
+        #expect(!script.contains("mv -f \"$verifier_stage/verifier\""))
+        #expect(script.contains("release_lock=\"/private/var/tmp/AppTemplate-connected-mini-store-release.$release_account_uid.$release_bundle_id.lock\""))
+        #expect(script.contains("exec {release_lock_fd}>> \"$release_lock\""))
+        #expect(script.contains("/usr/bin/lockf -s -t 0 \"$release_lock_fd\""))
+        #expect(!script.contains("trap release_lock_cleanup EXIT HUP INT TERM"))
+        #expect(script.contains("XCRESULT_REQUIRED_TESTS_RUNNER is reserved for verifier fixture tests"))
+        #expect(script.contains("env -u XCRESULT_REQUIRED_TESTS_RUNNER swift Scripts/verify-xcresult-required-tests.swift"))
+        #expect(script.contains("mkdir \"$app_container\""))
+        #expect(script.contains("mkdir \"$container_data\""))
+        #expect(script.contains("mkdir \"$container_tmp\""))
+    }
+}
+
+private actor ProjectRemoteService: IRemoteService {
+    private(set) var callCount = 0
+
+    func products(_ request: ProductPageRequest) async throws -> ProductPageDTO {
+        callCount += 1
+        throw ProjectConfigurationFailure.unexpectedExternalCall
+    }
+
+    func categories() async throws -> [ProductCategoryDTO] {
+        callCount += 1
+        throw ProjectConfigurationFailure.unexpectedExternalCall
+    }
+
+    func product(id: Int) async throws -> ProductDTO {
+        callCount += 1
+        throw ProjectConfigurationFailure.unexpectedExternalCall
+    }
+
+    func login(_ request: LoginRequestDTO) async throws -> AuthSessionDTO {
+        callCount += 1
+        throw ProjectConfigurationFailure.unexpectedExternalCall
+    }
+
+    func me(accessToken: String) async throws -> UserProfileDTO {
+        callCount += 1
+        throw ProjectConfigurationFailure.unexpectedExternalCall
+    }
+
+    func refresh(_ request: RefreshRequestDTO) async throws -> AuthTokensDTO {
+        callCount += 1
+        throw ProjectConfigurationFailure.unexpectedExternalCall
+    }
+
+    func diagnostic(
+        _ request: HTTPDiagnosticRequest
+    ) async throws -> HTTPDiagnosticDTO {
+        callCount += 1
+        throw ProjectConfigurationFailure.unexpectedExternalCall
+    }
+}
+
+private final class ProjectImageLoader: IImageLoader, @unchecked Sendable {
+    private let lock = NSLock()
+    private var storedLoadCount = 0
+
+    var loadCount: Int { lock.withLock { storedLoadCount } }
+
+    func load(_ url: URL, policy: ImageLoadPolicy) async throws -> LoadedImage {
+        lock.withLock { storedLoadCount += 1 }
+        throw ProjectConfigurationFailure.unexpectedExternalCall
+    }
+}
+
+private enum ProjectConfigurationFailure: Error {
+    case unexpectedExternalCall
 }

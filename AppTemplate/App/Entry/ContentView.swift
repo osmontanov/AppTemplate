@@ -6,14 +6,13 @@ struct ContentView: View {
     @State private var sceneNavigation: AppSceneNavigationLifecycle
     @State private var onboardingRouter: FlowRouter
     @State private var maintenanceRouter: FlowRouter
-    let session: SessionPresentation
+    @State private var storeCatalogViewModel: CatalogViewModel
     let storeDependencies: StoreDependencies
     let storeUISupport: StoreUISupport
     let servicesDependencies: ServicesDependencies
 
     init(
         appFlowCoordinator: AppFlowCoordinator,
-        session: SessionPresentation,
         storeDependencies: StoreDependencies,
         storeUISupport: StoreUISupport,
         servicesDependencies: ServicesDependencies
@@ -26,7 +25,11 @@ struct ContentView: View {
         )
         _onboardingRouter = State(initialValue: FlowRouter(appFlowCoordinator: appFlowCoordinator))
         _maintenanceRouter = State(initialValue: FlowRouter(appFlowCoordinator: appFlowCoordinator))
-        self.session = session
+        _storeCatalogViewModel = State(initialValue: CatalogViewModel(
+            products: storeDependencies.products,
+            preferences: storeDependencies.preferences,
+            clock: storeUISupport.clock
+        ))
         self.storeDependencies = storeDependencies
         self.storeUISupport = storeUISupport
         self.servicesDependencies = servicesDependencies
@@ -38,9 +41,9 @@ struct ContentView: View {
             router: router,
             onboardingRouter: onboardingRouter,
             maintenanceRouter: maintenanceRouter,
-            session: session,
             storeDependencies: storeDependencies,
             storeUISupport: storeUISupport,
+            storeCatalogViewModel: storeCatalogViewModel,
             servicesDependencies: servicesDependencies,
             sceneNavigation: sceneNavigation
         )
