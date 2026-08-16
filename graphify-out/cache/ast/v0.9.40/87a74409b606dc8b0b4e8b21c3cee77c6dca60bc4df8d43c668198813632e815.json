@@ -1,0 +1,1 @@
+{"nodes": [{"id": "$graphify-root$_apptemplate_app_services_localdatabase_localdatabasemodel_swift", "label": "LocalDatabaseModel.swift", "file_type": "code", "source_file": "AppTemplate/App/Services/LocalDatabase/LocalDatabaseModel.swift", "source_location": "L1"}], "edges": [], "raw_calls": [], "parse_errors": {"first_error_line": 1, "multiline_error": true}}
