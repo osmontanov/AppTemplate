@@ -145,6 +145,46 @@ struct SessionControllerBootstrapTests {
         #expect(controller.presentation == controller.status.session)
     }
 
+    @Test @MainActor func supersededReadRetriesWithinTheSameBootstrap() async {
+        let repository = StaleThenReadyBootstrapRepository()
+        let deadline = ManualBootstrapDeadline()
+        let controller = SessionController(
+            repository: repository,
+            clock: deadline.clock,
+            startupValidationPolicy: .disabled,
+            refreshSchedulePolicy: .disabled
+        )
+
+        await controller.bootstrap()
+
+        #expect(controller.isLocalBootstrapResolved)
+        #expect(controller.status == SessionStatusPresentation(
+            session: SessionPresentation(state: .guest, revision: 1),
+            expiry: nil
+        ))
+        #expect(await repository.recordedAttemptIDs() == [1, 2])
+        await deadline.release(ordinal: 1)
+        await deadline.release(ordinal: 2)
+    }
+
+    @Test @MainActor func endlesslySupersededBootstrapStopsAtAnUnavailableState() async {
+        let repository = AlwaysStaleBootstrapRepository()
+        let deadline = ManualBootstrapDeadline()
+        let controller = SessionController(
+            repository: repository,
+            clock: deadline.clock,
+            startupValidationPolicy: .disabled,
+            refreshSchedulePolicy: .disabled
+        )
+
+        await controller.bootstrap()
+
+        #expect(controller.isLocalBootstrapResolved)
+        #expect(controller.status == unavailableStatus(revision: 1))
+        #expect(await repository.recordedAttemptIDs() == [1, 2, 3])
+        for ordinal in 1...3 { await deadline.release(ordinal: ordinal) }
+    }
+
     @Test @MainActor func resolvedBootstrapIsIdempotentButRetryUsesLargerID() async {
         let repository = ImmediateBootstrapRepository()
         let controller = SessionController(
@@ -272,6 +312,54 @@ private actor ControlledBootstrapRepository: ISessionRepository {
         readContinuation?.resume()
         readContinuation = nil
     }
+
+    func recordedAttemptIDs() -> [UInt64] { attempts }
+}
+
+private actor StaleThenReadyBootstrapRepository: ISessionRepository {
+    private var attempts: [UInt64] = []
+
+    func beginBootstrapAttempt(_ attemptID: UInt64) {
+        attempts.append(attemptID)
+    }
+
+    func readBootstrapCandidate(
+        attemptID: UInt64
+    ) -> SessionBootstrapReadResult {
+        attempts.count <= 1 ? .staleAttempt : .candidateReady
+    }
+
+    func resolveBootstrapCandidate(
+        attemptID: UInt64
+    ) -> SessionRepositorySnapshot {
+        SessionRepositorySnapshot(state: .guest, expiry: nil)
+    }
+
+    func invalidateBootstrapAttempt(_ attemptID: UInt64) -> Bool { false }
+
+    func recordedAttemptIDs() -> [UInt64] { attempts }
+}
+
+private actor AlwaysStaleBootstrapRepository: ISessionRepository {
+    private var attempts: [UInt64] = []
+
+    func beginBootstrapAttempt(_ attemptID: UInt64) {
+        attempts.append(attemptID)
+    }
+
+    func readBootstrapCandidate(
+        attemptID: UInt64
+    ) -> SessionBootstrapReadResult {
+        .staleAttempt
+    }
+
+    func resolveBootstrapCandidate(
+        attemptID: UInt64
+    ) -> SessionRepositorySnapshot {
+        SessionRepositorySnapshot(state: .guest, expiry: nil)
+    }
+
+    func invalidateBootstrapAttempt(_ attemptID: UInt64) -> Bool { false }
 
     func recordedAttemptIDs() -> [UInt64] { attempts }
 }

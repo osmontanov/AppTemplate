@@ -47,6 +47,19 @@ enum FavoriteProductSnapshotAdapter: LocalEntityAdapter {
         return entity
     }
 
+    // Removal must stay possible for records whose payload no longer decodes,
+    // so this lookup deliberately skips stored-entity validation.
+    static func fetchEntityForRemoval(
+        id: String,
+        in context: ModelContext
+    ) throws -> Entity? {
+        var descriptor = FetchDescriptor<Entity>(
+            predicate: #Predicate { $0.canonicalID == id }
+        )
+        descriptor.fetchLimit = 2
+        return try uniqueEntity(from: context.fetch(descriptor))
+    }
+
     static func fetchExisting(
         ids: [String],
         in context: ModelContext

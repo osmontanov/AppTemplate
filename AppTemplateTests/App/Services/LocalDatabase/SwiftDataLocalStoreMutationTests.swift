@@ -5,6 +5,62 @@ import Testing
 
 struct SwiftDataLocalStoreMutationTests {
     @Test
+    func corruptCartAndFavoriteRecordsRemainDeletable() async throws {
+        let container = try makeInMemoryLocalDatabaseContainer()
+        let store = SwiftDataLocalStore(
+            modelContainer: container,
+            hooks: .production
+        )
+        let favoriteID = FavoriteProductSnapshot.canonicalID(
+            userID: 4,
+            productID: 9
+        )
+        let context = ModelContext(container)
+        context.autosaveEnabled = false
+        context.insert(LocalDatabaseSchemaV2.StoredCartAggregate(
+            id: CartAggregate.singletonID,
+            revision: 1,
+            linesData: Data("not json".utf8)
+        ))
+        context.insert(LocalDatabaseSchemaV2.StoredFavoriteProductSnapshot(
+            canonicalID: favoriteID,
+            userID: 4,
+            productID: 9,
+            snapshotData: Data("not json".utf8)
+        ))
+        try context.save()
+
+        await #expect(throws: LocalDatabaseError.self) {
+            _ = try await store.fetch(
+                CartAggregate.self,
+                id: CartAggregate.singletonID
+            )
+        }
+
+        #expect(
+            try await store.delete(
+                CartAggregate.self,
+                id: CartAggregate.singletonID
+            )
+        )
+        #expect(
+            try await store.delete(FavoriteProductSnapshot.self, id: favoriteID)
+        )
+        #expect(
+            try await store.fetch(
+                CartAggregate.self,
+                id: CartAggregate.singletonID
+            ) == nil
+        )
+        #expect(
+            try await store.fetch(
+                FavoriteProductSnapshot.self,
+                id: favoriteID
+            ) == nil
+        )
+    }
+
+    @Test
     func genericInsertAndExactFetchRoundTripDetachedValue() async throws {
         let store = try makeInMemoryLocalStore()
         let record = ExampleRecord(id: "record-1", payload: "value")

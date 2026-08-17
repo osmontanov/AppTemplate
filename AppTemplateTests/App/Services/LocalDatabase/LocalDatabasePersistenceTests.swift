@@ -153,10 +153,12 @@ struct LocalDatabasePersistenceTests {
         async throws
     {
         let url = try uniqueLocalDatabaseStoreURL(label: "direct-v2")
+        // Lexical (unicode-scalar) order — must match the cursor predicate's
+        // store-level comparison, so "Case" sorts before "case".
         let expected = [
             ExampleRecord(id: " spaced id ", payload: ""),
-            ExampleRecord(id: "case", payload: "lowercase"),
             ExampleRecord(id: "Case", payload: "uppercase"),
+            ExampleRecord(id: "case", payload: "lowercase"),
             ExampleRecord(id: "unicode", payload: "Кыргызча 🌏")
         ]
 

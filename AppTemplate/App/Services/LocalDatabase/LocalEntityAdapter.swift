@@ -28,6 +28,10 @@ where Value.Persistence == Self, Value.Query == Query {
         id: Value.ID,
         in context: ModelContext
     ) throws -> Entity?
+    static func fetchEntityForRemoval(
+        id: Value.ID,
+        in context: ModelContext
+    ) throws -> Entity?
     static func fetchExisting(
         ids: [Value.ID],
         in context: ModelContext
@@ -46,6 +50,13 @@ where Value.Persistence == Self, Value.Query == Query {
 
 nonisolated
 extension LocalEntityAdapter {
+    static func fetchEntityForRemoval(
+        id: Value.ID,
+        in context: ModelContext
+    ) throws -> Entity? {
+        try fetch(id: id, in: context)
+    }
+
     static var adapterIdentifier: ObjectIdentifier {
         ObjectIdentifier(Self.self)
     }

@@ -71,6 +71,31 @@ actor SwiftDataLocalStore {
         }
     }
 
+    func existingIDs<Model: LocalDatabaseModel>(
+        _ type: Model.Type,
+        ids: [Model.ID]
+    ) throws -> Set<Model.ID> {
+        let operation = LocalDatabaseReadOperation.fetchMany
+        try Task.checkCancellation()
+        let context = makeOperationContext()
+        do {
+            try hooks.checkpoint(.read(operation))
+            try Task.checkCancellation()
+            let entities = try Model.Persistence.fetchExisting(
+                ids: ids,
+                in: context
+            )
+            return Set(entities.map(Model.Persistence.id(of:)))
+        } catch {
+            throw mapReadFailure(
+                error,
+                model: Model.Persistence.diagnosticName,
+                operation: operation,
+                recordCount: ids.count
+            )
+        }
+    }
+
     func upsert<Model: LocalDatabaseModel>(_ value: Model) throws {
         let operation = LocalDatabaseWriteOperation.upsertOne
         try Task.checkCancellation()
@@ -153,7 +178,7 @@ actor SwiftDataLocalStore {
         do {
             try hooks.checkpoint(.writePreparation(operation))
             try Task.checkCancellation()
-            guard let entity = try Model.Persistence.fetch(
+            guard let entity = try Model.Persistence.fetchEntityForRemoval(
                 id: id,
                 in: context
             ) else {

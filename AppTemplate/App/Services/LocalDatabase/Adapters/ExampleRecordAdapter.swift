@@ -15,6 +15,13 @@ enum ExampleRecordAdapter: LocalEntityAdapter {
 
     static let diagnosticName = "StoredExampleRecord"
     private static let queryLimitRange = 1...200
+    // The cursor predicate `$0.id > afterID` compares raw unicode scalars in
+    // the store; the sort order must match it or keyset pagination skips and
+    // repeats records.
+    private static let cursorOrder = SortDescriptor(
+        \LocalDatabaseSchemaV2.StoredExampleRecord.id,
+        comparator: .lexical
+    )
 
     static func validate(id: String) throws {
         guard id.contains(where: { !$0.isWhitespace }) else {
@@ -69,21 +76,13 @@ enum ExampleRecordAdapter: LocalEntityAdapter {
                 LocalDatabaseSchemaV2.StoredExampleRecord
             >(
                 predicate: #Predicate { $0.id > afterID },
-                sortBy: [
-                    SortDescriptor(
-                        \LocalDatabaseSchemaV2.StoredExampleRecord.id
-                    )
-                ]
+                sortBy: [cursorOrder]
             )
         } else {
             descriptor = FetchDescriptor<
                 LocalDatabaseSchemaV2.StoredExampleRecord
             >(
-                sortBy: [
-                    SortDescriptor(
-                        \LocalDatabaseSchemaV2.StoredExampleRecord.id
-                    )
-                ]
+                sortBy: [cursorOrder]
             )
         }
         guard let normalizedSearch = normalizedSearch(query.searchText) else {

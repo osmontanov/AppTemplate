@@ -4,6 +4,8 @@ import Observation
 @MainActor
 @Observable
 final class SessionController: ISessionActions {
+    private static let maximumBootstrapAttempts = 3
+
     private(set) var status = SessionStatusPresentation(
         session: SessionPresentation(state: .restoring, revision: 0),
         expiry: nil
@@ -126,9 +128,20 @@ final class SessionController: ISessionActions {
 
     private func runBootstrapRace() async {
         defer { bootstrapOperationTask = nil }
+        // A login or sign-out that lands mid-read invalidates the attempt. Retry
+        // instead of returning, so the scene never sticks on the restoring
+        // screen, and bound the retries so a storm of them still terminates.
+        for _ in 0..<Self.maximumBootstrapAttempts {
+            if await runBootstrapAttempt() { return }
+            guard !Task.isCancelled else { return }
+        }
+        commitReadFailure()
+    }
+
+    private func runBootstrapAttempt() async -> Bool {
         guard let attemptID = nextBootstrapAttemptID() else {
             commitReadFailure()
-            return
+            return true
         }
 
         await repository.beginBootstrapAttempt(attemptID)
@@ -140,7 +153,7 @@ final class SessionController: ISessionActions {
             let result = await repository.readBootstrapCandidate(
                 attemptID: attemptID
             )
-            guard !Task.isCancelled, result != .staleAttempt else { return }
+            guard !Task.isCancelled else { return }
             _ = await signal.resolve(.read(result))
         }
         let timeoutTask = Task { [repository, signal, clock, attemptID] in
@@ -167,20 +180,22 @@ final class SessionController: ISessionActions {
         case .timeout:
             readTask.cancel()
             commitReadFailure()
+            return true
 
         case let .read(result):
             timeoutTask.cancel()
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled else { return true }
             switch result {
             case .candidateReady, .readFailed:
                 let snapshot = await repository.resolveBootstrapCandidate(
                     attemptID: attemptID
                 )
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled else { return true }
                 commit(snapshot)
                 startStartupValidationIfNeeded(for: snapshot)
+                return true
             case .staleAttempt:
-                return
+                return false
             }
         }
     }

@@ -140,13 +140,13 @@ actor LocalDatabaseExampleRepository: ILocalDatabaseExampleRepository {
                 reason: reason
             )
         }
-        for record in records {
-            if try await database.fetch(
-                ExampleRecord.self,
-                id: record.id
-            ) == nil {
-                try ExampleRecordCreationValidator.validateNewID(record.id)
-            }
+        guard !records.isEmpty else { return }
+        let existing = try await database.existingIDs(
+            ExampleRecord.self,
+            ids: records.map(\.id)
+        )
+        for record in records where !existing.contains(record.id) {
+            try ExampleRecordCreationValidator.validateNewID(record.id)
         }
         try await database.upsert(records)
     }

@@ -28,6 +28,10 @@ actor SessionRepository: ISessionRepository {
 
     private var sessionGeneration: UInt64 = 0
     private var adoptedEnvelope: StoredSessionEnvelope?
+    // Set while a sign-out is removing credentials. Readers stand down instead
+    // of the envelope being cleared early, so a sign-out that never reaches the
+    // Keychain leaves memory and storage agreeing with each other.
+    private var signOutInFlightGeneration: UInt64?
     private var credentialsQuarantined = false
     private var activeLoginGeneration: UInt64?
     private var pendingCredentialCandidate: PendingCredentialCandidate?
@@ -256,7 +260,9 @@ actor SessionRepository: ISessionRepository {
     }
 
     func validateStoredSession() async -> SessionRepositoryValidationResult {
-        guard !credentialsQuarantined, let envelope = adoptedEnvelope else {
+        guard signOutInFlightGeneration == nil,
+              !credentialsQuarantined,
+              let envelope = adoptedEnvelope else {
             return .unchanged
         }
         let generation = sessionGeneration
@@ -282,7 +288,9 @@ actor SessionRepository: ISessionRepository {
     }
 
     func refreshStoredSession() async -> SessionRepositoryValidationResult {
-        guard !credentialsQuarantined, let envelope = adoptedEnvelope else {
+        guard signOutInFlightGeneration == nil,
+              !credentialsQuarantined,
+              let envelope = adoptedEnvelope else {
             return .unchanged
         }
         return await joinRefresh(generation: sessionGeneration, envelope: envelope)
@@ -291,6 +299,12 @@ actor SessionRepository: ISessionRepository {
     func signOut() async -> SessionSignOutResult {
         let retainedEnvelope = adoptedEnvelope
         let generation = advanceGeneration()
+        signOutInFlightGeneration = generation
+        defer {
+            if signOutInFlightGeneration == generation {
+                signOutInFlightGeneration = nil
+            }
+        }
         do {
             try await removeCredentials(generation: generation)
             guard sessionGeneration == generation, !Task.isCancelled else {
@@ -304,16 +318,13 @@ actor SessionRepository: ISessionRepository {
                 retaining: retainedEnvelope,
                 invalidatedGeneration: generation
             )
-            adoptedEnvelope = retainedEnvelope
             return .cancelled
         } catch is CancellationError {
-            adoptedEnvelope = retainedEnvelope
             return .cancelled
         } catch MutationFailure.staleGeneration {
             return .cancelled
         } catch {
             guard sessionGeneration == generation else { return .cancelled }
-            adoptedEnvelope = retainedEnvelope
             return .deletionFailed
         }
     }
@@ -466,7 +477,9 @@ actor SessionRepository: ISessionRepository {
     private func performAuthenticated(
         operation: @Sendable (String) async throws -> UserProfileDTO
     ) async -> SessionRepositoryValidationResult {
-        guard let envelope = adoptedEnvelope, !credentialsQuarantined else { return .unchanged }
+        guard signOutInFlightGeneration == nil,
+              let envelope = adoptedEnvelope,
+              !credentialsQuarantined else { return .unchanged }
         let generation = sessionGeneration
         do {
             _ = try await operation(envelope.accessToken)

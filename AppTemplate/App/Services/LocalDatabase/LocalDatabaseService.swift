@@ -46,6 +46,22 @@ actor LocalDatabaseService: ILocalDatabaseService {
         return try await store.fetch(Model.self, matching: query)
     }
 
+    func existingIDs<Model: LocalDatabaseModel>(
+        _ type: Model.Type,
+        ids: [Model.ID]
+    ) async throws -> Set<Model.ID> {
+        try Task.checkCancellation()
+        try mapValidation(Model.self) {
+            for id in ids {
+                try Model.Persistence.validate(id: id)
+            }
+        }
+        try validateRegistration(Model.self)
+        let store = try resolveStore()
+        try Task.checkCancellation()
+        return try await store.existingIDs(Model.self, ids: ids)
+    }
+
     func upsert<Model: LocalDatabaseModel>(
         _ value: Model
     ) async throws {

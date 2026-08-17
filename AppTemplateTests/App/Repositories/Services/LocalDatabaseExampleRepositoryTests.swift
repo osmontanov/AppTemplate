@@ -158,7 +158,8 @@ struct LocalDatabaseExampleRepositoryTests {
             ExampleRecord(id: "new-id", payload: "inserted")
         ])
 
-        #expect(await database.fetchCount == 3)
+        #expect(await database.fetchCount == 0)
+        #expect(await database.existenceQueryCount == 1)
         #expect(await database.upsertCount == 0)
         #expect(await database.batchUpsertCount == 1)
     }
@@ -363,6 +364,7 @@ private actor RecordingExampleDatabase: ILocalDatabaseService {
     private var records: [String: ExampleRecord] = [:]
     private(set) var fetchCount = 0
     private(set) var fetchManyCount = 0
+    private(set) var existenceQueryCount = 0
     private(set) var upsertCount = 0
     private(set) var batchUpsertCount = 0
     private(set) var deleteCount = 0
@@ -421,6 +423,18 @@ private actor RecordingExampleDatabase: ILocalDatabaseService {
     ) async throws -> [Model] {
         fetchManyCount += 1
         return []
+    }
+
+    func existingIDs<Model: LocalDatabaseModel>(
+        _ type: Model.Type,
+        ids: [Model.ID]
+    ) async throws -> Set<Model.ID> {
+        existenceQueryCount += 1
+        guard Model.self == ExampleRecord.self else { return [] }
+        return Set(ids.filter { id in
+            guard let id = id as? String else { return false }
+            return records[id] != nil
+        })
     }
 
     func upsert<Model: LocalDatabaseModel>(_ value: Model) async throws {

@@ -17,6 +17,8 @@ struct SessionRepositoryGenerationTests {
 
         #expect(await repository.signOut() == .deletionFailed)
         #expect(await keychain.sessionEnvelope() == envelope)
+        // The failed sign-out must leave the session usable, not half-erased.
+        #expect(await repository.validateStoredSession() != .unchanged)
     }
 
     @Test func acceptedNewLoginInvalidatesPersistenceRetryToken() async {
@@ -86,6 +88,54 @@ struct SessionRepositoryGenerationTests {
 
         #expect(await signOut.value == .cancelled)
         #expect(await keychain.sessionEnvelope() == old)
+    }
+
+    @Test func refreshDuringSignOutRemovalDoesNotResurrectSession() async {
+        let envelope = SessionOperationFixtures.envelope()
+        let keychain = SessionMutationBarrierKeychain(envelope: envelope, barrier: .remove)
+        let remote = SessionOperationRemote()
+        let repository = SessionRepository(
+            remote: remote,
+            secureStore: SessionSecureStore(keychain: keychain)
+        )
+        await repository.beginBootstrapAttempt(1)
+        _ = await repository.readBootstrapCandidate(attemptID: 1)
+        _ = await repository.resolveBootstrapCandidate(attemptID: 1)
+
+        let signOut = Task { await repository.signOut() }
+        await keychain.waitUntilBarrierStarts()
+        let refresh = await repository.refreshStoredSession()
+        let validation = await repository.validateStoredSession()
+        await keychain.releaseBarrier()
+
+        #expect(refresh == .unchanged)
+        #expect(validation == .unchanged)
+        #expect(await signOut.value == .guest)
+        #expect(await remote.counts().refresh == 0)
+        #expect(await remote.counts().me == 0)
+        #expect(await keychain.sessionEnvelope() == nil)
+    }
+
+    @Test func cancelledSignOutBeforeRemovalKeepsSessionAndStorageAgreeing() async {
+        let envelope = SessionOperationFixtures.envelope()
+        let keychain = SessionMutationBarrierKeychain(envelope: envelope, barrier: .remove)
+        let repository = SessionRepository(
+            remote: SessionOperationRemote(),
+            secureStore: SessionSecureStore(keychain: keychain)
+        )
+        await repository.beginBootstrapAttempt(1)
+        _ = await repository.readBootstrapCandidate(attemptID: 1)
+        _ = await repository.resolveBootstrapCandidate(attemptID: 1)
+
+        let signOut = Task { await repository.signOut() }
+        await keychain.waitUntilBarrierStarts()
+        signOut.cancel()
+        await keychain.releaseBarrier()
+
+        #expect(await signOut.value == .cancelled)
+        #expect(await keychain.sessionEnvelope() == envelope)
+        // Storage still holds the record, so the repository must still adopt it.
+        #expect(await repository.validateStoredSession() != .unchanged)
     }
 }
 

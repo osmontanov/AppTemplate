@@ -22,6 +22,32 @@ struct SwiftDataLocalStoreQueryTests {
     }
 
     @Test
+    func cursorPaginationCoversNumericAndCaseMixedIDsWithoutLossOrRepeat() async throws {
+        let store = try makeInMemoryLocalStore()
+        try await store.upsert([
+            ExampleRecord(id: "item2", payload: "two"),
+            ExampleRecord(id: "item10", payload: "ten"),
+            ExampleRecord(id: "B", payload: "upper"),
+            ExampleRecord(id: "item3", payload: "three"),
+            ExampleRecord(id: "b1", payload: "lower")
+        ])
+
+        var visited: [String] = []
+        var cursor: String?
+        while true {
+            let page = try await store.fetch(
+                ExampleRecord.self,
+                matching: ExampleQuery(afterID: cursor, limit: 2)
+            )
+            guard !page.isEmpty else { break }
+            visited.append(contentsOf: page.map(\.id))
+            cursor = page.last?.id
+        }
+
+        #expect(visited == ["B", "b1", "item10", "item2", "item3"])
+    }
+
+    @Test
     func filteredCursorStartsSparseSearchAfterCursor() async throws {
         let store = try makeInMemoryLocalStore()
         try await store.upsert(
