@@ -1,7 +1,7 @@
 import Foundation
 
 nonisolated
-struct ImageLoadPolicy: Equatable, Sendable {
+struct ImageLoadPolicy: Hashable, Sendable {
     let allowedHosts: Set<String>
     let timeout: Duration
     let maximumEncodedBytes: Int

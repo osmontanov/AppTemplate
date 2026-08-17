@@ -2,10 +2,24 @@ import Foundation
 
 nonisolated
 struct URLSessionImageHTTPTransport: IImageHTTPTransport {
-    private let protocolClasses: [AnyClass]?
+    // One session per transport so connections are reused across image loads;
+    // per-request deadlines still come from the policy via the URLRequest.
+    private let session: URLSession
 
-    init(protocolClasses: [AnyClass]? = nil) {
-        self.protocolClasses = protocolClasses
+    init(
+        protocolClasses: [AnyClass]? = nil,
+        configurationTimeout: TimeInterval = ImageLoadPolicy.product.timeoutInterval
+    ) {
+        let configuration = EphemeralURLSessionConfiguration.make(
+            timeout: configurationTimeout,
+            protocolClasses: protocolClasses
+        )
+        configuration.httpShouldSetCookies = false
+        session = URLSession(
+            configuration: configuration,
+            delegate: nil,
+            delegateQueue: nil
+        )
     }
 
     func fetch(_ url: URL, policy: ImageLoadPolicy) async throws -> ImageHTTPResponse {
@@ -19,13 +33,8 @@ struct URLSessionImageHTTPTransport: IImageHTTPTransport {
             throw ImageLoaderError.responseTooLarge
         }
 
-        let configuration = EphemeralURLSessionConfiguration.make(
-            timeout: policy.timeoutInterval,
-            protocolClasses: protocolClasses
-        )
-        configuration.httpShouldSetCookies = false
         let operation = ImageHTTPTransportOperation(policy: policy)
-        return try await operation.run(url: url, configuration: configuration)
+        return try await operation.run(url: url, session: session)
     }
 }
 
@@ -37,7 +46,6 @@ private final class ImageHTTPTransportOperation: NSObject,
 {
     private struct State {
         var continuation: CheckedContinuation<ImageHTTPResponse, Error>?
-        var session: URLSession?
         var task: URLSessionDataTask?
         var response: HTTPURLResponse?
         var data = Data()
@@ -55,11 +63,11 @@ private final class ImageHTTPTransportOperation: NSObject,
 
     func run(
         url: URL,
-        configuration: URLSessionConfiguration
+        session: URLSession
     ) async throws -> ImageHTTPResponse {
         try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
-                begin(url: url, configuration: configuration, continuation: continuation)
+                begin(url: url, session: session, continuation: continuation)
             }
         } onCancel: {
             cancel()
@@ -68,7 +76,7 @@ private final class ImageHTTPTransportOperation: NSObject,
 
     private func begin(
         url: URL,
-        configuration: URLSessionConfiguration,
+        session: URLSession,
         continuation: CheckedContinuation<ImageHTTPResponse, Error>
     ) {
         let shouldCancel = lock.withLock {
@@ -76,17 +84,12 @@ private final class ImageHTTPTransportOperation: NSObject,
                 state.isFinished = true
                 return true
             }
-            let session = URLSession(
-                configuration: configuration,
-                delegate: self,
-                delegateQueue: nil
-            )
             var request = URLRequest(url: url)
             request.cachePolicy = .reloadIgnoringLocalCacheData
             request.timeoutInterval = policy.timeoutInterval
             let task = session.dataTask(with: request)
+            task.delegate = self
             state.continuation = continuation
-            state.session = session
             state.task = task
             task.resume()
             return false
@@ -97,41 +100,36 @@ private final class ImageHTTPTransportOperation: NSObject,
     }
 
     private func cancel() {
-        let resources = lock.withLock { () -> (URLSession?, URLSessionDataTask?, CheckedContinuation<ImageHTTPResponse, Error>?) in
+        let resources = lock.withLock { () -> (URLSessionDataTask?, CheckedContinuation<ImageHTTPResponse, Error>?) in
             state.cancellationRequested = true
-            guard !state.isFinished else { return (nil, nil, nil) }
+            guard !state.isFinished else { return (nil, nil) }
             state.isFinished = true
-            let resources = (state.session, state.task, state.continuation)
-            state.session = nil
+            let resources = (state.task, state.continuation)
             state.task = nil
             state.continuation = nil
             return resources
         }
-        resources.1?.cancel()
-        resources.0?.invalidateAndCancel()
-        resources.2?.resume(throwing: ImageLoaderError.cancelled)
+        resources.0?.cancel()
+        resources.1?.resume(throwing: ImageLoaderError.cancelled)
     }
 
     private func finish(_ result: Result<ImageHTTPResponse, Error>) {
-        let resources = lock.withLock { () -> (URLSession?, URLSessionDataTask?, CheckedContinuation<ImageHTTPResponse, Error>?) in
-            guard !state.isFinished else { return (nil, nil, nil) }
+        let resources = lock.withLock { () -> (URLSessionDataTask?, CheckedContinuation<ImageHTTPResponse, Error>?) in
+            guard !state.isFinished else { return (nil, nil) }
             state.isFinished = true
-            let resources = (state.session, state.task, state.continuation)
-            state.session = nil
+            let resources = (state.task, state.continuation)
             state.task = nil
             state.continuation = nil
             state.response = nil
             state.data = Data()
             return resources
         }
-        guard let continuation = resources.2 else { return }
+        guard let continuation = resources.1 else { return }
         switch result {
         case let .success(response):
-            resources.0?.finishTasksAndInvalidate()
             continuation.resume(returning: response)
         case let .failure(error):
-            resources.1?.cancel()
-            resources.0?.invalidateAndCancel()
+            resources.0?.cancel()
             continuation.resume(throwing: error)
         }
     }

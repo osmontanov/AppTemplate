@@ -39,6 +39,8 @@ struct RemoteProductImage: View {
                 let image = try await imageLoader.load(url, policy: policy)
                 try Task.checkCancellation()
                 loadedImage = image
+            } catch is CancellationError {
+                return
             } catch {
                 loadedImage = nil
             }
