@@ -125,7 +125,6 @@ struct AppLaunchConfigurationTests {
             return nil
         }())
 
-        #expect(scenario.networkPolicy == .failClosed)
         #expect(scenario.remoteSteps.count == 3)
         #expect(scenario.localDatabaseSeed.examples.count == 21)
         #expect(scenario.imageSeed.steps.isEmpty)
@@ -143,7 +142,6 @@ struct AppLaunchConfigurationTests {
     func guestStoreLaunchProvidesTypedOfflineSeeds() async throws {
         let scenario = try guestStoreLaunchScenario()
 
-        #expect(scenario.networkPolicy == .failClosed)
         #expect(scenario.sessionSeed.keychainData == nil)
         #expect(scenario.sessionSeed.validationMode == .disabled)
         #expect(scenario.localDatabaseSeed.examples == [
@@ -280,7 +278,6 @@ struct AppLaunchConfigurationTests {
             return nil
         }())
 
-        #expect(scenario.networkPolicy == .failClosed)
         #expect(scenario.sessionSeed.keychainData == nil)
         #expect(scenario.localDatabaseSeed.favorites.isEmpty)
         #expect(scenario.localDatabaseSeed.cart?.lines.isEmpty == true)
@@ -347,7 +344,6 @@ struct AppLaunchConfigurationTests {
             return nil
         }())
 
-        #expect(scenario.networkPolicy == .failClosed)
         #expect(scenario.notificationSeed.authorizationStatus == .authorized)
         #expect(scenario.notificationSeed.pendingRequests.isEmpty)
         #expect(scenario.remoteSteps.count == 5)

@@ -36,16 +36,4 @@ struct NetworkDiagnosticEvent: Equatable, Sendable {
     let elapsed: Duration
     let failure: NetworkDiagnosticFailure?
     let summary: NetworkDiagnosticSummary?
-
-    static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.operationID == rhs.operationID &&
-            lhs.operation == rhs.operation &&
-            lhs.method.rawValue == rhs.method.rawValue &&
-            lhs.safePath == rhs.safePath &&
-            lhs.queryKeys == rhs.queryKeys &&
-            lhs.statusClass == rhs.statusClass &&
-            lhs.elapsed == rhs.elapsed &&
-            lhs.failure == rhs.failure &&
-            lhs.summary == rhs.summary
-    }
 }

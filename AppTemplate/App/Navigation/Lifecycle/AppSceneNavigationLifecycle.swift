@@ -46,12 +46,20 @@ final class AppSceneNavigationLifecycle: ISceneNavigationActions {
         guard transition.id != lastAppliedTransitionID else { return nil }
         lastAppliedTransitionID = transition.id
         let transitionOutcome = router.apply(transition)
-        guard isNavigationReady, router.appFlowRouter.flow == .main,
-              let intent = takeDeferredIntent() else {
+        switch transition.pendingIntentAction {
+        case .discard:
+            deferredIntent = nil
             return transitionOutcome
+        case .preserve:
+            return transitionOutcome
+        case .replay:
+            guard isNavigationReady, router.appFlowRouter.flow == .main,
+                  let intent = takeDeferredIntent() else {
+                return transitionOutcome
+            }
+            applyIntent(intent)
+            return .applied
         }
-        applyIntent(intent)
-        return .applied
     }
 
     @discardableResult

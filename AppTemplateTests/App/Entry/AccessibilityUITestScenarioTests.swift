@@ -6,7 +6,6 @@ struct AccessibilityUITestScenarioTests {
     @Test
     func accessibilityScenarioIsOfflineAndStartsAtOnboarding() throws {
         let scenario = try UITestScenario.named("accessibility-smoke")
-        #expect(scenario.networkPolicy == .failClosed)
         #expect(scenario.id == .accessibilitySmoke)
         #expect(scenario.appState == .initial)
     }
@@ -85,7 +84,6 @@ struct AccessibilityUITestScenarioTests {
             return
         }
         #expect(scenario.appState == .initial)
-        #expect(scenario.networkPolicy == .failClosed)
         #expect(scenario.remoteSteps.count == 2)
         #expect(scenario.imageSeed.steps.isEmpty)
     }

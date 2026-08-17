@@ -6,7 +6,6 @@ struct UITestScenarioTests {
     func catalogNamesRoundTripToFailClosedScenarios(_ name: UITestScenario.Name) throws {
         let scenario = try UITestScenario.named(name.rawValue)
         #expect(scenario.id == name)
-        #expect(scenario.networkPolicy == .failClosed)
     }
 
     @Test

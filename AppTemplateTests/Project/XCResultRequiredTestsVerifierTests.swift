@@ -4,6 +4,38 @@ import Testing
 #if os(macOS)
 import Darwin
 
+nonisolated enum XCResultVerifierAvailability {
+    // Cmd+U on a fresh clone must stay green: this hosted suite runs only when
+    // the release gate (or a developer) has prepared the compiled verifier.
+    static var isPrepared: Bool {
+        let manager = FileManager.default
+        if let injected = ProcessInfo.processInfo.environment[
+            "XCRESULT_VERIFIER_TEST_EXECUTABLE"
+        ] {
+            return manager.isExecutableFile(atPath: injected)
+        }
+        if let preparedRoot = Bundle.main.object(
+            forInfoDictionaryKey: "XCResultVerifierRoot"
+        ) as? String {
+            return manager.isExecutableFile(
+                atPath: URL(fileURLWithPath: preparedRoot)
+                    .appendingPathComponent("verifier")
+                    .path
+            )
+        }
+        return manager.isExecutableFile(
+            atPath: manager.temporaryDirectory
+                .appendingPathComponent("AppTemplate-XCResultRequiredTestsVerifier")
+                .appendingPathComponent("verifier")
+                .path
+        )
+    }
+}
+
+@Suite(.enabled(
+    if: XCResultVerifierAvailability.isPrepared,
+    "Run Scripts/verify-release.zsh (or set XCRESULT_VERIFIER_TEST_EXECUTABLE) to compile the verifier this suite exercises."
+))
 struct XCResultRequiredTestsVerifierTests {
     @Test
     func passingRequiredTestExitsSuccessfully() throws {

@@ -4,7 +4,7 @@ nonisolated
 struct DeepLinkParser: Sendable {
     private let scheme: String
 
-    init(scheme: String = "apptemplate") {
+    init(scheme: String = AppURLScheme.scheme) {
         self.scheme = scheme.lowercased()
     }
 

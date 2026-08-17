@@ -15,8 +15,6 @@ struct ProductReminderCalendarPresentation: Equatable, Sendable {
 
 nonisolated
 struct ProductReminderModel: Equatable, Sendable {
-    private static let maximumInterval: TimeInterval = 604_800
-    private static let minimumRepeatingInterval: TimeInterval = 60
 
     var selection: ProductReminderSelection
     var intervalText: String
@@ -30,8 +28,8 @@ struct ProductReminderModel: Equatable, Sendable {
         case let .interval(_, repeats):
             guard let seconds = TimeInterval(intervalText),
                   seconds.isFinite,
-                  (1...Self.maximumInterval).contains(seconds),
-                  !repeats || seconds >= Self.minimumRepeatingInterval
+                  (1...ProductReminderPolicy.maximumInterval).contains(seconds),
+                  !repeats || seconds >= ProductReminderPolicy.minimumRepeatingInterval
             else {
                 return .interval
             }

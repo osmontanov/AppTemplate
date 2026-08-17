@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct ContentView: View {
+struct PreviewAppCompositionView: View {
     @State private var appFlowCoordinator: AppFlowCoordinator
     @State private var router: AppRouter
     @State private var sceneNavigation: AppSceneNavigationLifecycle

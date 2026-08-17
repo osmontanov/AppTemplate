@@ -31,22 +31,80 @@ struct AppDependencies: Sendable {
         notificationGraph.dependencies
     }
 
+    // Every factory routes through here, so the repositories derived from a
+    // database/remote/clock are constructed once. Inputs stay explicit: adding a
+    // stored property breaks this call and every factory that must supply it.
+    @MainActor
+    private static func compose(
+        database: any ILocalDatabaseService,
+        remote: any IRemoteService,
+        imageLoader: any IImageLoader,
+        clock: AppClock,
+        keychain: any IKeychainService,
+        storePreferencesService: any IUserDefaultsService,
+        appStateStorage: any IAppStateStorage,
+        appInfo: any IAppInfoService,
+        servicesLabUserDefaults: any IUserDefaultsService,
+        servicesLabKeychain: any IKeychainService,
+        notificationGraph: AppNotificationGraph,
+        diagnostics: NetworkDiagnosticRecorder,
+        sessionStartupValidationPolicy: SessionStartupValidationPolicy,
+        sessionRefreshSchedulePolicy: SessionRefreshSchedulePolicy,
+        cart: (any ICartRepository)? = nil,
+        uiTestScriptTracker: UITestScriptConsumptionTracker? = nil,
+        uiTestNotificationLabSteps: [UITestNotificationLabStep]? = nil,
+        bootstrap: @escaping @Sendable () async throws -> Void = {}
+    ) -> AppDependencies {
+        AppDependencies(
+            localDatabase: database,
+            localDatabaseExamples: LocalDatabaseExampleRepository(database: database),
+            favorites: FavoritesRepository(database: database),
+            cart: cart ?? CartRepository(database: database),
+            storePreferences: StorePreferencesRepository(
+                userDefaults: storePreferencesService
+            ),
+            products: ProductRepository(remote: remote),
+            appInfo: appInfo,
+            storeUISupport: StoreUISupport(images: imageLoader, clock: clock),
+            remote: remote,
+            remoteAPILab: RemoteAPILabService(remote: remote),
+            appStateStorage: appStateStorage,
+            keychain: keychain,
+            servicesLabUserDefaults: servicesLabUserDefaults,
+            servicesLabKeychain: servicesLabKeychain,
+            sessionRepository: SessionRepository(
+                remote: remote,
+                secureStore: SessionSecureStore(keychain: keychain),
+                clock: clock
+            ),
+            clock: clock,
+            sessionStartupValidationPolicy: sessionStartupValidationPolicy,
+            sessionRefreshSchedulePolicy: sessionRefreshSchedulePolicy,
+            notificationGraph: notificationGraph,
+            diagnostics: diagnostics,
+            imageLoader: imageLoader,
+            uiTestScriptTracker: uiTestScriptTracker,
+            uiTestNotificationLabSteps: uiTestNotificationLabSteps,
+            bootstrap: bootstrap
+        )
+    }
+
     @MainActor
     static func live(
         localDatabaseService: (any ILocalDatabaseService)? = nil,
         localDatabaseStoreLocationResolver:
             LocalDatabaseStoreLocationResolver? = nil,
         userDefaultsService: any IUserDefaultsService = UserDefaultsService(
-            namespace: "AppTemplate"
+            namespace: AppNamespace.primary
         ),
         keychainService: any IKeychainService = KeychainService(
-            service: "AppTemplate"
+            service: AppNamespace.primary
         ),
         servicesLabUserDefaultsService: (any IUserDefaultsService)? = nil,
         servicesLabKeychainService: (any IKeychainService)? = nil,
         remoteService: (any IRemoteService)? = nil,
         appInfoService: any IAppInfoService = AppInfoService(),
-        imageLoader: any IImageLoader = ProductImageLoader(),
+        imageLoader: any IImageLoader = CachingImageLoader(),
         clock: AppClock? = nil,
         sessionStartupValidationPolicy: SessionStartupValidationPolicy = .automatic,
         sessionRefreshSchedulePolicy: SessionRefreshSchedulePolicy = .automatic,
@@ -61,48 +119,34 @@ struct AppDependencies: Sendable {
             ))
         let remote: any IRemoteService = remoteService
             ?? RemoteService(diagnosticRecorder: diagnostics)
-        let localDatabaseExamples = LocalDatabaseExampleRepository(database: database)
-        let remoteAPILab = RemoteAPILabService(remote: remote)
         let resolvedClock = clock ?? .live
         let resolvedNotificationGraph = notificationGraph ?? .live(
             imageLoader: imageLoader,
             clock: resolvedClock,
             runtimeResolver: localNotificationRuntimeResolver
         )
-        return AppDependencies(
-            localDatabase: database,
-            localDatabaseExamples: localDatabaseExamples,
-            favorites: FavoritesRepository(database: database),
-            cart: CartRepository(database: database),
-            storePreferences: StorePreferencesRepository(userDefaults: userDefaultsService),
-            products: ProductRepository(remote: remote),
-            appInfo: appInfoService,
-            storeUISupport: StoreUISupport(images: imageLoader, clock: resolvedClock),
+        return compose(
+            database: database,
             remote: remote,
-            remoteAPILab: remoteAPILab,
-            appStateStorage: UserDefaultsAppStateStorage(userDefaults: userDefaultsService),
+            imageLoader: imageLoader,
+            clock: resolvedClock,
             keychain: keychainService,
+            storePreferencesService: userDefaultsService,
+            appStateStorage: UserDefaultsAppStateStorage(
+                userDefaults: userDefaultsService
+            ),
+            appInfo: appInfoService,
             servicesLabUserDefaults: servicesLabUserDefaultsService
                 ?? UserDefaultsService(
-                    namespace: "AppTemplate.ServicesLab",
+                    namespace: AppNamespace.servicesLab,
                     userDefaults: .standard
                 ),
             servicesLabKeychain: servicesLabKeychainService
-                ?? KeychainService(service: "AppTemplate.ServicesLab"),
-            sessionRepository: SessionRepository(
-                remote: remote,
-                secureStore: SessionSecureStore(keychain: keychainService),
-                clock: resolvedClock
-            ),
-            clock: resolvedClock,
-            sessionStartupValidationPolicy: sessionStartupValidationPolicy,
-            sessionRefreshSchedulePolicy: sessionRefreshSchedulePolicy,
+                ?? KeychainService(service: AppNamespace.servicesLab),
             notificationGraph: resolvedNotificationGraph,
             diagnostics: diagnostics,
-            imageLoader: imageLoader,
-            uiTestScriptTracker: nil,
-            uiTestNotificationLabSteps: nil,
-            bootstrap: {}
+            sessionStartupValidationPolicy: sessionStartupValidationPolicy,
+            sessionRefreshSchedulePolicy: sessionRefreshSchedulePolicy
         )
     }
 
@@ -146,21 +190,18 @@ struct AppDependencies: Sendable {
             tracker: tracker
         )
         let database = LocalDatabaseService(configuration: .inMemory())
-        let localDatabaseExamples = LocalDatabaseExampleRepository(database: database)
-        let remoteAPILab = RemoteAPILabService(remote: remote)
         let baseCart = CartRepository(database: database)
         let cart: any ICartRepository = scenario.id == .guestStore
             ? UITestConflictOnceCartRepository(base: baseCart)
             : baseCart
         let keychain = InMemoryKeychainService()
-        let preferencesService = InMemoryUserDefaultsService(namespace: "AppTemplate")
+        let preferencesService = InMemoryUserDefaultsService(
+            namespace: AppNamespace.primary
+        )
         let servicesLabUserDefaults = InMemoryUserDefaultsService(
-            namespace: "AppTemplate.ServicesLab"
+            namespace: AppNamespace.servicesLab
         )
         let servicesLabKeychain = InMemoryKeychainService()
-        let storePreferences = StorePreferencesRepository(
-            userDefaults: preferencesService
-        )
         let notificationGraph = AppNotificationGraph.inMemory(
             settings: LocalNotificationSettings(
                 authorizationStatus: scenario.notificationSeed.authorizationStatus,
@@ -182,33 +223,23 @@ struct AppDependencies: Sendable {
             displayName: "AppTemplate UI Tests",
             version: "1.0"
         )
-        return AppDependencies(
-            localDatabase: database,
-            localDatabaseExamples: localDatabaseExamples,
-            favorites: FavoritesRepository(database: database),
-            cart: cart,
-            storePreferences: storePreferences,
-            products: ProductRepository(remote: remote),
-            appInfo: appInfo,
-            storeUISupport: StoreUISupport(images: imageLoader, clock: fixedClock),
+        return compose(
+            database: database,
             remote: remote,
-            remoteAPILab: remoteAPILab,
-            appStateStorage: InMemoryAppStateStorage(initialState: scenario.appState),
+            imageLoader: imageLoader,
+            clock: fixedClock,
             keychain: keychain,
+            storePreferencesService: preferencesService,
+            appStateStorage: InMemoryAppStateStorage(initialState: scenario.appState),
+            appInfo: appInfo,
             servicesLabUserDefaults: servicesLabUserDefaults,
             servicesLabKeychain: servicesLabKeychain,
-            sessionRepository: SessionRepository(
-                remote: remote,
-                secureStore: SessionSecureStore(keychain: keychain),
-                clock: fixedClock
-            ),
-            clock: fixedClock,
+            notificationGraph: notificationGraph,
+            diagnostics: diagnostics,
             sessionStartupValidationPolicy: scenario.sessionSeed.validationMode == .scripted
                 ? .automatic : .disabled,
             sessionRefreshSchedulePolicy: .disabled,
-            notificationGraph: notificationGraph,
-            diagnostics: diagnostics,
-            imageLoader: imageLoader,
+            cart: cart,
             uiTestScriptTracker: tracker,
             uiTestNotificationLabSteps: scenario.notificationSeed.labSteps,
             bootstrap: {
@@ -238,13 +269,7 @@ struct AppDependencies: Sendable {
         notificationGraph: AppNotificationGraph? = nil
     ) -> AppDependencies {
         let database = LocalDatabaseService(configuration: .inMemory())
-        let localDatabaseExamples = LocalDatabaseExampleRepository(database: database)
-        let remoteAPILab = RemoteAPILabService(remote: remoteService)
         let keychain = InMemoryKeychainService()
-        let servicesLabUserDefaults = InMemoryUserDefaultsService(
-            namespace: "AppTemplate.ServicesLab"
-        )
-        let servicesLabKeychain = InMemoryKeychainService()
         let clock = AppClock.live
         let appInfo = AppInfoService(
             displayName: "AppTemplate UI Tests",
@@ -254,37 +279,25 @@ struct AppDependencies: Sendable {
             imageLoader: imageLoader,
             clock: clock
         )
-        return AppDependencies(
-            localDatabase: database,
-            localDatabaseExamples: localDatabaseExamples,
-            favorites: FavoritesRepository(database: database),
-            cart: CartRepository(database: database),
-            storePreferences: StorePreferencesRepository(userDefaults: InMemoryUserDefaultsService(
-                namespace: "AppTemplate"
-            )),
-            products: ProductRepository(remote: remoteService),
-            appInfo: appInfo,
-            storeUISupport: StoreUISupport(images: imageLoader, clock: clock),
+        return compose(
+            database: database,
             remote: remoteService,
-            remoteAPILab: remoteAPILab,
-            appStateStorage: InMemoryAppStateStorage(initialState: initialState),
-            keychain: keychain,
-            servicesLabUserDefaults: servicesLabUserDefaults,
-            servicesLabKeychain: servicesLabKeychain,
-            sessionRepository: SessionRepository(
-                remote: remoteService,
-                secureStore: SessionSecureStore(keychain: keychain),
-                clock: clock
-            ),
+            imageLoader: imageLoader,
             clock: clock,
-            sessionStartupValidationPolicy: .disabled,
-            sessionRefreshSchedulePolicy: .disabled,
+            keychain: keychain,
+            storePreferencesService: InMemoryUserDefaultsService(
+                namespace: AppNamespace.primary
+            ),
+            appStateStorage: InMemoryAppStateStorage(initialState: initialState),
+            appInfo: appInfo,
+            servicesLabUserDefaults: InMemoryUserDefaultsService(
+                namespace: AppNamespace.servicesLab
+            ),
+            servicesLabKeychain: InMemoryKeychainService(),
             notificationGraph: resolvedNotificationGraph,
             diagnostics: diagnostics,
-            imageLoader: imageLoader,
-            uiTestScriptTracker: nil,
-            uiTestNotificationLabSteps: nil,
-            bootstrap: {}
+            sessionStartupValidationPolicy: .disabled,
+            sessionRefreshSchedulePolicy: .disabled
         )
     }
 
@@ -299,53 +312,33 @@ struct AppDependencies: Sendable {
             configuration: .inMemory()
         ),
         storePreferencesService: any IUserDefaultsService = InMemoryUserDefaultsService(
-            namespace: "AppTemplate"
+            namespace: AppNamespace.primary
         ),
         keychainService: any IKeychainService = InMemoryKeychainService(),
         notificationGraph: AppNotificationGraph? = nil
     ) -> AppDependencies {
         let clock = AppClock.live
-        let servicesLabUserDefaults = InMemoryUserDefaultsService(
-            namespace: "AppTemplate.ServicesLab"
-        )
-        let servicesLabKeychain = InMemoryKeychainService()
         let resolvedNotificationGraph = notificationGraph ?? .inMemory(
             imageLoader: imageLoader,
             clock: clock
         )
-        let localDatabaseExamples = LocalDatabaseExampleRepository(
-            database: localDatabaseService
-        )
-        let remoteAPILab = RemoteAPILabService(remote: remoteService)
-        return AppDependencies(
-            localDatabase: localDatabaseService,
-            localDatabaseExamples: localDatabaseExamples,
-            favorites: FavoritesRepository(database: localDatabaseService),
-            cart: CartRepository(database: localDatabaseService),
-            storePreferences: StorePreferencesRepository(userDefaults: storePreferencesService),
-            products: ProductRepository(remote: remoteService),
-            appInfo: appInfo,
-            storeUISupport: StoreUISupport(images: imageLoader, clock: clock),
+        return compose(
+            database: localDatabaseService,
             remote: remoteService,
-            remoteAPILab: remoteAPILab,
-            appStateStorage: appStateStorage,
-            keychain: keychainService,
-            servicesLabUserDefaults: servicesLabUserDefaults,
-            servicesLabKeychain: servicesLabKeychain,
-            sessionRepository: SessionRepository(
-                remote: remoteService,
-                secureStore: SessionSecureStore(keychain: keychainService),
-                clock: clock
-            ),
+            imageLoader: imageLoader,
             clock: clock,
-            sessionStartupValidationPolicy: .disabled,
-            sessionRefreshSchedulePolicy: .disabled,
+            keychain: keychainService,
+            storePreferencesService: storePreferencesService,
+            appStateStorage: appStateStorage,
+            appInfo: appInfo,
+            servicesLabUserDefaults: InMemoryUserDefaultsService(
+                namespace: AppNamespace.servicesLab
+            ),
+            servicesLabKeychain: InMemoryKeychainService(),
             notificationGraph: resolvedNotificationGraph,
             diagnostics: diagnostics,
-            imageLoader: imageLoader,
-            uiTestScriptTracker: nil,
-            uiTestNotificationLabSteps: nil,
-            bootstrap: {}
+            sessionStartupValidationPolicy: .disabled,
+            sessionRefreshSchedulePolicy: .disabled
         )
     }
 
@@ -360,47 +353,26 @@ struct AppDependencies: Sendable {
         appInfo: any IAppInfoService,
         notificationGraph: AppNotificationGraph,
         storePreferencesService: any IUserDefaultsService = InMemoryUserDefaultsService(
-            namespace: "AppTemplate"
+            namespace: AppNamespace.primary
         )
     ) -> AppDependencies {
-        let clock = AppClock.live
-        let servicesLabUserDefaults = InMemoryUserDefaultsService(
-            namespace: "AppTemplate.ServicesLab"
-        )
-        let servicesLabKeychain = InMemoryKeychainService()
-        let localDatabaseExamples = LocalDatabaseExampleRepository(
-            database: localDatabaseService
-        )
-        let remoteAPILab = RemoteAPILabService(remote: remoteService)
-        return AppDependencies(
-            localDatabase: localDatabaseService,
-            localDatabaseExamples: localDatabaseExamples,
-            favorites: FavoritesRepository(database: localDatabaseService),
-            cart: CartRepository(database: localDatabaseService),
-            storePreferences: StorePreferencesRepository(userDefaults: storePreferencesService),
-            products: ProductRepository(remote: remoteService),
-            appInfo: appInfo,
-            storeUISupport: StoreUISupport(images: imageLoader, clock: clock),
+        compose(
+            database: localDatabaseService,
             remote: remoteService,
-            remoteAPILab: remoteAPILab,
-            appStateStorage: appStateStorage,
+            imageLoader: imageLoader,
+            clock: .live,
             keychain: keychainService,
-            servicesLabUserDefaults: servicesLabUserDefaults,
-            servicesLabKeychain: servicesLabKeychain,
-            sessionRepository: SessionRepository(
-                remote: remoteService,
-                secureStore: SessionSecureStore(keychain: keychainService),
-                clock: clock
+            storePreferencesService: storePreferencesService,
+            appStateStorage: appStateStorage,
+            appInfo: appInfo,
+            servicesLabUserDefaults: InMemoryUserDefaultsService(
+                namespace: AppNamespace.servicesLab
             ),
-            clock: clock,
-            sessionStartupValidationPolicy: .disabled,
-            sessionRefreshSchedulePolicy: .disabled,
+            servicesLabKeychain: InMemoryKeychainService(),
             notificationGraph: notificationGraph,
             diagnostics: diagnostics,
-            imageLoader: imageLoader,
-            uiTestScriptTracker: nil,
-            uiTestNotificationLabSteps: nil,
-            bootstrap: {}
+            sessionStartupValidationPolicy: .disabled,
+            sessionRefreshSchedulePolicy: .disabled
         )
     }
 

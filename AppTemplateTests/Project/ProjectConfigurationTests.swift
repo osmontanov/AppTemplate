@@ -101,7 +101,7 @@ struct ProjectConfigurationTests {
         )
         let sceneNavigation = AppSceneNavigationLifecycle(router: router)
 
-        _ = ContentView(
+        _ = PreviewAppCompositionView(
             appFlowCoordinator: appFlowCoordinator,
             storeDependencies: storeDependencies,
             storeUISupport: storeUISupport,
@@ -255,101 +255,109 @@ extension ProjectConfigurationTests {
     }
 
     @Test
-    func releaseGateFreezesCriticalRowsAndUsesPerRunVerifierHelpers() throws {
+    func releaseGateFreezesRequiredManifestsThroughOneChecksumSource() throws {
         let projectRoot = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
             .deletingLastPathComponent()
             .deletingLastPathComponent()
-        let predeleteData = try Data(contentsOf: projectRoot.appending(
-            path: "Scripts/connected-mini-store-required-unit-tests-predelete.tsv"
+        let checksumsPath = "Scripts/release-manifest-checksums.tsv"
+        let checksums = try #require(String(
+            data: try Data(contentsOf: projectRoot.appending(path: checksumsPath)),
+            encoding: .utf8
         ))
-        let finalData = try Data(contentsOf: projectRoot.appending(
-            path: "Scripts/connected-mini-store-required-unit-tests-final.tsv"
+        let script = try #require(String(
+            data: try Data(contentsOf: projectRoot.appending(
+                path: "Scripts/verify-release.zsh"
+            )),
+            encoding: .utf8
         ))
-        let uiData = try Data(contentsOf: projectRoot.appending(
-            path: "Scripts/connected-mini-store-required-ui-tests.tsv"
-        ))
-        let finalManifestData = try Data(contentsOf: projectRoot.appending(
-            path: "Scripts/connected-mini-store-final-change-paths.txt"
-        ))
-        let scriptData = try Data(contentsOf: projectRoot.appending(
-            path: "Scripts/verify-connected-mini-store-release.zsh"
-        ))
-        let script = try #require(String(data: scriptData, encoding: .utf8))
-        let predeleteHash = SHA256.hash(data: predeleteData).map {
-            String(format: "%02x", $0)
-        }.joined()
-        let finalHash = SHA256.hash(data: finalData).map {
-            String(format: "%02x", $0)
-        }.joined()
-        let uiHash = SHA256.hash(data: uiData).map {
-            String(format: "%02x", $0)
-        }.joined()
-        let finalManifestHash = SHA256.hash(data: finalManifestData).map {
-            String(format: "%02x", $0)
-        }.joined()
 
-        #expect(predeleteHash == "24a58469b053431beff914adc227605d50c9d5227c57e0a175938699b38b306f")
-        #expect(finalHash == "9c2ed088e0f39eac824c1a34e79f41013f7cdb0f5f617a938eb5ff076b483709")
-        #expect(uiHash == "263d944b6275632c909cfa48ea823907dcd8f08a74475c148717a5f87863d375")
-        #expect(finalManifestHash == "ded52afd2152598f2b20bf7fba5b125758c760ed41bb2b31abd039a32d13b4a4")
-        #expect(predeleteData.split(separator: 0x0a).count == 34)
-        #expect(finalData.split(separator: 0x0a).count == 35)
-        #expect(finalManifestData.split(separator: 0x0a).count == 227)
-        let projectGateRow = Data(
-            "all\tProjectConfigurationTests/releaseGateFreezesCriticalRowsAndUsesPerRunVerifierHelpers()\n".utf8
-        )
-        #expect(predeleteData.range(of: projectGateRow) != nil)
-        #expect(finalData.range(of: projectGateRow) != nil)
-        let attachmentGateRow = Data(
-            "all\tLocalNotificationAttachmentStagerTests/absoluteRootAndSourceUseSingleAtomicNoFollowAnyOpens()\n".utf8
-        )
-        #expect(predeleteData.range(of: attachmentGateRow) != nil)
-        #expect(finalData.range(of: attachmentGateRow) != nil)
-        let trustedReminderRootRow = Data(
-            "all\tAppNotificationGraphTests/liveReminderAttachmentDirectoryCanonicalizesTheTrustedTemporaryRoot()\n".utf8
-        )
-        #expect(predeleteData.range(of: trustedReminderRootRow) != nil)
-        #expect(finalData.range(of: trustedReminderRootRow) != nil)
-        let sharedLocalizationFallbackRow = Data(
-            "all\tStoreServicesLocalizationTests/missingArabicSharedKeysUseTheirEnglishVisibleCopyInsteadOfTheSymbolicKey()\n".utf8
-        )
-        #expect(predeleteData.range(of: sharedLocalizationFallbackRow) != nil)
-        #expect(finalData.range(of: sharedLocalizationFallbackRow) != nil)
-        let productAttachmentFallbackRow = Data(
-            "all\tProductReminderRepositoryTests/systemRejectedOwnedAttachmentRetriesTextOnlyWithWarning()\n".utf8
-        )
-        #expect(predeleteData.range(of: productAttachmentFallbackRow) != nil)
-        #expect(finalData.range(of: productAttachmentFallbackRow) != nil)
-        let delegateMainThreadRow = Data(
-            "all\tNotificationCenterDelegateBridgeTests/frameworkCompletionsReturnToMainThreadAfterOffMainProcessing()\n".utf8
-        )
-        #expect(predeleteData.range(of: delegateMainThreadRow) != nil)
-        #expect(finalData.range(of: delegateMainThreadRow) != nil)
-        #expect(script.contains("predelete_required_hash=\"$(shasum -a 256 \"$predelete_required\")\""))
-        #expect(script.contains("final_required_hash=\"$(shasum -a 256 \"$final_required\")\""))
-        #expect(script.contains("ui_required_hash=\"$(shasum -a 256 \"$ui_required\")\""))
-        #expect(script.contains("final_manifest_hash=\"$(shasum -a 256 \"$final_manifest\")\""))
-        #expect(script.contains("== 227 ]] || exit 66"))
-        #expect(script.contains("== 33 ]] || exit 66"))
-        #expect(script.contains("== 34 ]] || exit 66"))
-        #expect(script.contains("ded52afd2152598f2b20bf7fba5b125758c760ed41bb2b31abd039a32d13b4a4"))
-        #expect(script.contains("24a58469b053431beff914adc227605d50c9d5227c57e0a175938699b38b306f"))
-        #expect(script.contains("9c2ed088e0f39eac824c1a34e79f41013f7cdb0f5f617a938eb5ff076b483709"))
+        var lines = checksums.components(separatedBy: "\n")
+        #expect(lines.popLast() == "")
+        #expect(lines.first == "sha256\tpath")
+        var recordedManifests: Set<String> = []
+        for line in lines.dropFirst() {
+            let columns = line.components(separatedBy: "\t")
+            #expect(columns.count == 2)
+            guard columns.count == 2 else { continue }
+            let manifestData = try Data(
+                contentsOf: projectRoot.appending(path: columns[1])
+            )
+            let actual = SHA256.hash(data: manifestData).map {
+                String(format: "%02x", $0)
+            }.joined()
+            #expect(
+                actual == columns[0],
+                "Stale checksum for \(columns[1]); run Scripts/update-release-manifest-checksums.zsh"
+            )
+            recordedManifests.insert(columns[1])
+        }
+        #expect(recordedManifests == [
+            "Scripts/release-required-unit-tests.tsv",
+            "Scripts/release-required-ui-tests.tsv"
+        ])
+
+        let unitRequired = try Data(contentsOf: projectRoot.appending(
+            path: "Scripts/release-required-unit-tests.tsv"
+        ))
+        for identifier in Self.criticalRequiredUnitTests {
+            #expect(
+                unitRequired.range(of: Data("all\t\(identifier)\n".utf8)) != nil,
+                "Release gate no longer requires \(identifier)"
+            )
+        }
+        let uiRequired = try Data(contentsOf: projectRoot.appending(
+            path: "Scripts/release-required-ui-tests.tsv"
+        ))
+        for row in Self.criticalRequiredUITests {
+            #expect(
+                uiRequired.range(of: Data("\(row)\n".utf8)) != nil,
+                "Release gate no longer requires \(row)"
+            )
+        }
+
+        // The hash check itself must stay in the script, or the checksum source
+        // becomes decorative.
+        #expect(script.contains("checksums=\"\(checksumsPath)\""))
+        #expect(script.contains("manifest_hash=\"$(shasum -a 256 \"$manifest_path\")\""))
+        #expect(script.contains("[[ \"${manifest_hash%% *}\" == \"$expected_hash\" ]] || exit 66"))
+        #expect(script.contains("Scripts/update-release-manifest-checksums.zsh"))
+        #expect(!script.contains("connected-mini-store"))
         #expect(script.contains("AppTemplate-XCResultRequiredTestsVerifier.XXXXXX"))
         #expect(script.contains("INFOPLIST_KEY_XCResultVerifierRoot=\"$helper_run_root\""))
         #expect(script.contains("rmdir \"$helper_run_root\""))
-        #expect(!script.contains("mv -f \"$verifier_stage/verifier\""))
-        #expect(script.contains("release_lock=\"/private/var/tmp/AppTemplate-connected-mini-store-release.$release_account_uid.$release_bundle_id.lock\""))
+        #expect(script.contains(
+            "release_lock=\"/private/var/tmp/AppTemplate-release-gate.$release_account_uid.$release_bundle_id.lock\""
+        ))
         #expect(script.contains("exec {release_lock_fd}>> \"$release_lock\""))
         #expect(script.contains("/usr/bin/lockf -s -t 0 \"$release_lock_fd\""))
-        #expect(!script.contains("trap release_lock_cleanup EXIT HUP INT TERM"))
         #expect(script.contains("XCRESULT_REQUIRED_TESTS_RUNNER is reserved for verifier fixture tests"))
-        #expect(script.contains("env -u XCRESULT_REQUIRED_TESTS_RUNNER swift Scripts/verify-xcresult-required-tests.swift"))
+        #expect(script.contains(
+            "env -u XCRESULT_REQUIRED_TESTS_RUNNER swift Scripts/verify-xcresult-required-tests.swift"
+        ))
+        #expect(script.contains("SWIFT_TREAT_WARNINGS_AS_ERRORS=YES"))
         #expect(script.contains("mkdir \"$app_container\""))
         #expect(script.contains("mkdir \"$container_data\""))
         #expect(script.contains("mkdir \"$container_tmp\""))
     }
+
+    private static let criticalRequiredUnitTests = [
+        "ProjectConfigurationTests/releaseGateFreezesRequiredManifestsThroughOneChecksumSource()",
+        "LocalNotificationAttachmentStagerTests/absoluteRootAndSourceUseSingleAtomicNoFollowAnyOpens()",
+        "AppNotificationGraphTests/liveReminderAttachmentDirectoryCanonicalizesTheTrustedTemporaryRoot()",
+        "AppTextLocalizationTests/symbolicKeysAlwaysCarryTheirVisibleCopyAtTheCallSite()",
+        "ProductReminderRepositoryTests/systemRejectedOwnedAttachmentRetriesTextOnlyWithWarning()",
+        "NotificationCenterDelegateBridgeTests/frameworkCompletionsReturnToMainThreadAfterOffMainProcessing()"
+    ]
+
+    private static let criticalRequiredUITests = [
+        "all\tStoreJourneyTests/testGuestCatalogReviewsCartCheckoutProfileAndPaths()",
+        "all\tStoreJourneyTests/testProtectedFavoriteAuthenticationResumeAndSignOut()",
+        "all\tAccessibilitySmokeTests/testArabicRTLKeepsLocalizedStoreReachable()",
+        "iphone\tAccessibilitySmokeTests/testAdaptiveIOSLayoutSmoke()",
+        "ipad\tAccessibilitySmokeTests/testAdaptiveIOSLayoutSmoke()",
+        "macos\tAccessibilitySmokeTests/testMacOSKeyboardAndFocusSmoke()"
+    ]
 }
 
 private actor ProjectRemoteService: IRemoteService {

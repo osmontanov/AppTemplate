@@ -1,0 +1,3 @@
+sha256	path
+2fc7a02d3c39a9f638771fff2d42fd59e7316ec1c5b0fee73bfa0f3ce816ca7f	Scripts/release-required-unit-tests.tsv
+75c8f06ea45efaf4df587708f08347a099582c21ced75de75c6e207022f9ddc0	Scripts/release-required-ui-tests.tsv

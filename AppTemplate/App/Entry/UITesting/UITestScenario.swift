@@ -1,9 +1,5 @@
 import Foundation
 
-nonisolated enum UITestNetworkPolicy: Equatable, Sendable {
-    case failClosed
-}
-
 nonisolated struct UITestScenario: Equatable, Sendable {
     nonisolated enum Name: String, CaseIterable, Codable, Sendable {
         case guestStore = "guest-store"
@@ -20,7 +16,6 @@ nonisolated struct UITestScenario: Equatable, Sendable {
     let preferencesSeed: UITestPreferencesSeed
     let notificationSeed: UITestNotificationSeed
     let imageSeed: UITestImageSeed
-    let networkPolicy: UITestNetworkPolicy
     let remoteSteps: [ScriptedNetworkStep]
 
     static func named(_ id: String) throws -> UITestScenario {
@@ -48,7 +43,6 @@ nonisolated struct UITestScenario: Equatable, Sendable {
                 pendingRequests: []
             ),
             imageSeed: UITestImageSeed(steps: []),
-            networkPolicy: .failClosed,
             remoteSteps: []
         )
     }

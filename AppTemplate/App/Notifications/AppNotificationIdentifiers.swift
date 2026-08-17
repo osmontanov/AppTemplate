@@ -24,7 +24,7 @@ enum AppNotificationIdentifiers {
 
     static func productDeepLink(_ productID: Product.ID) throws -> URL {
         guard productID > 0,
-              let url = URL(string: "apptemplate://store/product/\(productID)") else {
+              let url = URL(string: "\(AppURLScheme.scheme)://store/product/\(productID)") else {
             throw ProductReminderError.invalidProductID
         }
         return url

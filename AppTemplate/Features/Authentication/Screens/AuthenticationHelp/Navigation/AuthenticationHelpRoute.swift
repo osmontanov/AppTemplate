@@ -1,2 +1,0 @@
-nonisolated
-enum AuthenticationHelpRoute {}

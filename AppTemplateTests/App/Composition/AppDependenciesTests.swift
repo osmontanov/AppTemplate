@@ -310,7 +310,6 @@ struct AppDependenciesTests {
                 pendingRequests: [request]
             ),
             imageSeed: UITestImageSeed(steps: []),
-            networkPolicy: .failClosed,
             remoteSteps: []
         )
         let dependencies = AppDependencies.uiTesting(scenario: scenario)
@@ -432,7 +431,7 @@ struct AppDependenciesTests {
         #expect(dependencies.appStateStorage is UserDefaultsAppStateStorage)
         #expect(dependencies.keychain is KeychainService)
         #expect(dependencies.appInfo is AppInfoService)
-        #expect(dependencies.imageLoader is ProductImageLoader)
+        #expect(dependencies.imageLoader is CachingImageLoader)
     }
 
     @Test

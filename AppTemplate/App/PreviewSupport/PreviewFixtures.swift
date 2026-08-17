@@ -5,7 +5,7 @@ enum PreviewFixtures {
     static func appComposition(
         state: AppState,
         isLocalSessionBootstrapResolved: Bool = false
-    ) -> ContentView {
+    ) -> PreviewAppCompositionView {
         let dependencies = failClosedDependencies()
         let session = PreviewSessionActions()
         let graph = appFlowGraph(
@@ -18,7 +18,7 @@ enum PreviewFixtures {
             sessionActions: session,
             appStateStatus: ServicesAppStateStatus()
         )
-        return ContentView(
+        return PreviewAppCompositionView(
             appFlowCoordinator: graph.coordinator,
             storeDependencies: dependencies.makeStoreDependencies(session: session),
             storeUISupport: dependencies.storeUISupport,

@@ -21,30 +21,26 @@ struct CheckoutModel: Equatable, Sendable {
 
     var recipient: String {
         get { recipientStorage }
-        set { recipientStorage = Self.capped(newValue) }
+        set { recipientStorage = StoreInputLimits.capped(newValue) }
     }
     var address: String {
         get { addressStorage }
-        set { addressStorage = Self.capped(newValue) }
+        set { addressStorage = StoreInputLimits.capped(newValue) }
     }
     var note: String {
         get { noteStorage }
-        set { noteStorage = Self.capped(newValue) }
+        set { noteStorage = StoreInputLimits.capped(newValue) }
     }
 
     init(recipient: String, address: String, note: String) {
-        recipientStorage = Self.capped(recipient)
-        addressStorage = Self.capped(address)
-        noteStorage = Self.capped(note)
+        recipientStorage = StoreInputLimits.capped(recipient)
+        addressStorage = StoreInputLimits.capped(address)
+        noteStorage = StoreInputLimits.capped(note)
     }
 
     func firstInvalidField() -> CheckoutField? {
         if recipient.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return .recipient }
         if address.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return .address }
         return nil
-    }
-
-    private static func capped(_ value: String) -> String {
-        String(String.UnicodeScalarView(value.unicodeScalars.prefix(100)))
     }
 }

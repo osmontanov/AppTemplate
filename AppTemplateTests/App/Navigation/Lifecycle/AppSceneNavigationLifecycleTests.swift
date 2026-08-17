@@ -51,6 +51,31 @@ struct AppSceneNavigationLifecycleTests {
     }
 
     @Test
+    func discardTransitionDropsDeferredLinkWithoutApplyingIt() throws {
+        let lifecycle = AppSceneNavigationLifecycle(router: makeRouter())
+
+        #expect(
+            lifecycle.receive(
+                try #require(URL(string: "apptemplate://store/product/7"))
+            ) == nil
+        )
+        #expect(lifecycle.presentation().hasDeferredLink)
+
+        let discard = AppFlowTransition(
+            id: UUID(),
+            flow: .onboarding,
+            historyAction: .preserve,
+            pendingIntentAction: .discard
+        )
+        #expect(lifecycle.apply(discard) == nil)
+        #expect(!lifecycle.presentation().hasDeferredLink)
+
+        _ = lifecycle.restore(from: nil)
+        #expect(lifecycle.reconcile(.init(state: .guest, revision: 1)) == nil)
+        #expect(lifecycle.presentation().storePath.isEmpty)
+    }
+
+    @Test
     func protectedFavoritesLinkQueuesAfterGuestReadinessWithoutPersistingRoute() throws {
         let lifecycle = AppSceneNavigationLifecycle(router: makeRouter())
         _ = lifecycle.receive(try #require(URL(string: "apptemplate://store/favorites")))

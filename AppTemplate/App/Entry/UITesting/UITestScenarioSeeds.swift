@@ -145,7 +145,6 @@ private nonisolated enum AccessibilitySmokeUITestFixture {
                 pendingRequests: []
             ),
             imageSeed: UITestImageSeed(steps: []),
-            networkPolicy: .failClosed,
             remoteSteps: remoteSteps
         )
     }
@@ -220,7 +219,6 @@ private nonisolated enum ServicesBasicUITestFixture {
                 ]
             ),
             imageSeed: UITestImageSeed(steps: []),
-            networkPolicy: .failClosed,
             remoteSteps: AccessibilitySmokeUITestFixture.remoteSteps + [
                 jsonStep(
                     path: "/products/search",
@@ -414,7 +412,6 @@ private nonisolated enum ProductReminderUITestFixture {
             imageSeed: UITestImageSeed(
                 steps: [imageStep]
             ),
-            networkPolicy: .failClosed,
             remoteSteps: [
                 jsonStep(
                     path: "/products/categories",
@@ -513,7 +510,6 @@ private nonisolated enum ProtectedFavoriteUITestFixture {
                 pendingRequests: []
             ),
             imageSeed: UITestImageSeed(steps: []),
-            networkPolicy: .failClosed,
             remoteSteps: [
                 jsonStep(
                     path: "/products/categories",
@@ -645,7 +641,6 @@ private nonisolated enum GuestStoreUITestFixture {
             imageSeed: UITestImageSeed(
                 steps: [imageStep]
             ),
-            networkPolicy: .failClosed,
             remoteSteps: remoteSteps
         )
     }
