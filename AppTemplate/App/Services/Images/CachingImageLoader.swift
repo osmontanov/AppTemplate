@@ -69,7 +69,7 @@ actor CachingImageLoader: IImageLoader {
         let base = base
         let task = Task { try await base.load(key.url, policy: key.policy) }
         flights[key] = Flight(task: task, waiters: [waiter])
-        Task { await self.finish(await task.result, for: key) }
+        Task { self.finish(await task.result, for: key) }
         return (task, waiter)
     }
 
