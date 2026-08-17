@@ -1,3 +1,7 @@
 APP_BUNDLE_IDENTIFIER = com.example.AppTemplate
 APP_URL_SCHEME = apptemplate
 APP_DEVELOPMENT_TEAM = 33W8WHD42N
+
+// Applies to every target, so the app and its test bundles share one Team ID.
+// macOS refuses to load a test bundle whose team differs from the host app.
+DEVELOPMENT_TEAM = $(APP_DEVELOPMENT_TEAM)
