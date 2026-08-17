@@ -14,7 +14,7 @@ struct ErrorStateView: View {
         } description: {
             Text(message)
         } actions: {
-            Button("Retry", action: retry)
+            Button(AppText.resource("Retry"), action: retry)
         }
     }
 }

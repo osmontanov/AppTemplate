@@ -16,8 +16,8 @@ struct MacSidebarAppShellView: View {
                     Label(section.localizedTitle, systemImage: section.systemImage)
                         .accessibilityValue(
                             router.selectedSection == section
-                                ? StoreServicesText.resource("Selected")
-                                : StoreServicesText.resource("Not selected")
+                                ? AppText.resource("Selected")
+                                : AppText.resource("Not selected")
                         )
                         .accessibilityIdentifier(section.accessibilityIdentifier)
                         .tag(section)

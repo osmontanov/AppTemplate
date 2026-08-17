@@ -33,8 +33,8 @@ struct AdaptiveTabAppShellView: View {
                 .accessibilityLabel(section.localizedTitle)
                 .accessibilityValue(
                     router.selectedSection == section
-                        ? StoreServicesText.resource("Selected")
-                        : StoreServicesText.resource("Not selected")
+                        ? AppText.resource("Selected")
+                        : AppText.resource("Not selected")
                 )
                 .accessibilityIdentifier(section.accessibilityIdentifier)
             }

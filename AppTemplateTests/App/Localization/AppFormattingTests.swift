@@ -2,19 +2,19 @@ import Foundation
 import Testing
 @testable import AppTemplate
 
-struct StoreFormattingTests {
+struct AppFormattingTests {
     @Test
     func usdFormattingUsesTheSuppliedLocale() {
         let value = Decimal(string: "19.5")!
 
-        #expect(StoreFormatting.priceUSD(value, locale: Locale(identifier: "en_US")) == "$19.50")
+        #expect(AppFormatting.priceUSD(value, locale: Locale(identifier: "en_US")) == "$19.50")
         #expect(
-            StoreFormatting.priceUSD(value, locale: Locale(identifier: "de_DE"))
+            AppFormatting.priceUSD(value, locale: Locale(identifier: "de_DE"))
                 .contains("19,50")
         )
         #expect(
-            StoreFormatting.priceUSD(value, locale: Locale(identifier: "ar_SA"))
-                != StoreFormatting.priceUSD(value, locale: Locale(identifier: "en_US"))
+            AppFormatting.priceUSD(value, locale: Locale(identifier: "ar_SA"))
+                != AppFormatting.priceUSD(value, locale: Locale(identifier: "en_US"))
         )
     }
 
@@ -25,14 +25,14 @@ struct StoreFormattingTests {
         let bishkek = TimeZone(secondsFromGMT: 6 * 60 * 60)!
         let enUS = Locale(identifier: "en_US")
 
-        let utcEnglish = StoreFormatting.dateTime(value, locale: enUS, timeZone: utc)
-        let bishkekEnglish = StoreFormatting.dateTime(value, locale: enUS, timeZone: bishkek)
-        let german = StoreFormatting.dateTime(
+        let utcEnglish = AppFormatting.dateTime(value, locale: enUS, timeZone: utc)
+        let bishkekEnglish = AppFormatting.dateTime(value, locale: enUS, timeZone: bishkek)
+        let german = AppFormatting.dateTime(
             value,
             locale: Locale(identifier: "de_DE"),
             timeZone: utc
         )
-        let arabic = StoreFormatting.dateTime(
+        let arabic = AppFormatting.dateTime(
             value,
             locale: Locale(identifier: "ar_SA"),
             timeZone: utc

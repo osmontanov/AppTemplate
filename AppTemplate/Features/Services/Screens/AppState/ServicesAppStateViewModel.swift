@@ -31,7 +31,7 @@ final class ServicesAppStateViewModel {
 
     func resetNavigationInCurrentScene() {
         sceneNavigation.resetNavigationInCurrentScene()
-        status.record(.success(StoreServicesText.string("Current window navigation reset.")))
+        status.record(.success(AppText.string("Current window navigation reset.")))
     }
 
     func restartOnboarding() {
@@ -40,7 +40,7 @@ final class ServicesAppStateViewModel {
 
     func handleSampleIntent(_ intent: NavigationIntent) {
         sceneNavigation.handleSampleIntent(intent)
-        status.record(.success(StoreServicesText.string("Sample link handled in this window.")))
+        status.record(.success(AppText.string("Sample link handled in this window.")))
     }
 
     func setMaintenanceEnabled(_ enabled: Bool) {
@@ -56,24 +56,24 @@ final class ServicesAppStateViewModel {
     private func map(_ result: AppFlowActionResult) -> ServiceLabResult {
         switch result {
         case .unchanged:
-            .success(StoreServicesText.string("App state was already set."))
+            .success(AppText.string("App state was already set."))
         case let .applied(_, didTransition):
             didTransition
-                ? .success(StoreServicesText.string("App flow updated."))
-                : .success(StoreServicesText.string("App state updated."))
+                ? .success(AppText.string("App flow updated."))
+                : .success(AppText.string("App state updated."))
         case .rejected:
-            .failure(StoreServicesText.string("App state could not be saved."))
+            .failure(AppText.string("App state could not be saved."))
         }
     }
 
     private func map(_ result: SessionSignOutResult) -> ServiceLabResult {
         switch result {
         case .guest:
-            .success(StoreServicesText.string("Signed out."))
+            .success(AppText.string("Signed out."))
         case .deletionFailed:
-            .failure(StoreServicesText.string("Sign out could not clear secure session data."))
+            .failure(AppText.string("Sign out could not clear secure session data."))
         case .cancelled:
-            .failure(StoreServicesText.string("Sign out was cancelled."))
+            .failure(AppText.string("Sign out was cancelled."))
         }
     }
 }

@@ -3,8 +3,8 @@ import Foundation
 extension AppSection {
     var localizedTitle: LocalizedStringResource {
         switch self {
-        case .store: StoreServicesText.resource(.storeTitle)
-        case .services: StoreServicesText.resource(.servicesTitle)
+        case .store: AppText.resource("Store")
+        case .services: AppText.resource("Services")
         }
     }
 

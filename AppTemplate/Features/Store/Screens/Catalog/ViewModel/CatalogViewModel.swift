@@ -82,7 +82,7 @@ final class CatalogViewModel {
                 hasLoadedCategories = true
             } catch {
                 if Self.isCancellation(error) { return false }
-                errorMessage = StoreServicesText.string("Categories are unavailable.")
+                errorMessage = AppText.string("Categories are unavailable.")
             }
         }
         guard await reload(mode: .all) else {
@@ -112,12 +112,12 @@ final class CatalogViewModel {
     private func currentQueryMode() -> ProductQueryMode {
         let category = selectedCategory.trimmingCharacters(in: .whitespacesAndNewlines)
         if !category.isEmpty { return .category(category) }
-        let search = Self.capped(searchText).trimmingCharacters(in: .whitespacesAndNewlines)
+        let search = StoreInputLimits.capped(searchText).trimmingCharacters(in: .whitespacesAndNewlines)
         return search.isEmpty ? .all : .search(search)
     }
 
     func search(_ text: String) async {
-        let capped = Self.capped(text).trimmingCharacters(in: .whitespacesAndNewlines)
+        let capped = StoreInputLimits.capped(text).trimmingCharacters(in: .whitespacesAndNewlines)
         let requestedMode: ProductQueryMode = capped.isEmpty ? .all : .search(capped)
         guard !isLoaded(requestedMode) else { return }
         do {
@@ -147,26 +147,33 @@ final class CatalogViewModel {
         for await update in updates {
             guard !Task.isCancelled else { return }
             guard update != model.preferences else { continue }
+            // Layout is purely presentational; only query-affecting fields
+            // justify discarding loaded pages and going back to the network.
+            let affectsQuery = update.sort != model.preferences.sort
+                || update.preferredRemotePageSize
+                    != model.preferences.preferredRemotePageSize
             model.preferences = update
-            await reload(mode: model.mode)
+            if affectsQuery {
+                await reload(mode: model.mode)
+            }
         }
     }
 
     func setLayout(_ layout: StoreCatalogLayout) async {
         do { try await preferences.setLayout(layout) }
-        catch { errorMessage = StoreServicesText.string("Preferences could not be saved.") }
+        catch { errorMessage = AppText.string("Preferences could not be saved.") }
     }
 
     func setSort(_ sort: StoreCatalogSort) async {
         guard isSortingEnabled else { return }
         do { try await preferences.setSort(sort) }
-        catch { errorMessage = StoreServicesText.string("Preferences could not be saved.") }
+        catch { errorMessage = AppText.string("Preferences could not be saved.") }
     }
 
     func setPageSize(_ size: Int) async {
         guard Self.pageSizeChoices.contains(size) else { return }
         do { try await preferences.setPreferredRemotePageSize(size) }
-        catch { errorMessage = StoreServicesText.string("Preferences could not be saved.") }
+        catch { errorMessage = AppText.string("Preferences could not be saved.") }
     }
 
     @discardableResult
@@ -205,17 +212,13 @@ final class CatalogViewModel {
                 return false
             }
             state = .failed
-            errorMessage = StoreServicesText.string("Products are unavailable.")
+            errorMessage = AppText.string("Products are unavailable.")
             return false
         }
     }
 
     private nonisolated static func isCancellation(_ error: Error) -> Bool {
         error is CancellationError || (error as? RemoteServiceError) == .cancelled
-    }
-
-    private nonisolated static func capped(_ value: String) -> String {
-        String(String.UnicodeScalarView(value.unicodeScalars.prefix(100)))
     }
 
     private func isLoaded(_ mode: ProductQueryMode) -> Bool {

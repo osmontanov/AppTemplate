@@ -52,7 +52,7 @@ struct StoreFlowView: View {
                 presentedContent: presentedContent
             )
         } placeholder: {
-            ContentUnavailableView(StoreServicesText.resource("Select a Store destination"), systemImage: "storefront")
+            ContentUnavailableView(AppText.resource("Select a Store destination"), systemImage: "storefront")
         } destination: { route in
             destination(route)
         }
@@ -89,9 +89,9 @@ struct StoreFlowView: View {
                 cancellation: router
             ))
         case .filters:
-            ContentUnavailableView(StoreServicesText.resource("Filters"), systemImage: "line.3.horizontal.decrease")
+            ContentUnavailableView(AppText.resource("Filters"), systemImage: "line.3.horizontal.decrease")
         case .checkout:
-            ContentUnavailableView(StoreServicesText.resource("Checkout"), systemImage: "cart")
+            ContentUnavailableView(AppText.resource("Checkout"), systemImage: "cart")
         case let .reminder(productID):
             ProductReminderPresentationView(
                 productID: productID,
@@ -125,7 +125,7 @@ struct StoreFlowView: View {
                 )
                 .toolbar {
                     ToolbarItem {
-                        Button(StoreServicesText.resource("Favorite"), systemImage: "heart") {
+                        Button(AppText.resource("Favorite"), systemImage: "heart") {
                             requestProtected(.favorite(id))
                         }
                         .frame(minWidth: 44, minHeight: 44)
@@ -142,7 +142,7 @@ struct StoreFlowView: View {
                         userID: profile.id
                     )
                 } else {
-                    ContentUnavailableView(StoreServicesText.resource("Favorites require sign in"), systemImage: "heart")
+                    ContentUnavailableView(AppText.resource("Favorites require sign in"), systemImage: "heart")
                 }
             case .cart:
                 CartView(repository: dependencies.cart)
@@ -204,35 +204,35 @@ struct StoreFlowView: View {
     private func storeToolbarAction(_ action: StoreToolbarAction) -> some View {
         switch action {
         case .search:
-            Button(StoreServicesText.resource("Search"), systemImage: "magnifyingglass") {
+            Button(AppText.resource("Search"), systemImage: "magnifyingglass") {
                 searchRequestID &+= 1
             }
             .accessibilityIdentifier("action.store.search")
         case .filter:
-            Button(StoreServicesText.resource("Filters"), systemImage: "line.3.horizontal.decrease") {
+            Button(AppText.resource("Filters"), systemImage: "line.3.horizontal.decrease") {
                 router.presentation = .filters
             }
             .accessibilityIdentifier("action.store.filter")
         case .cart:
-            Button(StoreServicesText.resource("Cart"), systemImage: "cart") { router.push(.cart) }
+            Button(AppText.resource("Cart"), systemImage: "cart") { router.push(.cart) }
                 .accessibilityIdentifier("action.store.cart")
         case .favorites:
-            Button(StoreServicesText.resource("Favorites"), systemImage: "heart") {
+            Button(AppText.resource("Favorites"), systemImage: "heart") {
                 requestProtected(.openFavorites)
             }
             .accessibilityIdentifier("action.store.favorites")
         case .profile:
-            Button(StoreServicesText.resource("Profile"), systemImage: "person.crop.circle") {
+            Button(AppText.resource("Profile"), systemImage: "person.crop.circle") {
                 router.push(.profile)
             }
             .accessibilityIdentifier("action.store.profile")
         case .more:
-            Menu(StoreServicesText.resource("More"), systemImage: "ellipsis.circle") {
-                Button(StoreServicesText.resource("Favorites"), systemImage: "heart") {
+            Menu(AppText.resource("More"), systemImage: "ellipsis.circle") {
+                Button(AppText.resource("Favorites"), systemImage: "heart") {
                     requestProtected(.openFavorites)
                 }
                 .accessibilityIdentifier("action.store.favorites")
-                Button(StoreServicesText.resource("Profile"), systemImage: "person.crop.circle") {
+                Button(AppText.resource("Profile"), systemImage: "person.crop.circle") {
                     router.push(.profile)
                 }
                 .accessibilityIdentifier("action.store.profile")
@@ -329,11 +329,11 @@ private struct ProductReminderPresentationView: View {
                 )
             } else if failed {
                 ContentUnavailableView(
-                    StoreServicesText.resource("Product unavailable"),
+                    AppText.resource("Product unavailable"),
                     systemImage: "exclamationmark.triangle"
                 )
             } else {
-                ProgressView(StoreServicesText.resource("Loading reminder"))
+                ProgressView(AppText.resource("Loading reminder"))
             }
         }
         .task(id: productID) {

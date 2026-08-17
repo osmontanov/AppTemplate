@@ -9,14 +9,14 @@ struct AuthenticationHelpView: View {
                 Image(systemName: "questionmark.circle")
                     .font(.largeTitle)
                     .accessibilityHidden(true)
-                Text(StoreServicesText.resource("Authentication Help"))
+                Text(AppText.resource("Authentication Help"))
                     .font(.title)
                     .accessibilityAddTraits(.isHeader)
-                Text(StoreServicesText.resource("Sign in to continue the protected Store action. Cancel returns to the Store."))
+                Text(AppText.resource("Sign in to continue the protected Store action. Cancel returns to the Store."))
                     .foregroundStyle(.secondary)
             }
         }
-        .navigationTitle(StoreServicesText.resource("Help"))
+        .navigationTitle(AppText.resource("Help"))
         .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.authentication))
     }
 }

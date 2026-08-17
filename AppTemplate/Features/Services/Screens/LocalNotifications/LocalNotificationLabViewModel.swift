@@ -82,7 +82,7 @@ final class LocalNotificationLabViewModel {
         beginUserIntent()
         defer { endUserIntent() }
         settings = await lab.settings()
-        actualResult = .success(StoreServicesText.string("Refreshed notification settings."))
+        actualResult = .success(AppText.string("Refreshed notification settings."))
     }
 
     func refreshLabLists() async {
@@ -92,7 +92,7 @@ final class LocalNotificationLabViewModel {
         async let delivered = lab.deliveredLab()
         pendingLab = await pending
         deliveredLab = await delivered
-        actualResult = .success(StoreServicesText.string("Refreshed lab-only notifications."))
+        actualResult = .success(AppText.string("Refreshed lab-only notifications."))
     }
 
     func refreshAppOwnedLists() async {
@@ -102,7 +102,7 @@ final class LocalNotificationLabViewModel {
         async let delivered = appWide.deliveredAppOwned()
         pendingAppOwned = await pending
         deliveredAppOwned = await delivered
-        actualResult = .success(StoreServicesText.string("Refreshed app-wide Store and lab notifications."))
+        actualResult = .success(AppText.string("Refreshed app-wide Store and lab notifications."))
     }
 
     func requestSelectedAuthorization() async {
@@ -110,10 +110,10 @@ final class LocalNotificationLabViewModel {
         defer { endUserIntent() }
         guard !authorizationOptions.isEmpty,
               authorizationOptions.subtracting(.allowed).isEmpty else {
-            actualResult = .failure(StoreServicesText.string("Select at least one valid authorization option."))
+            actualResult = .failure(AppText.string("Select at least one valid authorization option."))
             return
         }
-        await perform(StoreServicesText.string("Requested exactly the selected authorization options.")) {
+        await perform(AppText.string("Requested exactly the selected authorization options.")) {
             _ = try await self.lab.requestAuthorization(self.authorizationOptions)
         }
     }
@@ -121,7 +121,7 @@ final class LocalNotificationLabViewModel {
     func replaceLabCategories(_ categories: [LocalNotificationCategory]) async {
         beginUserIntent()
         defer { endUserIntent() }
-        await perform(StoreServicesText.string("Replaced the Services lab category set.")) {
+        await perform(AppText.string("Replaced the Services lab category set.")) {
             try await self.lab.replaceLabCategories(categories)
         }
     }
@@ -129,7 +129,7 @@ final class LocalNotificationLabViewModel {
     func resetLabCategories() async {
         beginUserIntent()
         defer { endUserIntent() }
-        await perform(StoreServicesText.string("Reset only the Services lab categories.")) {
+        await perform(AppText.string("Reset only the Services lab categories.")) {
             try await self.lab.resetLabCategories()
         }
     }
@@ -137,7 +137,7 @@ final class LocalNotificationLabViewModel {
     func scheduleLab(_ request: LocalNotificationRequest) async {
         beginUserIntent()
         defer { endUserIntent() }
-        await perform(StoreServicesText.string("Scheduled a Services lab notification.")) {
+        await perform(AppText.string("Scheduled a Services lab notification.")) {
             try await self.lab.scheduleLab(request)
         }
     }
@@ -147,7 +147,7 @@ final class LocalNotificationLabViewModel {
         defer { endUserIntent() }
         await lab.removeLabPending(ids)
         pendingLab.removeAll { ids.contains($0.id) }
-        actualResult = .success(StoreServicesText.string("Removed selected lab-only pending notifications."))
+        actualResult = .success(AppText.string("Removed selected lab-only pending notifications."))
     }
 
     func removeSelectedDelivered(_ ids: Set<LocalNotificationID>) async {
@@ -155,13 +155,13 @@ final class LocalNotificationLabViewModel {
         defer { endUserIntent() }
         await lab.removeLabDelivered(ids)
         deliveredLab.removeAll { ids.contains($0.id) }
-        actualResult = .success(StoreServicesText.string("Removed selected lab-only delivered notifications."))
+        actualResult = .success(AppText.string("Removed selected lab-only delivered notifications."))
     }
 
     func resetLabData() async {
         beginUserIntent()
         defer { endUserIntent() }
-        await perform(StoreServicesText.string("Reset only Services lab categories and notifications.")) {
+        await perform(AppText.string("Reset only Services lab categories and notifications.")) {
             try await self.lab.resetLabData()
             self.pendingLab = []
             self.deliveredLab = []
@@ -174,7 +174,7 @@ final class LocalNotificationLabViewModel {
         await appWide.removeAllPending()
         pendingAppOwned = []
         pendingLab = []
-        actualResult = .success(StoreServicesText.string("Removed all app-owned pending notifications after confirmation."))
+        actualResult = .success(AppText.string("Removed all app-owned pending notifications after confirmation."))
     }
 
     func removeAllAppOwnedDeliveredConfirmed() async {
@@ -183,13 +183,13 @@ final class LocalNotificationLabViewModel {
         await appWide.removeAllDelivered()
         deliveredAppOwned = []
         deliveredLab = []
-        actualResult = .success(StoreServicesText.string("Removed all app-owned delivered notifications after confirmation."))
+        actualResult = .success(AppText.string("Removed all app-owned delivered notifications after confirmation."))
     }
 
     func setBadgeCount(_ count: Int) async {
         beginUserIntent()
         defer { endUserIntent() }
-        await perform(StoreServicesText.string("Set the app badge count.")) {
+        await perform(AppText.string("Set the app badge count.")) {
             try await self.appWide.setBadgeCount(count)
         }
     }
@@ -197,7 +197,7 @@ final class LocalNotificationLabViewModel {
     func clearBadge() async {
         beginUserIntent()
         defer { endUserIntent() }
-        await perform(StoreServicesText.string("Cleared the app badge.")) {
+        await perform(AppText.string("Cleared the app badge.")) {
             try await self.appWide.clearBadge()
         }
     }
@@ -241,7 +241,7 @@ final class LocalNotificationLabViewModel {
         defer { endUserIntent() }
         await history.clear()
         eventRecords = []
-        actualResult = .success(StoreServicesText.string("Cleared the shared safe notification history."))
+        actualResult = .success(AppText.string("Cleared the shared safe notification history."))
     }
 
     private func perform(
@@ -262,11 +262,11 @@ final class LocalNotificationLabViewModel {
     private static func safeMessage(for error: Error) -> String {
         switch error {
         case is LocalNotificationServiceError:
-            StoreServicesText.string("The notification operation was rejected safely.")
+            AppText.string("The notification operation was rejected safely.")
         case is LocalNotificationLabAssetError:
-            StoreServicesText.string("The bundled notification demo asset is unavailable.")
+            AppText.string("The bundled notification demo asset is unavailable.")
         default:
-            StoreServicesText.string("The notification lab operation could not complete.")
+            AppText.string("The notification lab operation could not complete.")
         }
     }
 

@@ -349,6 +349,39 @@ struct CatalogViewModelTests {
     }
 
     @Test
+    func layoutOnlyPreferenceChangeUpdatesModelWithoutReload() async {
+        let repository = ControlledProductRepository(pages: [
+            ProductPage(products: [.fixture(id: 1)], total: 1, skip: 0, limit: 20),
+            ProductPage(products: [.fixture(id: 1)], total: 1, skip: 0, limit: 20)
+        ])
+        let preferences = ControlledStorePreferencesRepository(
+            StorePreferences(layout: .grid, sort: .featured, preferredRemotePageSize: 20)
+        )
+        let viewModel = CatalogViewModel(
+            products: repository,
+            preferences: preferences,
+            clock: .immediate
+        )
+        await viewModel.loadInitial()
+        let observation = Task { await viewModel.observePreferences() }
+        for _ in 0..<10 { await Task.yield() }
+
+        try? await preferences.setLayout(.list)
+        for _ in 0..<20 { await Task.yield() }
+        #expect(viewModel.model.preferences.layout == .list)
+        #expect(await repository.recordedQueries().count == 1)
+
+        try? await preferences.setSort(.priceAscending)
+        for _ in 0..<200 where await repository.recordedQueries().count < 2 {
+            await Task.yield()
+        }
+
+        #expect(await repository.recordedQueries().count == 2)
+        #expect(viewModel.model.preferences.sort == .priceAscending)
+        observation.cancel()
+    }
+
+    @Test
     func searchCapsAtOneHundredUnicodeScalarsAndDisablesSorting() async {
         let repository = ControlledProductRepository(pages: [ProductPage(products: [], total: 0, skip: 0, limit: 20)])
         let preferences = ControlledStorePreferencesRepository(StorePreferences(layout: .grid, sort: .titleDescending, preferredRemotePageSize: 20))

@@ -1,10 +1,6 @@
 import Foundation
 
 actor ProductReminderRepository: IProductReminderRepository {
-    private static let maximumInterval: TimeInterval = 604_800
-    private static let minimumRepeatingInterval: TimeInterval = 60
-    private static let quickTestInterval: TimeInterval = 5
-    private static let remindLaterDelay: Duration = .seconds(600)
 
     private let service: any ILocalNotificationService
     private let imageLoader: any IImageLoader
@@ -83,9 +79,9 @@ actor ProductReminderRepository: IProductReminderRepository {
             LocalNotificationRequest(
                 id: requestID,
                 content: LocalNotificationContent(
-                    title: StoreServicesText.string("Product reminder"),
+                    title: AppText.string("Product reminder"),
                     subtitle: product.title,
-                    body: StoreServicesText.string(
+                    body: AppText.string(
                         "store.reminder.body",
                         defaultValue: "Take another look at \(product.title)."
                     ),
@@ -121,7 +117,7 @@ actor ProductReminderRepository: IProductReminderRepository {
         from source: ProductReminderRescheduleSource,
         after delay: Duration
     ) async throws {
-        guard delay == Self.remindLaterDelay,
+        guard delay == ProductReminderPolicy.remindLaterDelay,
               source.requestID == (try AppNotificationIdentifiers.productRequest(
                 source.metadata.productID
               )) else {
@@ -172,13 +168,13 @@ actor ProductReminderRepository: IProductReminderRepository {
     ) throws -> LocalNotificationTrigger {
         switch selection {
         case .quickTest:
-            return .timeInterval(seconds: Self.quickTestInterval, repeats: false)
+            return .timeInterval(seconds: ProductReminderPolicy.quickTestInterval, repeats: false)
         case let .interval(seconds, repeats):
             guard seconds.isFinite,
-                  (1...Self.maximumInterval).contains(seconds) else {
+                  (1...ProductReminderPolicy.maximumInterval).contains(seconds) else {
                 throw ProductReminderError.intervalOutOfRange
             }
-            guard !repeats || seconds >= Self.minimumRepeatingInterval else {
+            guard !repeats || seconds >= ProductReminderPolicy.minimumRepeatingInterval else {
                 throw ProductReminderError.repeatingIntervalBelowMinimum
             }
             return .timeInterval(seconds: seconds, repeats: repeats)

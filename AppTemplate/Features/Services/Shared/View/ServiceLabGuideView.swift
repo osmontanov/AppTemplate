@@ -49,11 +49,11 @@ struct ServiceLabGuideView<TryItContent: View, AdvancedContent: View>: View {
                 case .resetDemoData:
                     Section(section.title) {
                         if let resetDemoData {
-                            Button(StoreServicesText.resource(.resetDemoData), action: resetDemoData)
+                            Button(AppText.resource("Reset Demo Data"), action: resetDemoData)
                                 .frame(minHeight: 44)
                                 .accessibilityIdentifier(AppAccessibilityIdentifier.action(.resetService))
                         } else {
-                            Text(StoreServicesText.resource("No demo data has been created."))
+                            Text(AppText.resource("No demo data has been created."))
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -87,24 +87,24 @@ struct ServiceLabGuideView<TryItContent: View, AdvancedContent: View>: View {
     private var resultPresentation: some View {
         switch result {
         case .idle:
-            Label(StoreServicesText.resource("Not run"), systemImage: "circle.dashed")
+            Label(AppText.resource("Not run"), systemImage: "circle.dashed")
                 .foregroundStyle(.secondary)
         case .running:
             HStack {
                 ProgressView()
-                Text(StoreServicesText.resource("Running"))
+                Text(AppText.resource("Running"))
             }
             .accessibilityIdentifier(AppAccessibilityIdentifier.result(.loading))
         case let .success(message):
             Label(message, systemImage: "checkmark.circle.fill")
                 .foregroundStyle(.green)
-                .accessibilityLabel(StoreServicesText.resource("Operation succeeded"))
+                .accessibilityLabel(AppText.resource("Operation succeeded"))
                 .accessibilityFocused($resultIsFocused)
                 .accessibilityIdentifier(AppAccessibilityIdentifier.result(.actualSuccess))
         case let .failure(message):
             Label(message, systemImage: "exclamationmark.triangle.fill")
                 .foregroundStyle(.red)
-                .accessibilityLabel(StoreServicesText.resource("Operation failed"))
+                .accessibilityLabel(AppText.resource("Operation failed"))
                 .accessibilityFocused($resultIsFocused)
                 .accessibilityIdentifier(AppAccessibilityIdentifier.result(.actualFailure))
         }
@@ -112,10 +112,10 @@ struct ServiceLabGuideView<TryItContent: View, AdvancedContent: View>: View {
 
     private func announcement(for result: ServiceLabResult) -> String {
         switch result {
-        case .idle: StoreServicesText.string("Ready")
-        case .running: StoreServicesText.string("Operation running")
-        case .success: StoreServicesText.string("Operation succeeded")
-        case .failure: StoreServicesText.string("Operation failed")
+        case .idle: AppText.string("Ready")
+        case .running: AppText.string("Operation running")
+        case .success: AppText.string("Operation succeeded")
+        case .failure: AppText.string("Operation failed")
         }
     }
 }

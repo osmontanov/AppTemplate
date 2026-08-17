@@ -33,7 +33,7 @@ struct ProductDetailView: View {
                                 .frame(maxWidth: .infinity, minHeight: 180, maxHeight: 320)
                         }
                         Text(verbatim: model.product.title).font(.largeTitle.bold())
-                        Text(verbatim: StoreFormatting.priceUSD(model.product.price, locale: locale))
+                        Text(verbatim: AppFormatting.priceUSD(model.product.price, locale: locale))
                             .font(.title2)
                         Text(verbatim: model.product.description)
                         ViewThatFits(in: .horizontal) {
@@ -41,16 +41,16 @@ struct ProductDetailView: View {
                             VStack { actions(product: model.product) }
                         }
                         if viewModel.cartUpdateSucceeded == true {
-                            Label(StoreServicesText.resource("Added to cart"), systemImage: "checkmark.circle.fill")
-                                .accessibilityLabel(StoreServicesText.resource("Added to cart"))
+                            Label(AppText.resource("Added to cart"), systemImage: "checkmark.circle.fill")
+                                .accessibilityLabel(AppText.resource("Added to cart"))
                                 .accessibilityIdentifier(AppAccessibilityIdentifier.result(.actualSuccess))
                         } else if viewModel.cartUpdateSucceeded == false {
-                            Label(StoreServicesText.resource("The cart could not be updated."), systemImage: "exclamationmark.triangle.fill")
-                                .accessibilityLabel(StoreServicesText.resource("The cart could not be updated."))
+                            Label(AppText.resource("The cart could not be updated."), systemImage: "exclamationmark.triangle.fill")
+                                .accessibilityLabel(AppText.resource("The cart could not be updated."))
                                 .accessibilityIdentifier(AppAccessibilityIdentifier.result(.actualFailure))
                         }
                         if !model.related.isEmpty {
-                            Text(StoreServicesText.resource("Related products")).font(.headline)
+                            Text(AppText.resource("Related products")).font(.headline)
                             ForEach(model.related) { product in
                                 Button(product.title) { router.push(.product(product.id)) }
                             }
@@ -63,18 +63,18 @@ struct ProductDetailView: View {
                     .accessibilityIdentifier(AppAccessibilityIdentifier.result(.actualFailure))
                     .accessibilityFocused($resultIsFocused)
             } else {
-                ProgressView(StoreServicesText.resource("Loading product"))
+                ProgressView(AppText.resource("Loading product"))
                     .accessibilityIdentifier(AppAccessibilityIdentifier.result(.loading))
             }
         }
-        .navigationTitle(StoreServicesText.resource("Product"))
+        .navigationTitle(AppText.resource("Product"))
         .task(id: productID) {
             await viewModel.load(productID: productID)
             resultIsFocused = viewModel.model == nil
             AccessibilityNotification.Announcement(
                 viewModel.model == nil
-                    ? StoreServicesText.string("Product is unavailable")
-                    : StoreServicesText.string("Product loaded")
+                    ? AppText.string("Product is unavailable")
+                    : AppText.string("Product loaded")
             ).post()
         }
         .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.productDetail))
@@ -82,13 +82,13 @@ struct ProductDetailView: View {
 
     @ViewBuilder
     private func actions(product: Product) -> some View {
-        Button(StoreServicesText.resource("Add to cart")) {
+        Button(AppText.resource("Add to cart")) {
             Task {
                 await viewModel.addToCart()
                 AccessibilityNotification.Announcement(
                     viewModel.cartUpdateSucceeded == true
-                        ? StoreServicesText.string("Added to cart")
-                        : StoreServicesText.string("The cart could not be updated.")
+                        ? AppText.string("Added to cart")
+                        : AppText.string("The cart could not be updated.")
                 ).post()
             }
         }
@@ -96,10 +96,10 @@ struct ProductDetailView: View {
             .disabled(product.stock == 0)
             .frame(minHeight: 44)
             .accessibilityIdentifier("action.store.add-to-cart")
-        Button(StoreServicesText.resource("Reviews")) { router.push(.reviews(product.id)) }
+        Button(AppText.resource("Reviews")) { router.push(.reviews(product.id)) }
             .frame(minHeight: 44)
             .accessibilityIdentifier("action.store.reviews")
-        Button(StoreServicesText.resource("Remind me"), systemImage: "bell") {
+        Button(AppText.resource("Remind me"), systemImage: "bell") {
             router.presentation = .reminder(product.id)
         }
         .frame(minHeight: 44)

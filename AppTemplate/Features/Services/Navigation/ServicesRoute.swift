@@ -79,13 +79,13 @@ extension ServicesRoute {
 
     var displayTitle: String {
         switch self {
-        case .appState: StoreServicesText.string("App State")
-        case .appInfo: StoreServicesText.string("App Info")
-        case .userDefaults: StoreServicesText.string("UserDefaults")
-        case .keychain: StoreServicesText.string("Keychain")
-        case .localDatabase: StoreServicesText.string("Local Database")
-        case .remoteAPI: StoreServicesText.string("Remote API")
-        case .localNotifications: StoreServicesText.string("Local Notifications")
+        case .appState: AppText.string("App State")
+        case .appInfo: AppText.string("App Info")
+        case .userDefaults: AppText.string("UserDefaults")
+        case .keychain: AppText.string("Keychain")
+        case .localDatabase: AppText.string("Local Database")
+        case .remoteAPI: AppText.string("Remote API")
+        case .localNotifications: AppText.string("Local Notifications")
         }
     }
 }

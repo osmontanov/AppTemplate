@@ -34,9 +34,9 @@ final class UserDefaultsLabViewModel {
             case .codable:
                 try service.set(UserDefaultsLabFixtures.codable, for: UserDefaultsLabKeys.codable)
             }
-            actualResult = .success(StoreServicesText.string("Saved \(kind.title)."))
+            actualResult = .success(AppText.string("Saved \(kind.title)."))
         } catch {
-            actualResult = .failure(StoreServicesText.string("The demo value could not be saved."))
+            actualResult = .failure(AppText.string("The demo value could not be saved."))
             throw error
         }
     }
@@ -70,7 +70,7 @@ final class UserDefaultsLabViewModel {
                 presentCodable(try service.value(for: UserDefaultsLabKeys.codable))
             }
         } catch {
-            actualResult = .failure(StoreServicesText.string("The demo value could not be read."))
+            actualResult = .failure(AppText.string("The demo value could not be read."))
             throw error
         }
     }
@@ -86,12 +86,12 @@ final class UserDefaultsLabViewModel {
         case .date: service.remove(UserDefaultsLabKeys.date)
         case .codable: service.remove(UserDefaultsLabKeys.codable)
         }
-        actualResult = .success(StoreServicesText.string("Removed \(kind.title)."))
+        actualResult = .success(AppText.string("Removed \(kind.title)."))
     }
 
     func resetDemoData() {
         for kind in UserDefaultsLabKind.allCases { removeWithoutPublishing(kind) }
-        actualResult = .success(StoreServicesText.string("Reset only the eight UserDefaults demo values."))
+        actualResult = .success(AppText.string("Reset only the eight UserDefaults demo values."))
     }
 
     private func removeWithoutPublishing(_ kind: UserDefaultsLabKind) {
@@ -108,23 +108,23 @@ final class UserDefaultsLabViewModel {
     }
 
     private func present<Value>(_ value: Value?, label: String) -> ServiceLabResult {
-        guard let value else { return .success(StoreServicesText.string("\(label): no value stored.")) }
-        return .success(StoreServicesText.string(
+        guard let value else { return .success(AppText.string("\(label): no value stored.")) }
+        return .success(AppText.string(
             "services.userDefaults.value",
             defaultValue: "\(label): \(String(describing: value))"
         ))
     }
 
     private func presentData(_ data: Data?) -> ServiceLabResult {
-        guard let data else { return .success(StoreServicesText.string("Data: no value stored.")) }
+        guard let data else { return .success(AppText.string("Data: no value stored.")) }
         guard data.count <= Self.maximumDataBytes else {
-            return .failure(StoreServicesText.string("Data exceeds the 4,096-byte display limit."))
+            return .failure(AppText.string("Data exceeds the 4,096-byte display limit."))
         }
         let hex = data.map { String(format: "%02x", $0) }.joined()
         guard hex.count <= Self.maximumHexCharacters else {
-            return .failure(StoreServicesText.string("Data exceeds the hexadecimal display limit."))
+            return .failure(AppText.string("Data exceeds the hexadecimal display limit."))
         }
-        return .success(StoreServicesText.string("Data (\(data.count) bytes): \(hex)"))
+        return .success(AppText.string("Data (\(data.count) bytes): \(hex)"))
     }
 
     private func presentDate(
@@ -132,16 +132,16 @@ final class UserDefaultsLabViewModel {
         locale: Locale,
         timeZone: TimeZone
     ) -> ServiceLabResult {
-        guard let date else { return .success(StoreServicesText.string("Date: no value stored.")) }
-        let formatted = StoreFormatting.dateTime(date, locale: locale, timeZone: timeZone)
-        return .success(StoreServicesText.string(
+        guard let date else { return .success(AppText.string("Date: no value stored.")) }
+        let formatted = AppFormatting.dateTime(date, locale: locale, timeZone: timeZone)
+        return .success(AppText.string(
             "services.userDefaults.dateValue",
             defaultValue: "Date: \(formatted)"
         ))
     }
 
     private func presentCodable(_ value: UserDefaultsLabCodable?) -> ServiceLabResult {
-        guard let value else { return .success(StoreServicesText.string("Codable: no value stored.")) }
-        return .success(StoreServicesText.string("Codable: number \(value.number), label \(value.label)"))
+        guard let value else { return .success(AppText.string("Codable: no value stored.")) }
+        return .success(AppText.string("Codable: number \(value.number), label \(value.label)"))
     }
 }

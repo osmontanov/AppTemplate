@@ -15,12 +15,12 @@ struct OnboardingView: View {
     var body: some View {
         AdaptiveContentContainer {
             VStack(spacing: 16) {
-                Text(StoreServicesText.resource("Welcome to AppTemplate"))
+                Text(AppText.resource("Welcome to AppTemplate"))
                     .font(.title)
                     .accessibilityAddTraits(.isHeader)
-                Text(StoreServicesText.resource("Completion is saved and the next required app flow opens automatically."))
+                Text(AppText.resource("Completion is saved and the next required app flow opens automatically."))
                     .foregroundStyle(.secondary)
-                Button(StoreServicesText.resource("Finish Onboarding")) {
+                Button(AppText.resource("Finish Onboarding")) {
                     viewModel.finish()
                 }
                 .buttonStyle(.borderedProminent)
@@ -30,7 +30,7 @@ struct OnboardingView: View {
                 .accessibilityIdentifier("action.onboarding.finish")
             }
         }
-        .navigationTitle(StoreServicesText.resource("Onboarding"))
+        .navigationTitle(AppText.resource("Onboarding"))
         .task { primaryActionIsFocused = true }
         .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.onboarding))
     }

@@ -41,13 +41,13 @@ enum ServiceLabGuideSection: String, CaseIterable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .why: StoreServicesText.string(.why)
-        case .preset: StoreServicesText.string(.preset)
-        case .tryIt: StoreServicesText.string(.tryIt)
-        case .expected: StoreServicesText.string(.expected)
-        case .actual: StoreServicesText.string(.actual)
-        case .resetDemoData: StoreServicesText.string(.resetDemoData)
-        case .advanced: StoreServicesText.string(.advanced)
+        case .why: AppText.string("Why")
+        case .preset: AppText.string("Preset")
+        case .tryIt: AppText.string("Try It")
+        case .expected: AppText.string("Expected")
+        case .actual: AppText.string("Actual")
+        case .resetDemoData: AppText.string("Reset Demo Data")
+        case .advanced: AppText.string("Advanced")
         }
     }
 }

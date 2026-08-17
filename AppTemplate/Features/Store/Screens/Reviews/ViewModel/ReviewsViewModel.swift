@@ -21,7 +21,7 @@ final class ReviewsViewModel {
         } catch is CancellationError {
             return
         } catch {
-            errorMessage = StoreServicesText.string("Reviews are unavailable.")
+            errorMessage = AppText.string("Reviews are unavailable.")
         }
     }
 }

@@ -208,7 +208,7 @@ struct AppSceneView: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(StoreServicesText.resource("UI test deep link"))
+                    .accessibilityLabel(AppText.resource("UI test deep link"))
                     .accessibilityIdentifier(action.accessibilityIdentifier)
                 }
             }
@@ -238,14 +238,14 @@ struct AppSceneView: View {
 
     private var rejectedLinkRecovery: some View {
         VStack(spacing: 8) {
-            Text(StoreServicesText.resource("That link could not be opened."))
+            Text(AppText.resource("That link could not be opened."))
                 .font(.headline)
             HStack {
-                Button(StoreServicesText.resource("Open Store")) {
+                Button(AppText.resource("Open Store")) {
                     lifecycle.recoverRejectedLink(.openStore)
                 }
                 .accessibilityIdentifier("action.deep-link.open-store")
-                Button(StoreServicesText.resource("Open Services")) {
+                Button(AppText.resource("Open Services")) {
                     lifecycle.recoverRejectedLink(.openServices)
                 }
                 .accessibilityIdentifier("action.deep-link.open-services")

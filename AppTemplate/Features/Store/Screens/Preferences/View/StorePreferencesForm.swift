@@ -8,24 +8,24 @@ struct StorePreferencesForm: View {
 
     var body: some View {
         Group {
-            Picker(StoreServicesText.resource("Layout"), selection: Binding(
+            Picker(AppText.resource("Layout"), selection: Binding(
                 get: { preferences.layout },
                 set: { value in Task { await setLayout(value) } }
             )) {
-                Text(StoreServicesText.resource("Grid")).tag(StoreCatalogLayout.grid)
-                Text(StoreServicesText.resource("List")).tag(StoreCatalogLayout.list)
+                Text(AppText.resource("Grid")).tag(StoreCatalogLayout.grid)
+                Text(AppText.resource("List")).tag(StoreCatalogLayout.list)
             }
-            Picker(StoreServicesText.resource("Sort"), selection: Binding(
+            Picker(AppText.resource("Sort"), selection: Binding(
                 get: { preferences.sort },
                 set: { value in Task { await setSort(value) } }
             )) {
                 ForEach(StoreCatalogSort.allCases, id: \.self) { Text($0.title).tag($0) }
             }
-            Picker(StoreServicesText.resource("Remote page size"), selection: Binding(
+            Picker(AppText.resource("Remote page size"), selection: Binding(
                 get: { preferences.preferredRemotePageSize },
                 set: { value in Task { await setPageSize(value) } }
             )) {
-                ForEach(CatalogViewModel.pageSizeChoices, id: \.self) { Text(StoreServicesText.resource("\($0)")).tag($0) }
+                ForEach(CatalogViewModel.pageSizeChoices, id: \.self) { Text(AppText.resource("\($0)")).tag($0) }
             }
             if let errorMessage {
                 Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
@@ -58,10 +58,10 @@ struct StorePreferencesForm: View {
     }
 
     private func publishSaveFailure() {
-        errorMessage = StoreServicesText.string("Preferences could not be saved.")
+        errorMessage = AppText.string("Preferences could not be saved.")
         errorIsFocused = true
         AccessibilityNotification.Announcement(
-            StoreServicesText.string("Preferences could not be saved.")
+            AppText.string("Preferences could not be saved.")
         ).post()
     }
 }

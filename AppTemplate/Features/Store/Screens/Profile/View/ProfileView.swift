@@ -24,14 +24,14 @@ struct ProfileView: View {
 
     var body: some View {
         Form {
-            Picker(StoreServicesText.resource("Profile section"), selection: Binding(
+            Picker(AppText.resource("Profile section"), selection: Binding(
                 get: { viewModel.selectedSection },
                 set: { select($0) }
             )) {
-                Text(StoreServicesText.resource("Overview")).tag(ProfileSection.overview)
-                Text(StoreServicesText.resource("Preferences")).tag(ProfileSection.preferences)
-                Text(StoreServicesText.resource("About")).tag(ProfileSection.about)
-                Text(StoreServicesText.resource("Account"))
+                Text(AppText.resource("Overview")).tag(ProfileSection.overview)
+                Text(AppText.resource("Preferences")).tag(ProfileSection.preferences)
+                Text(AppText.resource("About")).tag(ProfileSection.about)
+                Text(AppText.resource("Account"))
                     .accessibilityIdentifier("action.store.profile.account")
                     .tag(ProfileSection.account)
             }
@@ -40,22 +40,22 @@ struct ProfileView: View {
             switch viewModel.selectedSection {
             case .overview:
                 if case let .authenticated(profile, _) = session.presentation.state {
-                    Text(StoreServicesText.resource("Welcome, \(profile.firstName) \(profile.lastName)"))
+                    Text(AppText.resource("Welcome, \(profile.firstName) \(profile.lastName)"))
                 } else {
-                    Text(StoreServicesText.resource("You are browsing as a guest.")).foregroundStyle(.secondary)
+                    Text(AppText.resource("You are browsing as a guest.")).foregroundStyle(.secondary)
                 }
             case .preferences:
                 StorePreferencesForm(repository: preferences)
             case .about:
                 if let model = viewModel.model {
-                    LabeledContent(StoreServicesText.resource("Name"), value: model.displayName)
-                    LabeledContent(StoreServicesText.resource("Version"), value: model.version)
+                    LabeledContent(AppText.resource("Name"), value: model.displayName)
+                    LabeledContent(AppText.resource("Version"), value: model.version)
                 }
             case .account:
                 accountContent
             }
         }
-        .navigationTitle(StoreServicesText.resource("Profile"))
+        .navigationTitle(AppText.resource("Profile"))
         .task { await viewModel.load() }
         .overlay(alignment: .topLeading) {
             Color.clear
@@ -68,14 +68,14 @@ struct ProfileView: View {
     @ViewBuilder
     private var accountContent: some View {
         if let account = router.cachedAccountPresentation {
-            LabeledContent(StoreServicesText.resource("Account"), value: account.displayName)
-            Button(StoreServicesText.resource("Sign Out")) {
+            LabeledContent(AppText.resource("Account"), value: account.displayName)
+            Button(AppText.resource("Sign Out")) {
                 Task {
                     await viewModel.signOut()
                     AccessibilityNotification.Announcement(
                         viewModel.error == nil
-                            ? StoreServicesText.string("Signed out")
-                            : StoreServicesText.string("Sign out failed")
+                            ? AppText.string("Signed out")
+                            : AppText.string("Sign out failed")
                     ).post()
                 }
             }
@@ -83,7 +83,7 @@ struct ProfileView: View {
                 .accessibilityIdentifier(AppAccessibilityIdentifier.action(.signOut))
             if viewModel.error == .signOutDeletionFailed {
                 Label(
-                    StoreServicesText.resource("The saved session could not be removed."),
+                    AppText.resource("The saved session could not be removed."),
                     systemImage: "exclamationmark.triangle.fill"
                 )
                     .foregroundStyle(.red)

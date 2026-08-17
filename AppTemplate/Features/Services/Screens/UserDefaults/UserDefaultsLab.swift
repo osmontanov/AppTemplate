@@ -12,14 +12,14 @@ nonisolated enum UserDefaultsLabKind: String, CaseIterable, Sendable {
 
     var title: String {
         switch self {
-        case .bool: StoreServicesText.string("Bool")
-        case .int: StoreServicesText.string("Int")
-        case .float: StoreServicesText.string("Float")
-        case .double: StoreServicesText.string("Double")
-        case .string: StoreServicesText.string("String")
-        case .data: StoreServicesText.string("Data")
-        case .date: StoreServicesText.string("Date")
-        case .codable: StoreServicesText.string("Codable")
+        case .bool: AppText.string("Bool")
+        case .int: AppText.string("Int")
+        case .float: AppText.string("Float")
+        case .double: AppText.string("Double")
+        case .string: AppText.string("String")
+        case .data: AppText.string("Data")
+        case .date: AppText.string("Date")
+        case .codable: AppText.string("Codable")
         }
     }
 }

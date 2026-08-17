@@ -34,17 +34,17 @@ struct CheckoutFlowView: View {
                 case let .submitting(model):
                     review(model, failed: false).disabled(true).overlay {
                         ProgressView()
-                            .accessibilityLabel(StoreServicesText.resource("Placing demo order"))
+                            .accessibilityLabel(AppText.resource("Placing demo order"))
                             .accessibilityIdentifier(AppAccessibilityIdentifier.result(.loading))
                     }
                 case .success, .editing(step: .success, model: _):
                     success
                 }
             }
-            .navigationTitle(StoreServicesText.resource("Demo checkout"))
+            .navigationTitle(AppText.resource("Demo checkout"))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(StoreServicesText.resource("Cancel")) { dismiss() }
+                    Button(AppText.resource("Cancel")) { dismiss() }
                         .keyboardShortcut(.cancelAction)
                         .accessibilityIdentifier(AppAccessibilityIdentifier.action(.cancel))
                 }
@@ -65,20 +65,20 @@ struct CheckoutFlowView: View {
 
     private func delivery(_ model: CheckoutModel) -> some View {
         Form {
-            Section(StoreServicesText.resource("Fictional delivery")) {
-                TextField(StoreServicesText.resource("Recipient"), text: modelBinding(model, keyPath: \.recipient))
+            Section(AppText.resource("Fictional delivery")) {
+                TextField(AppText.resource("Recipient"), text: modelBinding(model, keyPath: \.recipient))
                     .focused($focusedField, equals: .recipient)
                     .accessibilityFocused($accessibilityFocusedField, equals: .recipient)
-                TextField(StoreServicesText.resource("Address"), text: modelBinding(model, keyPath: \.address))
+                TextField(AppText.resource("Address"), text: modelBinding(model, keyPath: \.address))
                     .focused($focusedField, equals: .address)
                     .accessibilityFocused($accessibilityFocusedField, equals: .address)
-                TextField(StoreServicesText.resource("Note"), text: modelBinding(model, keyPath: \.note))
+                TextField(AppText.resource("Note"), text: modelBinding(model, keyPath: \.note))
                     .focused($focusedField, equals: .note)
                     .accessibilityFocused($accessibilityFocusedField, equals: .note)
             }
             Section {
-                Text(StoreServicesText.resource("No payment or network request is made.")).foregroundStyle(.secondary)
-                Button(StoreServicesText.resource("Review order")) { viewModel.continueToReview() }
+                Text(AppText.resource("No payment or network request is made.")).foregroundStyle(.secondary)
+                Button(AppText.resource("Review order")) { viewModel.continueToReview() }
                     .buttonStyle(.borderedProminent)
                     .disabled(!viewModel.canContinue)
                     .frame(minHeight: 44)
@@ -90,14 +90,14 @@ struct CheckoutFlowView: View {
 
     private func review(_ model: CheckoutModel, failed: Bool) -> some View {
         Form {
-            Section(StoreServicesText.resource("Delivery")) {
-                LabeledContent(StoreServicesText.resource("Recipient"), value: model.recipient)
-                LabeledContent(StoreServicesText.resource("Address"), value: model.address)
-                if !model.note.isEmpty { LabeledContent(StoreServicesText.resource("Note"), value: model.note) }
+            Section(AppText.resource("Delivery")) {
+                LabeledContent(AppText.resource("Recipient"), value: model.recipient)
+                LabeledContent(AppText.resource("Address"), value: model.address)
+                if !model.note.isEmpty { LabeledContent(AppText.resource("Note"), value: model.note) }
             }
             if failed {
                 Label(
-                    StoreServicesText.resource("The demo order could not be placed. You can retry safely."),
+                    AppText.resource("The demo order could not be placed. You can retry safely."),
                     systemImage: "exclamationmark.triangle.fill"
                 )
                     .foregroundStyle(.red)
@@ -105,16 +105,16 @@ struct CheckoutFlowView: View {
                     .accessibilityIdentifier(AppAccessibilityIdentifier.result(.actualFailure))
             }
             Section {
-                Button(StoreServicesText.resource("Edit delivery")) { viewModel.editDelivery() }
+                Button(AppText.resource("Edit delivery")) { viewModel.editDelivery() }
                 Button(failed
-                    ? StoreServicesText.string("Retry demo order")
-                    : StoreServicesText.string("Place demo order")) {
+                    ? AppText.string("Retry demo order")
+                    : AppText.string("Place demo order")) {
                     Task {
                         if failed { await viewModel.retryPlaceDemoOrder() }
                         else { await viewModel.placeDemoOrder() }
                         resultIsFocused = true
                         AccessibilityNotification.Announcement(
-                            StoreServicesText.string("Checkout status updated")
+                            AppText.string("Checkout status updated")
                         ).post()
                     }
                 }
@@ -128,11 +128,11 @@ struct CheckoutFlowView: View {
 
     private var success: some View {
         ContentUnavailableView {
-            Label(StoreServicesText.resource("Demo order placed"), systemImage: "checkmark.circle.fill")
+            Label(AppText.resource("Demo order placed"), systemImage: "checkmark.circle.fill")
         } description: {
-            Text(StoreServicesText.resource("This was a fictional local checkout."))
+            Text(AppText.resource("This was a fictional local checkout."))
         } actions: {
-            Button(StoreServicesText.resource("Done")) { viewModel.done() }
+            Button(AppText.resource("Done")) { viewModel.done() }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
                 .accessibilityIdentifier("action.store.checkout.done")

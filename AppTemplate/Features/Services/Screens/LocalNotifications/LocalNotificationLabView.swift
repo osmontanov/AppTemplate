@@ -3,11 +3,11 @@ import SwiftUI
 struct LocalNotificationLabView: View {
     private let guide: ServiceLabGuide
     @State private var model: LocalNotificationLabViewModel
-    @State private var title = StoreServicesText.string("Services lab")
-    @State private var bodyText = StoreServicesText.string("A safe local notification demo.")
+    @State private var title = AppText.string("Services lab")
+    @State private var bodyText = AppText.string("A safe local notification demo.")
     @State private var metadataValue = "guided"
-    @State private var actionTitle = StoreServicesText.string("Open Lab")
-    @State private var textInputTitle = StoreServicesText.string("Reply")
+    @State private var actionTitle = AppText.string("Open Lab")
+    @State private var textInputTitle = AppText.string("Reply")
     @State private var selectedAsset: LocalNotificationLabAsset?
     @State private var useCustomSound = false
     @State private var badgeCount = 1
@@ -40,7 +40,7 @@ struct LocalNotificationLabView: View {
             resetDemoData: { Task { await model.resetLabData() } }
         ) {
             authorizationControls
-            Button(StoreServicesText.resource("Schedule Immediate Lab Notification")) {
+            Button(AppText.resource("Schedule Immediate Lab Notification")) {
                 Task { await model.scheduleLab(makeRequest(id: "services.lab.immediate", trigger: .immediate)) }
             }
             .accessibilityIdentifier(AppAccessibilityIdentifier.action(.tryService))
@@ -57,11 +57,11 @@ struct LocalNotificationLabView: View {
                 appWidePanel
                 badgePanel
             } label: {
-                Text(StoreServicesText.resource(.advanced))
+                Text(AppText.resource("Advanced"))
             }
             .accessibilityIdentifier("action.services.notifications.advanced")
         }
-        .navigationTitle(StoreServicesText.resource("Local Notifications"))
+        .navigationTitle(AppText.resource("Local Notifications"))
         .overlay(alignment: .topLeading) {
             Color.clear
                 .frame(width: 1, height: 1)
@@ -69,20 +69,20 @@ struct LocalNotificationLabView: View {
                 .accessibilityIdentifier("screen.services.local-notifications")
         }
         .confirmationDialog(
-            StoreServicesText.resource("Remove every app-owned pending notification?"),
+            AppText.resource("Remove every app-owned pending notification?"),
             isPresented: $confirmPendingRemoval,
             titleVisibility: .visible
         ) {
-            Button(StoreServicesText.resource("Remove All App-owned Pending"), role: .destructive) {
+            Button(AppText.resource("Remove All App-owned Pending"), role: .destructive) {
                 Task { await model.removeAllAppOwnedPendingConfirmed() }
             }
         }
         .confirmationDialog(
-            StoreServicesText.resource("Remove every app-owned delivered notification?"),
+            AppText.resource("Remove every app-owned delivered notification?"),
             isPresented: $confirmDeliveredRemoval,
             titleVisibility: .visible
         ) {
-            Button(StoreServicesText.resource("Remove All App-owned Delivered"), role: .destructive) {
+            Button(AppText.resource("Remove All App-owned Delivered"), role: .destructive) {
                 Task { await model.removeAllAppOwnedDeliveredConfirmed() }
             }
         }
@@ -98,12 +98,12 @@ struct LocalNotificationLabView: View {
 
     private var authorizationControls: some View {
         VStack(alignment: .leading) {
-            Text(StoreServicesText.resource("Authorization Options")).font(.headline)
-            authorizationToggle(StoreServicesText.string("Alert"), option: .alert)
-            authorizationToggle(StoreServicesText.string("Sound"), option: .sound)
-            authorizationToggle(StoreServicesText.string("Badge"), option: .badge)
-            authorizationToggle(StoreServicesText.string("Provisional"), option: .provisional)
-            Button(StoreServicesText.resource("Request Selected Authorization")) {
+            Text(AppText.resource("Authorization Options")).font(.headline)
+            authorizationToggle(AppText.string("Alert"), option: .alert)
+            authorizationToggle(AppText.string("Sound"), option: .sound)
+            authorizationToggle(AppText.string("Badge"), option: .badge)
+            authorizationToggle(AppText.string("Provisional"), option: .provisional)
+            Button(AppText.resource("Request Selected Authorization")) {
                 Task { await model.requestSelectedAuthorization() }
             }
             .disabled(model.authorizationOptions.isEmpty)
@@ -123,55 +123,55 @@ struct LocalNotificationLabView: View {
 
     @ViewBuilder
     private var labLists: some View {
-        Text(StoreServicesText.resource("Lab-only Pending Notifications")).font(.headline)
+        Text(AppText.resource("Lab-only Pending Notifications")).font(.headline)
         notificationIDs(
             model.pendingLab.map(\.id),
-            empty: StoreServicesText.string("No lab-only pending notifications.")
+            empty: AppText.string("No lab-only pending notifications.")
         )
-        Text(StoreServicesText.resource("Lab-only Delivered Notifications")).font(.headline)
+        Text(AppText.resource("Lab-only Delivered Notifications")).font(.headline)
         notificationIDs(
             model.deliveredLab.map(\.id),
-            empty: StoreServicesText.string("No lab-only delivered notifications.")
+            empty: AppText.string("No lab-only delivered notifications.")
         )
-        Button(StoreServicesText.resource("Refresh Lab-only Lists")) { Task { await model.refreshLabLists() } }
+        Button(AppText.resource("Refresh Lab-only Lists")) { Task { await model.refreshLabLists() } }
     }
 
     @ViewBuilder
     private var historyPanel: some View {
-        Text(StoreServicesText.resource("Safe Notification Event History")).font(.headline)
+        Text(AppText.resource("Safe Notification Event History")).font(.headline)
         if model.eventRecords.isEmpty {
-            Text(StoreServicesText.resource("No safe event summaries.")).foregroundStyle(.secondary)
+            Text(AppText.resource("No safe event summaries.")).foregroundStyle(.secondary)
         } else {
             ForEach(model.eventRecords) { record in
-                Text(StoreServicesText.resource("\(record.summary.kind.rawValue) • \(record.summary.status.rawValue)"))
+                Text(AppText.resource("\(record.summary.kind.rawValue) • \(record.summary.status.rawValue)"))
             }
         }
-        Button(StoreServicesText.resource("Clear Event History")) { Task { await model.clearEventHistory() } }
+        Button(AppText.resource("Clear Event History")) { Task { await model.clearEventHistory() } }
             .accessibilityIdentifier("action.services.notifications.clear-history")
     }
 
     @ViewBuilder
     private var settingsPanel: some View {
-        Text(StoreServicesText.resource("Notification Settings")).font(.headline)
+        Text(AppText.resource("Notification Settings")).font(.headline)
         if let settings = model.settings {
-            Text(StoreServicesText.resource("Authorization: \(settings.authorizationStatus.rawValue)"))
-            Text(StoreServicesText.resource("Alert: \(settings.alertSetting.rawValue) • Sound: \(settings.soundSetting.rawValue) • Badge: \(settings.badgeSetting.rawValue)"))
+            Text(AppText.resource("Authorization: \(settings.authorizationStatus.rawValue)"))
+            Text(AppText.resource("Alert: \(settings.alertSetting.rawValue) • Sound: \(settings.soundSetting.rawValue) • Badge: \(settings.badgeSetting.rawValue)"))
         } else {
-            Text(StoreServicesText.resource("Settings have not been loaded.")).foregroundStyle(.secondary)
+            Text(AppText.resource("Settings have not been loaded.")).foregroundStyle(.secondary)
         }
-        Button(StoreServicesText.resource("Refresh Settings")) { Task { await model.refreshSettings() } }
+        Button(AppText.resource("Refresh Settings")) { Task { await model.refreshSettings() } }
     }
 
     private var schedulingPanel: some View {
         VStack(alignment: .leading) {
-            Text(StoreServicesText.resource("Interval and Calendar Scheduling")).font(.headline)
-            Button(StoreServicesText.resource("Schedule 5-second Interval")) {
+            Text(AppText.resource("Interval and Calendar Scheduling")).font(.headline)
+            Button(AppText.resource("Schedule 5-second Interval")) {
                 Task { await model.scheduleLab(makeRequest(
                     id: "services.lab.interval",
                     trigger: .timeInterval(seconds: 5, repeats: false)
                 )) }
             }
-            Button(StoreServicesText.resource("Schedule Calendar Demo")) {
+            Button(AppText.resource("Schedule Calendar Demo")) {
                 var components = DateComponents()
                 components.second = (Calendar.current.component(.second, from: .now) + 10) % 60
                 Task { await model.scheduleLab(makeRequest(
@@ -184,36 +184,36 @@ struct LocalNotificationLabView: View {
 
     private var categoryPanel: some View {
         VStack(alignment: .leading) {
-            Text(StoreServicesText.resource("Lab Category, Button, and Text Input")).font(.headline)
-            TextField(StoreServicesText.resource("Button action title"), text: $actionTitle)
-            TextField(StoreServicesText.resource("Text input action title"), text: $textInputTitle)
-            Button(StoreServicesText.resource("Replace Lab Category Set")) {
+            Text(AppText.resource("Lab Category, Button, and Text Input")).font(.headline)
+            TextField(AppText.resource("Button action title"), text: $actionTitle)
+            TextField(AppText.resource("Text input action title"), text: $textInputTitle)
+            Button(AppText.resource("Replace Lab Category Set")) {
                 Task { await model.replaceLabCategories([makeCategory()]) }
             }
-            Button(StoreServicesText.resource("Reset Lab Category Set")) { Task { await model.resetLabCategories() } }
+            Button(AppText.resource("Reset Lab Category Set")) { Task { await model.resetLabCategories() } }
         }
     }
 
     private var contentPanel: some View {
         VStack(alignment: .leading) {
-            Text(StoreServicesText.resource("Content and Metadata")).font(.headline)
-            TextField(StoreServicesText.resource("Notification title"), text: $title)
-            TextField(StoreServicesText.resource("Notification body"), text: $bodyText)
-            TextField(StoreServicesText.resource("Metadata value"), text: $metadataValue)
+            Text(AppText.resource("Content and Metadata")).font(.headline)
+            TextField(AppText.resource("Notification title"), text: $title)
+            TextField(AppText.resource("Notification body"), text: $bodyText)
+            TextField(AppText.resource("Metadata value"), text: $metadataValue)
         }
     }
 
     private var attachmentPanel: some View {
         VStack(alignment: .leading) {
-            Text(StoreServicesText.resource("Bundled Attachments and Sound")).font(.headline)
-            Picker(StoreServicesText.resource("Attachment"), selection: $selectedAsset) {
-                Text(StoreServicesText.resource("None")).tag(LocalNotificationLabAsset?.none)
-                Text(StoreServicesText.resource("Image")).tag(LocalNotificationLabAsset?.some(.image))
-                Text(StoreServicesText.resource("Audio")).tag(LocalNotificationLabAsset?.some(.audio))
-                Text(StoreServicesText.resource("Video")).tag(LocalNotificationLabAsset?.some(.video))
+            Text(AppText.resource("Bundled Attachments and Sound")).font(.headline)
+            Picker(AppText.resource("Attachment"), selection: $selectedAsset) {
+                Text(AppText.resource("None")).tag(LocalNotificationLabAsset?.none)
+                Text(AppText.resource("Image")).tag(LocalNotificationLabAsset?.some(.image))
+                Text(AppText.resource("Audio")).tag(LocalNotificationLabAsset?.some(.audio))
+                Text(AppText.resource("Video")).tag(LocalNotificationLabAsset?.some(.video))
             }
-            Toggle(StoreServicesText.resource("Use named notification sound"), isOn: $useCustomSound)
-            Button(StoreServicesText.resource("Schedule Advanced Content")) {
+            Toggle(AppText.resource("Use named notification sound"), isOn: $useCustomSound)
+            Button(AppText.resource("Schedule Advanced Content")) {
                 Task { await model.scheduleLab(makeRequest(id: "services.lab.advanced", trigger: .immediate)) }
             }
         }
@@ -221,17 +221,17 @@ struct LocalNotificationLabView: View {
 
     private var labRemovalPanel: some View {
         VStack(alignment: .leading) {
-            Text(StoreServicesText.resource("Selected Lab-only Removal")).font(.headline)
+            Text(AppText.resource("Selected Lab-only Removal")).font(.headline)
             ForEach(model.pendingLab, id: \.id) { snapshot in
                 Toggle(snapshot.id.value, isOn: selectionBinding(snapshot.id, selection: $selectedPending))
             }
-            Button(StoreServicesText.resource("Remove Selected Lab-only Pending")) {
+            Button(AppText.resource("Remove Selected Lab-only Pending")) {
                 Task { await model.removeSelectedPending(selectedPending); selectedPending = [] }
             }
             ForEach(model.deliveredLab, id: \.id) { snapshot in
                 Toggle(snapshot.id.value, isOn: selectionBinding(snapshot.id, selection: $selectedDelivered))
             }
-            Button(StoreServicesText.resource("Remove Selected Lab-only Delivered")) {
+            Button(AppText.resource("Remove Selected Lab-only Delivered")) {
                 Task { await model.removeSelectedDelivered(selectedDelivered); selectedDelivered = [] }
             }
         }
@@ -239,29 +239,29 @@ struct LocalNotificationLabView: View {
 
     private var appWidePanel: some View {
         VStack(alignment: .leading) {
-            Text(StoreServicesText.resource("App-wide Controls — Store + Lab")).font(.headline)
-            Text(StoreServicesText.resource("App-wide Owned Pending (Store + Lab)"))
+            Text(AppText.resource("App-wide Controls — Store + Lab")).font(.headline)
+            Text(AppText.resource("App-wide Owned Pending (Store + Lab)"))
             notificationIDs(
                 model.pendingAppOwned.map(\.id),
-                empty: StoreServicesText.string("No app-owned pending notifications.")
+                empty: AppText.string("No app-owned pending notifications.")
             )
-            Text(StoreServicesText.resource("App-wide Owned Delivered (Store + Lab)"))
+            Text(AppText.resource("App-wide Owned Delivered (Store + Lab)"))
             notificationIDs(
                 model.deliveredAppOwned.map(\.id),
-                empty: StoreServicesText.string("No app-owned delivered notifications.")
+                empty: AppText.string("No app-owned delivered notifications.")
             )
-            Button(StoreServicesText.resource("Refresh App-wide Owned Lists")) { Task { await model.refreshAppOwnedLists() } }
-            Button(StoreServicesText.resource("Remove All App-owned Pending…"), role: .destructive) { confirmPendingRemoval = true }
-            Button(StoreServicesText.resource("Remove All App-owned Delivered…"), role: .destructive) { confirmDeliveredRemoval = true }
+            Button(AppText.resource("Refresh App-wide Owned Lists")) { Task { await model.refreshAppOwnedLists() } }
+            Button(AppText.resource("Remove All App-owned Pending…"), role: .destructive) { confirmPendingRemoval = true }
+            Button(AppText.resource("Remove All App-owned Delivered…"), role: .destructive) { confirmDeliveredRemoval = true }
         }
     }
 
     private var badgePanel: some View {
         VStack(alignment: .leading) {
-            Text(StoreServicesText.resource("App-wide Badge")).font(.headline)
-            Stepper(StoreServicesText.resource("Badge count: \(badgeCount)"), value: $badgeCount, in: 0...99)
-            Button(StoreServicesText.resource("Set Badge Count")) { Task { await model.setBadgeCount(badgeCount) } }
-            Button(StoreServicesText.resource("Clear Badge")) { Task { await model.clearBadge() } }
+            Text(AppText.resource("App-wide Badge")).font(.headline)
+            Stepper(AppText.resource("Badge count: \(badgeCount)"), value: $badgeCount, in: 0...99)
+            Button(AppText.resource("Set Badge Count")) { Task { await model.setBadgeCount(badgeCount) } }
+            Button(AppText.resource("Clear Badge")) { Task { await model.clearBadge() } }
         }
     }
 
@@ -332,12 +332,12 @@ struct LocalNotificationLabView: View {
                     title: textInputTitle,
                     options: .foreground,
                     deepLink: nil,
-                    textInputButtonTitle: StoreServicesText.string("Send"),
-                    textInputPlaceholder: StoreServicesText.string("Safe text")
+                    textInputButtonTitle: AppText.string("Send"),
+                    textInputPlaceholder: AppText.string("Safe text")
                 ))
             ],
-            hiddenPreviewsBodyPlaceholder: StoreServicesText.string("Services lab notification"),
-            categorySummaryFormat: StoreServicesText.string("%u lab notifications"),
+            hiddenPreviewsBodyPlaceholder: AppText.string("Services lab notification"),
+            categorySummaryFormat: AppText.string("%u lab notifications"),
             reportsDismissal: true
         )
     }

@@ -2,52 +2,58 @@ import Foundation
 import Testing
 @testable import AppTemplate
 
-struct StoreServicesLocalizationTests {
-    @Test
-    func everySharedKeyExistsInDedicatedCatalog() throws {
-        let catalog = try StoreServicesCatalogFixture.loadSourceCatalog()
-
-        for key in StoreServicesText.Key.allCases {
-            #expect(catalog.strings[key.rawValue] != nil)
-        }
-    }
-
+struct AppTextLocalizationTests {
     @Test
     func arabicStoreTitleIsTranslatedAndResolvesFromDedicatedTable() throws {
-        let catalog = try StoreServicesCatalogFixture.loadSourceCatalog()
+        let catalog = try AppTextCatalogFixture.loadSourceCatalog()
         let arabic = try #require(
-            catalog.strings[StoreServicesText.Key.storeTitle.rawValue]?
-                .localizations?["ar"]?.stringUnit.value
+            catalog.strings["Store"]?.localizations?["ar"]?.stringUnit.value
         )
 
         #expect(arabic == "المتجر")
-        #expect(arabic != catalog.englishValue(for: StoreServicesText.Key.storeTitle.rawValue))
-        var resource = StoreServicesText.resource(.storeTitle)
+        #expect(arabic != catalog.englishValue(for: "Store"))
+        var resource = AppText.resource("Store")
         resource.locale = Locale(identifier: "ar_SA")
         #expect(String(localized: resource) == arabic)
     }
 
+    // A symbolic key only exists because interpolation would make different
+    // strings collide on one format key. Such a key resolves to visible copy
+    // solely because every call site supplies `defaultValue:` — without it an
+    // untranslated locale would render the raw key.
     @Test
-    func missingArabicSharedKeysUseTheirEnglishVisibleCopyInsteadOfTheSymbolicKey() throws {
-        let catalog = try StoreServicesCatalogFixture.loadSourceCatalog()
+    func symbolicKeysAlwaysCarryTheirVisibleCopyAtTheCallSite() throws {
+        let fixture = AppTextCatalogFixture()
+        let catalog = try fixture.loadSourceCatalog()
+        let symbolicKeys = Set(catalog.strings.keys.filter { key in
+            catalog.englishValue(for: key).map { $0 != key } ?? false
+        })
 
-        for key in StoreServicesText.Key.allCases {
-            let entry = try #require(catalog.strings[key.rawValue])
-            let english = try #require(entry.localizations?["en"]?.stringUnit.value)
-            let expected = entry.localizations?["ar"]?.stringUnit.value ?? english
-            var resource = StoreServicesText.resource(key)
-            #expect(resource.key == key.rawValue)
-            resource.locale = Locale(identifier: "ar_SA")
-            let resolved = String(localized: resource)
-
-            #expect(resolved == expected)
-            #expect(resolved != key.rawValue)
+        #expect(!symbolicKeys.isEmpty)
+        for key in symbolicKeys {
+            #expect(catalog.englishValue(for: key)?.isEmpty == false)
         }
+
+        var usedSymbolicKeys: Set<String> = []
+        for relativePath in Self.producerManifest {
+            let source = try fixture.source(at: relativePath)
+            for key in fixture.catalogKeys(in: source) where symbolicKeys.contains(key) {
+                usedSymbolicKeys.insert(key)
+                let pattern = #"AppText\.(?:resource|string)\(\s*\""#
+                    + NSRegularExpression.escapedPattern(for: key)
+                    + #"\"\s*,\s*\n?\s*defaultValue:"#
+                #expect(
+                    source.range(of: pattern, options: .regularExpression) != nil,
+                    "\(relativePath) uses symbolic key \(key) without a defaultValue"
+                )
+            }
+        }
+        #expect(usedSymbolicKeys == symbolicKeys)
     }
 
     @Test
     func producerManifestIsSortedCompleteAndCatalogBacked() throws {
-        let fixture = StoreServicesCatalogFixture()
+        let fixture = AppTextCatalogFixture()
         let catalog = try fixture.loadSourceCatalog()
 
         #expect(Self.producerManifest == Self.producerManifest.sorted())
@@ -70,7 +76,7 @@ struct StoreServicesLocalizationTests {
             }
 
             for key in fixture.catalogKeys(in: source) {
-                #expect(catalog.strings[key] != nil, "Missing StoreServices key \(key) used by \(relativePath)")
+                #expect(catalog.strings[key] != nil, "Missing AppText catalog key \(key) used by \(relativePath)")
                 #expect(catalog.englishValue(for: key)?.isEmpty == false)
             }
         }
@@ -146,7 +152,7 @@ struct StoreServicesLocalizationTests {
     ]
 }
 
-private struct StoreServicesCatalogFixture {
+private struct AppTextCatalogFixture {
     struct Catalog: Decodable {
         struct Entry: Decodable {
             struct Localization: Decodable {
@@ -175,12 +181,12 @@ private struct StoreServicesCatalogFixture {
         .resolvingSymlinksInPath()
 
     static func loadSourceCatalog() throws -> Catalog {
-        try StoreServicesCatalogFixture().loadSourceCatalog()
+        try AppTextCatalogFixture().loadSourceCatalog()
     }
 
     func loadSourceCatalog() throws -> Catalog {
         let url = Self.repositoryRoot
-            .appendingPathComponent("AppTemplate/Resources/StoreServices.xcstrings")
+            .appendingPathComponent("AppTemplate/Resources/AppText.xcstrings")
         return try JSONDecoder().decode(Catalog.self, from: Data(contentsOf: url))
     }
 
@@ -192,7 +198,7 @@ private struct StoreServicesCatalogFixture {
     }
 
     func catalogKeys(in source: String) -> Set<String> {
-        let pattern = #"StoreServicesText\.(?:resource|string)\(\s*\"([^\"]+)\""#
+        let pattern = #"AppText\.(?:resource|string)\(\s*\"([^\"]+)\""#
         guard let expression = try? NSRegularExpression(pattern: pattern) else { return [] }
         let range = NSRange(source.startIndex..., in: source)
         return Set(expression.matches(in: source, range: range).compactMap { match in
@@ -239,7 +245,7 @@ private struct StoreServicesCatalogFixture {
                 let alwaysVisible = !relative.hasPrefix("AppTemplate/App/Navigation/Containers/")
                     && (url.lastPathComponent.hasSuffix("View.swift")
                         || url.lastPathComponent.hasSuffix("FlowView.swift"))
-                let authoredProducer = source.contains("StoreServicesText.")
+                let authoredProducer = source.contains("AppText.")
                     || source.range(
                         of: #"\b(?:Text|Button|Label|Section|GroupBox|Toggle|Picker|Menu|ProgressView|ContentUnavailableView|LabeledContent)\s*\(\s*\""#,
                         options: .regularExpression

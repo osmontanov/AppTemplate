@@ -24,7 +24,7 @@ struct CartView: View {
                     VStack(alignment: .leading) {
                         Text(verbatim: line.product.title).font(.headline)
                         Stepper(
-                            StoreServicesText.resource("Quantity: \(line.quantity)"),
+                            AppText.resource("Quantity: \(line.quantity)"),
                             value: Binding(
                                 get: { line.quantity },
                                 set: { quantity in
@@ -33,25 +33,25 @@ struct CartView: View {
                             ),
                             in: 1...99
                         )
-                        Button(StoreServicesText.resource("Remove"), role: .destructive) {
+                        Button(AppText.resource("Remove"), role: .destructive) {
                             Task { await viewModel.remove(productID: line.product.id) }
                         }
                     }
                 }
                 if cart.lines.isEmpty {
-                    ContentUnavailableView(StoreServicesText.resource("Your cart is empty"), systemImage: "cart")
+                    ContentUnavailableView(AppText.resource("Your cart is empty"), systemImage: "cart")
                         .accessibilityIdentifier(AppAccessibilityIdentifier.result(.empty))
                         .accessibilityFocused($resultIsFocused)
                 }
             } else if viewModel.isLoading {
                 ProgressView()
-                    .accessibilityLabel(StoreServicesText.resource("Loading cart"))
+                    .accessibilityLabel(AppText.resource("Loading cart"))
                     .accessibilityIdentifier(AppAccessibilityIdentifier.result(.loading))
             }
         }
-        .navigationTitle(StoreServicesText.resource("Cart"))
+        .navigationTitle(AppText.resource("Cart"))
         .safeAreaInset(edge: .bottom) {
-            Button(StoreServicesText.resource("Demo checkout")) {
+            Button(AppText.resource("Demo checkout")) {
                 checkoutCart = viewModel.cart
             }
             .buttonStyle(.borderedProminent)
@@ -66,8 +66,8 @@ struct CartView: View {
             resultIsFocused = viewModel.errorMessage != nil || viewModel.cart?.lines.isEmpty == true
             AccessibilityNotification.Announcement(
                 viewModel.errorMessage != nil
-                    ? StoreServicesText.string("Cart is unavailable")
-                    : StoreServicesText.string("Cart loaded")
+                    ? AppText.string("Cart is unavailable")
+                    : AppText.string("Cart loaded")
             ).post()
         }
         .sheet(item: $checkoutCart) { cart in

@@ -13,13 +13,13 @@ struct ReviewsView: View {
             if let product = viewModel.product {
                 ForEach(product.reviews) { review in
                     VStack(alignment: .leading, spacing: 6) {
-                        Label(StoreServicesText.resource("\(review.rating) out of 5"), systemImage: "star.fill")
+                        Label(AppText.resource("\(review.rating) out of 5"), systemImage: "star.fill")
                         Text(verbatim: review.comment)
                         Text(verbatim: review.reviewerName).font(.caption).foregroundStyle(.secondary)
                     }
                 }
                 if product.reviews.isEmpty {
-                    ContentUnavailableView(StoreServicesText.resource("No reviews"), systemImage: "star.bubble")
+                    ContentUnavailableView(AppText.resource("No reviews"), systemImage: "star.bubble")
                         .accessibilityIdentifier(AppAccessibilityIdentifier.result(.empty))
                         .accessibilityFocused($resultIsFocused)
                 }
@@ -29,18 +29,18 @@ struct ReviewsView: View {
                     .accessibilityFocused($resultIsFocused)
             } else {
                 ProgressView()
-                    .accessibilityLabel(StoreServicesText.resource("Loading reviews"))
+                    .accessibilityLabel(AppText.resource("Loading reviews"))
                     .accessibilityIdentifier(AppAccessibilityIdentifier.result(.loading))
             }
         }
-        .navigationTitle(StoreServicesText.resource("Reviews"))
+        .navigationTitle(AppText.resource("Reviews"))
         .task(id: viewModel.productID) {
             await viewModel.load()
             resultIsFocused = viewModel.product?.reviews.isEmpty != false
             AccessibilityNotification.Announcement(
                 viewModel.product == nil
-                    ? StoreServicesText.string("Reviews are unavailable")
-                    : StoreServicesText.string("Reviews loaded")
+                    ? AppText.string("Reviews are unavailable")
+                    : AppText.string("Reviews loaded")
             ).post()
         }
         .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.reviews))

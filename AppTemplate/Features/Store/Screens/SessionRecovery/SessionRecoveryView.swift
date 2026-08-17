@@ -23,16 +23,16 @@ struct SessionRecoveryView: View {
             VStack(spacing: 16) {
                 Image(systemName: "lock.trianglebadge.exclamationmark")
                     .font(.largeTitle)
-                Text(StoreServicesText.resource("Session unavailable")).font(.title)
+                Text(AppText.resource("Session unavailable")).font(.title)
                 Label(message, systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.secondary)
                     .accessibilityFocused($messageIsFocused)
                     .accessibilityIdentifier(AppAccessibilityIdentifier.result(.actualFailure))
-                Button(StoreServicesText.resource("Retry")) {
+                Button(AppText.resource("Retry")) {
                     Task {
                         await viewModel.retry()
                         AccessibilityNotification.Announcement(
-                            StoreServicesText.string("Session recovery status updated")
+                            AppText.string("Session recovery status updated")
                         ).post()
                     }
                 }
@@ -53,9 +53,9 @@ struct SessionRecoveryView: View {
     private var message: String {
         switch viewModel.reason {
         case .secureStorageReadFailed:
-            StoreServicesText.string("The saved session could not be read safely.")
+            AppText.string("The saved session could not be read safely.")
         case .secureStorageCleanupFailed:
-            StoreServicesText.string("The saved session could not be removed safely.")
+            AppText.string("The saved session could not be removed safely.")
         }
     }
 }

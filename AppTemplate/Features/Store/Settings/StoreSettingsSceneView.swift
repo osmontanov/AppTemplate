@@ -5,11 +5,11 @@ struct StoreSettingsSceneView: View {
 
     var body: some View {
         Form {
-            Section(StoreServicesText.resource("App")) {
-                LabeledContent(StoreServicesText.resource("Name"), value: dependencies.appInfo.displayName)
-                LabeledContent(StoreServicesText.resource("Version"), value: dependencies.appInfo.version)
+            Section(AppText.resource("App")) {
+                LabeledContent(AppText.resource("Name"), value: dependencies.appInfo.displayName)
+                LabeledContent(AppText.resource("Version"), value: dependencies.appInfo.version)
             }
-            Section(StoreServicesText.resource("Store")) {
+            Section(AppText.resource("Store")) {
                 StorePreferencesForm(repository: dependencies.preferences)
             }
         }

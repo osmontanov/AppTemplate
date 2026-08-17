@@ -23,11 +23,11 @@ struct CatalogView: View {
     var body: some View {
         Group {
             if viewModel.model.products.isEmpty, viewModel.state == .loading {
-                ProgressView(StoreServicesText.resource("Loading products"))
+                ProgressView(AppText.resource("Loading products"))
                     .accessibilityIdentifier(AppAccessibilityIdentifier.result(.loading))
             } else if viewModel.model.products.isEmpty {
                 ContentUnavailableView(
-                    viewModel.errorMessage ?? StoreServicesText.string("No products found"),
+                    viewModel.errorMessage ?? AppText.string("No products found"),
                     systemImage: "shippingbox"
                 )
                 .accessibilityIdentifier(
@@ -42,8 +42,8 @@ struct CatalogView: View {
                 list
             }
         }
-        .navigationTitle(StoreServicesText.resource("Catalog"))
-        .searchable(text: $viewModel.searchText, prompt: StoreServicesText.resource("Search products"))
+        .navigationTitle(AppText.resource("Catalog"))
+        .searchable(text: $viewModel.searchText, prompt: AppText.resource("Search products"))
         .searchFocused($searchIsFocused)
         .onChange(of: searchRequestID) { _, _ in searchIsFocused = true }
         .task {
@@ -52,8 +52,8 @@ struct CatalogView: View {
             resultIsFocused = viewModel.model.products.isEmpty
             AccessibilityNotification.Announcement(
                 viewModel.model.products.isEmpty
-                    ? StoreServicesText.string("No products are available")
-                    : StoreServicesText.string("Products loaded")
+                    ? AppText.string("No products are available")
+                    : AppText.string("Products loaded")
             ).post()
             await viewModel.observePreferences()
         }
@@ -69,7 +69,7 @@ struct CatalogView: View {
         }
         .toolbar { toolbarContent }
         .safeAreaInset(edge: .bottom) {
-            Text(StoreServicesText.resource(.demoUSDAssumption))
+            Text(AppText.resource("Demo prices are shown in USD."))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .padding(8)
@@ -107,7 +107,7 @@ struct CatalogView: View {
     @ViewBuilder
     private var loadMore: some View {
         if viewModel.canLoadMore {
-            Button(StoreServicesText.resource("Load more")) { Task { await viewModel.loadNextPage() } }
+            Button(AppText.resource("Load more")) { Task { await viewModel.loadNextPage() } }
                 .frame(minHeight: 44)
                 .accessibilityIdentifier("action.store.load-more")
         }
@@ -116,13 +116,13 @@ struct CatalogView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItemGroup {
-            Picker(StoreServicesText.resource("Category"), selection: $viewModel.selectedCategory) {
-                Text(StoreServicesText.resource("All")).tag("")
+            Picker(AppText.resource("Category"), selection: $viewModel.selectedCategory) {
+                Text(AppText.resource("All")).tag("")
                 ForEach(viewModel.model.categories) { category in
                     Text(verbatim: category.name).tag(category.slug)
                 }
             }
-            Picker(StoreServicesText.resource("Sort"), selection: Binding(
+            Picker(AppText.resource("Sort"), selection: Binding(
                 get: { viewModel.model.preferences.sort },
                 set: { value in Task { await viewModel.setSort(value) } }
             )) {
@@ -131,19 +131,19 @@ struct CatalogView: View {
                 }
             }
             .disabled(!viewModel.isSortingEnabled)
-            Menu(StoreServicesText.resource("Display"), systemImage: "slider.horizontal.3") {
-                Picker(StoreServicesText.resource("Layout"), selection: Binding(
+            Menu(AppText.resource("Display"), systemImage: "slider.horizontal.3") {
+                Picker(AppText.resource("Layout"), selection: Binding(
                     get: { viewModel.model.preferences.layout },
                     set: { value in Task { await viewModel.setLayout(value) } }
                 )) {
-                    Text(StoreServicesText.resource("Grid")).tag(StoreCatalogLayout.grid)
-                    Text(StoreServicesText.resource("List")).tag(StoreCatalogLayout.list)
+                    Text(AppText.resource("Grid")).tag(StoreCatalogLayout.grid)
+                    Text(AppText.resource("List")).tag(StoreCatalogLayout.list)
                 }
-                Picker(StoreServicesText.resource("Page size"), selection: Binding(
+                Picker(AppText.resource("Page size"), selection: Binding(
                     get: { viewModel.model.preferences.preferredRemotePageSize },
                     set: { value in Task { await viewModel.setPageSize(value) } }
                 )) {
-                    ForEach(CatalogViewModel.pageSizeChoices, id: \.self) { Text(StoreServicesText.resource("\($0)")).tag($0) }
+                    ForEach(CatalogViewModel.pageSizeChoices, id: \.self) { Text(AppText.resource("\($0)")).tag($0) }
                 }
             }
         }
@@ -162,7 +162,7 @@ private struct ProductCatalogRow: View {
                     .frame(minHeight: 100, maxHeight: 150)
             }
             Text(verbatim: product.title).font(.headline)
-            Text(verbatim: StoreFormatting.priceUSD(product.price, locale: locale))
+            Text(verbatim: AppFormatting.priceUSD(product.price, locale: locale))
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -173,11 +173,11 @@ private struct ProductCatalogRow: View {
 extension StoreCatalogSort {
     var title: String {
         switch self {
-        case .featured: StoreServicesText.string("Featured")
-        case .titleAscending: StoreServicesText.string("Title A–Z")
-        case .titleDescending: StoreServicesText.string("Title Z–A")
-        case .priceAscending: StoreServicesText.string("Price low to high")
-        case .priceDescending: StoreServicesText.string("Price high to low")
+        case .featured: AppText.string("Featured")
+        case .titleAscending: AppText.string("Title A–Z")
+        case .titleDescending: AppText.string("Title Z–A")
+        case .priceAscending: AppText.string("Price low to high")
+        case .priceDescending: AppText.string("Price high to low")
         }
     }
 }

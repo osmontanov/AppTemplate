@@ -8,17 +8,17 @@ enum StoreProductNotificationCategory {
             actions: [
                 .button(LocalNotificationButtonAction(
                     id: AppNotificationIdentifiers.openProductAction,
-                    title: StoreServicesText.string("Open Product"),
+                    title: AppText.string("Open Product"),
                     options: .foreground
                 )),
                 .button(LocalNotificationButtonAction(
                     id: AppNotificationIdentifiers.favoriteAction,
-                    title: StoreServicesText.string("Favorite"),
+                    title: AppText.string("Favorite"),
                     options: .foreground
                 )),
                 .button(LocalNotificationButtonAction(
                     id: AppNotificationIdentifiers.remindLaterAction,
-                    title: StoreServicesText.string("Remind Later")
+                    title: AppText.string("Remind Later")
                 ))
             ],
             reportsDismissal: true

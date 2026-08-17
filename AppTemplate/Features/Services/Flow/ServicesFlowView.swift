@@ -29,7 +29,7 @@ struct ServicesFlowView: View {
         ) {
             ServicesCatalogView(router: router)
         } placeholder: {
-            ContentUnavailableView(StoreServicesText.resource("Select a Service"), systemImage: "wrench.and.screwdriver")
+            ContentUnavailableView(AppText.resource("Select a Service"), systemImage: "wrench.and.screwdriver")
         } destination: { route in
             destination(for: route)
         }
@@ -118,11 +118,11 @@ struct ServicesFlowView: View {
 
     private var platformName: String {
         #if os(macOS)
-        StoreServicesText.string("macOS")
+        AppText.string("macOS")
         #elseif os(iOS)
-        StoreServicesText.string("iOS")
+        AppText.string("iOS")
         #else
-        StoreServicesText.string("Apple Platform")
+        AppText.string("Apple Platform")
         #endif
     }
 }

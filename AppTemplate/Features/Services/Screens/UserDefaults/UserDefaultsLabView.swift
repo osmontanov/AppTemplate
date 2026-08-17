@@ -23,11 +23,11 @@ struct UserDefaultsLabView: View {
             ForEach(UserDefaultsLabKind.allCases.filter { $0 != .bool && $0 != .string }, id: \.self) {
                 operationRow($0)
             }
-            Text(StoreServicesText.resource("Each key is typed and scoped to the dedicated Services lab namespace."))
+            Text(AppText.resource("Each key is typed and scoped to the dedicated Services lab namespace."))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        .navigationTitle(StoreServicesText.resource("UserDefaults"))
+        .navigationTitle(AppText.resource("UserDefaults"))
         .overlay(alignment: .topLeading) {
             Color.clear
                 .frame(width: 1, height: 1)
@@ -42,15 +42,15 @@ struct UserDefaultsLabView: View {
             Text(kind.title).font(.headline)
             HStack {
                 if kind == .bool {
-                    Button(StoreServicesText.resource("Save")) { perform { try model.save(kind) } }
+                    Button(AppText.resource("Save")) { perform { try model.save(kind) } }
                         .accessibilityIdentifier(AppAccessibilityIdentifier.action(.tryService))
                 } else {
-                    Button(StoreServicesText.resource("Save")) { perform { try model.save(kind) } }
+                    Button(AppText.resource("Save")) { perform { try model.save(kind) } }
                 }
-                Button(StoreServicesText.resource("Read")) {
+                Button(AppText.resource("Read")) {
                     perform { try model.read(kind, locale: locale, timeZone: timeZone) }
                 }
-                Button(StoreServicesText.resource("Remove")) { model.remove(kind) }
+                Button(AppText.resource("Remove")) { model.remove(kind) }
             }
         }
     }

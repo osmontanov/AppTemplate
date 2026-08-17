@@ -39,7 +39,7 @@ final class ProductDetailViewModel {
         } catch {
             guard generation == currentGeneration else { return }
             state = .failed
-            errorMessage = StoreServicesText.string("Product details are unavailable.")
+            errorMessage = AppText.string("Product details are unavailable.")
         }
     }
 
@@ -51,7 +51,7 @@ final class ProductDetailViewModel {
             errorMessage = nil
             cartUpdateSucceeded = true
         } catch {
-            errorMessage = StoreServicesText.string("The cart could not be updated.")
+            errorMessage = AppText.string("The cart could not be updated.")
             cartUpdateSucceeded = false
         }
     }

@@ -39,7 +39,7 @@ final class LocalDatabaseLabViewModel {
 
     func fetchByID() async {
         guard let id = validatedID(draftID) else {
-            publishInvalidInput(StoreServicesText.string("Enter an ID between 1 and 128 characters."))
+            publishInvalidInput(AppText.string("Enter an ID between 1 and 128 characters."))
             return
         }
         await perform(.fetch(id)) { [repository] in
@@ -48,56 +48,56 @@ final class LocalDatabaseLabViewModel {
             self.state.nextCursor = nil
             self.state.hasMore = false
             return .success(record == nil
-                ? StoreServicesText.string("No matching record.")
-                : StoreServicesText.string("Fetched \(id)."))
+                ? AppText.string("No matching record.")
+                : AppText.string("Fetched \(id)."))
         }
     }
 
     func createDraft() async {
         guard let record = validatedDraft() else {
-            publishInvalidInput(StoreServicesText.string("Enter a bounded ID and payload before creating."))
+            publishInvalidInput(AppText.string("Enter a bounded ID and payload before creating."))
             return
         }
         await perform(.create(record)) { [repository] in
             try await repository.create(id: record.id, payload: record.payload)
             try await self.reloadAfterMutation()
-            return .success(StoreServicesText.string("Created \(record.id) and reloaded the first page."))
+            return .success(AppText.string("Created \(record.id) and reloaded the first page."))
         }
     }
 
     func updateDraft() async {
         guard let record = validatedDraft() else {
-            publishInvalidInput(StoreServicesText.string("Enter a bounded ID and payload before updating."))
+            publishInvalidInput(AppText.string("Enter a bounded ID and payload before updating."))
             return
         }
         await perform(.update(record)) { [repository] in
             try await repository.update(id: record.id, payload: record.payload)
             try await self.reloadAfterMutation()
-            return .success(StoreServicesText.string("Updated \(record.id) and reloaded the first page."))
+            return .success(AppText.string("Updated \(record.id) and reloaded the first page."))
         }
     }
 
     func upsertDraft() async {
         guard let record = validatedDraft() else {
-            publishInvalidInput(StoreServicesText.string("Enter a bounded ID and payload before upserting."))
+            publishInvalidInput(AppText.string("Enter a bounded ID and payload before upserting."))
             return
         }
         await perform(.upsert(record)) { [repository] in
             try await repository.upsert(record)
             try await self.reloadAfterMutation()
-            return .success(StoreServicesText.string("Upserted \(record.id) and reloaded the first page."))
+            return .success(AppText.string("Upserted \(record.id) and reloaded the first page."))
         }
     }
 
     func upsertBatch() async {
         guard let records = validatedBatch(batchDrafts) else {
-            publishInvalidInput(StoreServicesText.string("The batch must contain 1 to 50 bounded records with unique IDs."))
+            publishInvalidInput(AppText.string("The batch must contain 1 to 50 bounded records with unique IDs."))
             return
         }
         await perform(.upsertBatch(records)) { [repository] in
             try await repository.upsertBatch(records)
             try await self.reloadAfterMutation()
-            return .success(StoreServicesText.string("Upserted \(records.count) records and reloaded the first page."))
+            return .success(AppText.string("Upserted \(records.count) records and reloaded the first page."))
         }
     }
 
@@ -113,7 +113,7 @@ final class LocalDatabaseLabViewModel {
 
     func refresh() async {
         guard validatedSearch(state.searchText) != nil else {
-            publishInvalidInput(StoreServicesText.string("Search text must be at most 128 characters."))
+            publishInvalidInput(AppText.string("Search text must be at most 128 characters."))
             return
         }
         await loadPage(afterID: nil, replacing: true)
@@ -126,15 +126,15 @@ final class LocalDatabaseLabViewModel {
 
     func deleteByID() async {
         guard let id = validatedID(draftID) else {
-            publishInvalidInput(StoreServicesText.string("Enter an ID between 1 and 128 characters."))
+            publishInvalidInput(AppText.string("Enter an ID between 1 and 128 characters."))
             return
         }
         await perform(.delete(id)) { [repository] in
             let deleted = try await repository.delete(id: id)
             try await self.reloadAfterMutation()
             return .success(deleted
-                ? StoreServicesText.string("Deleted \(id).")
-                : StoreServicesText.string("No matching record to delete."))
+                ? AppText.string("Deleted \(id).")
+                : AppText.string("No matching record to delete."))
         }
     }
 
@@ -142,7 +142,7 @@ final class LocalDatabaseLabViewModel {
         await perform(.deleteAll) { [repository] in
             let count = try await repository.deleteAll()
             try await self.reloadAfterMutation()
-            return .success(StoreServicesText.string("Deleted \(count) demo records."))
+            return .success(AppText.string("Deleted \(count) demo records."))
         }
     }
 
@@ -151,7 +151,7 @@ final class LocalDatabaseLabViewModel {
             _ = try await repository.deleteAll()
             try await repository.upsertBatch(Self.demoRecords)
             try await self.reloadAfterMutation()
-            return .success(StoreServicesText.string("Reset the three local database demo records."))
+            return .success(AppText.string("Reset the three local database demo records."))
         }
     }
 
@@ -168,32 +168,32 @@ final class LocalDatabaseLabViewModel {
         case let .create(record):
             await retryMutation(operation) { [repository] in
                 try await repository.create(id: record.id, payload: record.payload)
-                return StoreServicesText.string("Created \(record.id).")
+                return AppText.string("Created \(record.id).")
             }
         case let .update(record):
             await retryMutation(operation) { [repository] in
                 try await repository.update(id: record.id, payload: record.payload)
-                return StoreServicesText.string("Updated \(record.id).")
+                return AppText.string("Updated \(record.id).")
             }
         case let .upsert(record):
             await retryMutation(operation) { [repository] in
                 try await repository.upsert(record)
-                return StoreServicesText.string("Upserted \(record.id).")
+                return AppText.string("Upserted \(record.id).")
             }
         case let .upsertBatch(records):
             await retryMutation(operation) { [repository] in
                 try await repository.upsertBatch(records)
-                return StoreServicesText.string("Upserted \(records.count) records.")
+                return AppText.string("Upserted \(records.count) records.")
             }
         case let .delete(id):
             await retryMutation(operation) { [repository] in
                 _ = try await repository.delete(id: id)
-                return StoreServicesText.string("Retried delete for \(id).")
+                return AppText.string("Retried delete for \(id).")
             }
         case .deleteAll:
             await retryMutation(operation) { [repository] in
                 let count = try await repository.deleteAll()
-                return StoreServicesText.string("Deleted \(count) demo records.")
+                return AppText.string("Deleted \(count) demo records.")
             }
         case .reset:
             await resetDemoData()
@@ -218,7 +218,7 @@ final class LocalDatabaseLabViewModel {
                 : self.state.records + page.values
             self.state.nextCursor = page.nextCursor
             self.state.hasMore = page.hasMore
-            return .success(StoreServicesText.string("Loaded \(page.values.count) records."))
+            return .success(AppText.string("Loaded \(page.values.count) records."))
         }
     }
 
@@ -293,7 +293,7 @@ final class LocalDatabaseLabViewModel {
                         pageSize: pageSize
                     )
                 }
-                self.actualResult = .failure(StoreServicesText.string("The mutation completed, but the first page could not reload."))
+                self.actualResult = .failure(AppText.string("The mutation completed, but the first page could not reload."))
             } catch {
                 guard generation == self.operationGeneration else { return }
                 self.lastRetryOperation = descriptor
@@ -346,14 +346,14 @@ final class LocalDatabaseLabViewModel {
     private static func safeMessage(for error: any Error) -> String {
         switch error {
         case ExampleRecordRepositoryError.alreadyExists:
-            StoreServicesText.string("Create requires an ID that does not already exist.")
+            AppText.string("Create requires an ID that does not already exist.")
         case ExampleRecordRepositoryError.notFound:
-            StoreServicesText.string("Update requires an existing ID.")
+            AppText.string("Update requires an existing ID.")
         case ExampleRecordRepositoryError.invalidID,
              ExampleRecordRepositoryError.invalidPageSize:
-            StoreServicesText.string("The local database input was invalid.")
+            AppText.string("The local database input was invalid.")
         default:
-            StoreServicesText.string("The local database operation could not complete.")
+            AppText.string("The local database operation could not complete.")
         }
     }
 

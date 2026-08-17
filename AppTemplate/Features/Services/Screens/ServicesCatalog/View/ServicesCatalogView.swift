@@ -32,7 +32,7 @@ struct ServicesCatalogView: View {
                 AppAccessibilityIdentifier.serviceDestination(item.route.accessibilityDestination)
             )
         }
-        .navigationTitle(StoreServicesText.resource(.servicesTitle))
+        .navigationTitle(AppText.resource("Services"))
         .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.servicesCatalog))
     }
 }

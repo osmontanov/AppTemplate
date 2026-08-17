@@ -15,12 +15,12 @@ struct MaintenanceView: View {
     var body: some View {
         AdaptiveContentContainer {
             VStack(spacing: 16) {
-                Text(StoreServicesText.resource("Maintenance is in progress"))
+                Text(AppText.resource("Maintenance is in progress"))
                     .font(.title)
                     .accessibilityAddTraits(.isHeader)
-                Text(StoreServicesText.resource("Disable the saved maintenance flag to return to the required app flow."))
+                Text(AppText.resource("Disable the saved maintenance flag to return to the required app flow."))
                     .foregroundStyle(.secondary)
-                Button(StoreServicesText.resource("Return to App")) {
+                Button(AppText.resource("Return to App")) {
                     viewModel.returnToApp()
                 }
                 .buttonStyle(.borderedProminent)
@@ -30,7 +30,7 @@ struct MaintenanceView: View {
                 .accessibilityIdentifier("action.maintenance.return")
             }
         }
-        .navigationTitle(StoreServicesText.resource("Maintenance"))
+        .navigationTitle(AppText.resource("Maintenance"))
         .task { primaryActionIsFocused = true }
         .accessibilityIdentifier(AppAccessibilityIdentifier.screen(.maintenance))
     }

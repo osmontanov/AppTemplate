@@ -38,10 +38,10 @@ struct ProductReminderView: View {
                 resultSection
                 actionsSection
             }
-            .navigationTitle(StoreServicesText.resource("Product reminder"))
+            .navigationTitle(AppText.resource("Product reminder"))
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(StoreServicesText.resource("Done")) { dismiss() }
+                    Button(AppText.resource("Done")) { dismiss() }
                         .keyboardShortcut(.cancelAction)
                 }
             }
@@ -66,46 +66,46 @@ struct ProductReminderView: View {
     }
 
     private var productSection: some View {
-        Section(StoreServicesText.resource("Product")) {
-            LabeledContent(StoreServicesText.resource("Name"), value: product.title)
-            LabeledContent(StoreServicesText.resource("Price")) {
-                Text(verbatim: StoreFormatting.priceUSD(product.price, locale: locale))
+        Section(AppText.resource("Product")) {
+            LabeledContent(AppText.resource("Name"), value: product.title)
+            LabeledContent(AppText.resource("Price")) {
+                Text(verbatim: AppFormatting.priceUSD(product.price, locale: locale))
             }
         }
     }
 
     private var selectionSection: some View {
-        Section(StoreServicesText.resource("When")) {
-            Picker(StoreServicesText.resource("Reminder type"), selection: selectionBinding) {
-                Text(StoreServicesText.resource("Quick test")).tag(SelectionKind.quickTest)
-                Text(StoreServicesText.resource("Interval")).tag(SelectionKind.interval)
-                Text(StoreServicesText.resource("Date and time")).tag(SelectionKind.calendar)
+        Section(AppText.resource("When")) {
+            Picker(AppText.resource("Reminder type"), selection: selectionBinding) {
+                Text(AppText.resource("Quick test")).tag(SelectionKind.quickTest)
+                Text(AppText.resource("Interval")).tag(SelectionKind.interval)
+                Text(AppText.resource("Date and time")).tag(SelectionKind.calendar)
             }
             .pickerStyle(.segmented)
 
             switch selectionBinding.wrappedValue {
             case .quickTest:
-                Text(StoreServicesText.resource("Schedules a one-time reminder in five seconds."))
+                Text(AppText.resource("Schedules a one-time reminder in five seconds."))
                     .foregroundStyle(.secondary)
             case .interval:
-                TextField(StoreServicesText.resource("Seconds"), text: intervalTextBinding)
+                TextField(AppText.resource("Seconds"), text: intervalTextBinding)
                     .focused($focusedField, equals: .interval)
                     .accessibilityFocused($accessibilityFocusedField, equals: .interval)
                     .accessibilityIdentifier("field.product-reminder.interval")
-                Toggle(StoreServicesText.resource("Repeat"), isOn: repeatsBinding)
-                Text(StoreServicesText.resource("Use 1 to 604,800 seconds. Repeating reminders require at least 60 seconds."))
+                Toggle(AppText.resource("Repeat"), isOn: repeatsBinding)
+                Text(AppText.resource("Use 1 to 604,800 seconds. Repeating reminders require at least 60 seconds."))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             case .calendar:
                 DatePicker(
-                    StoreServicesText.resource("Date and time"),
+                    AppText.resource("Date and time"),
                     selection: calendarDateBinding,
                     displayedComponents: [.date, .hourAndMinute]
                 )
                 .focused($focusedField, equals: .calendarDate)
                 .accessibilityFocused($accessibilityFocusedField, equals: .calendarDate)
                 .accessibilityIdentifier("field.product-reminder.calendar-date")
-                Picker(StoreServicesText.resource("Time zone"), selection: calendarTimeZoneBinding) {
+                Picker(AppText.resource("Time zone"), selection: calendarTimeZoneBinding) {
                     ForEach(TimeZone.knownTimeZoneIdentifiers, id: \.self) { identifier in
                         Text(verbatim: identifier).tag(identifier)
                     }
@@ -117,22 +117,22 @@ struct ProductReminderView: View {
 
     @ViewBuilder
     private var statusSection: some View {
-        Section(StoreServicesText.resource("Status")) {
+        Section(AppText.resource("Status")) {
             switch currentStatus {
             case .notScheduled:
-                Label(StoreServicesText.resource("Not scheduled"), systemImage: "bell.slash")
+                Label(AppText.resource("Not scheduled"), systemImage: "bell.slash")
                     .accessibilityIdentifier("status.product-reminder.not-scheduled")
             case let .scheduled(nextTriggerDate):
                 if let nextTriggerDate {
-                    LabeledContent(StoreServicesText.resource("Next reminder")) {
-                        Text(verbatim: StoreFormatting.dateTime(
+                    LabeledContent(AppText.resource("Next reminder")) {
+                        Text(verbatim: AppFormatting.dateTime(
                             nextTriggerDate,
                             locale: locale,
                             timeZone: viewModel.model.calendarTimeZone
                         ))
                     }
                 } else {
-                    Label(StoreServicesText.resource("Scheduled"), systemImage: "bell.badge")
+                    Label(AppText.resource("Scheduled"), systemImage: "bell.badge")
                 }
             }
         }
@@ -147,18 +147,18 @@ struct ProductReminderView: View {
             Section {
                 HStack {
                     ProgressView()
-                    Text(StoreServicesText.resource("Scheduling reminder…"))
+                    Text(AppText.resource("Scheduling reminder…"))
                 }
             }
             .accessibilityIdentifier(AppAccessibilityIdentifier.result(.loading))
         case let .scheduled(result):
-            Section(StoreServicesText.resource("Result")) {
-                Label(StoreServicesText.resource("Reminder scheduled"), systemImage: "checkmark.circle.fill")
+            Section(AppText.resource("Result")) {
+                Label(AppText.resource("Reminder scheduled"), systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)
                     .accessibilityIdentifier("result.product-reminder.scheduled")
                 if result == .scheduledWithWarning(.textOnlyAttachmentFallback) {
                     Label(
-                        StoreServicesText.resource("The reminder was scheduled without a product image."),
+                        AppText.resource("The reminder was scheduled without a product image."),
                         systemImage: "exclamationmark.triangle"
                     )
                     .foregroundStyle(.orange)
@@ -167,7 +167,7 @@ struct ProductReminderView: View {
             .accessibilityFocused($resultIsFocused)
             .accessibilityIdentifier(AppAccessibilityIdentifier.result(.actualSuccess))
         case let .failed(_, error):
-            Section(StoreServicesText.resource("Result")) {
+            Section(AppText.resource("Result")) {
                 Label(errorMessage(error), systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.red)
                     .accessibilityIdentifier("result.product-reminder.failed")
@@ -179,7 +179,7 @@ struct ProductReminderView: View {
 
     private var actionsSection: some View {
         Section {
-            Button(StoreServicesText.resource("Schedule reminder")) {
+            Button(AppText.resource("Schedule reminder")) {
                 Task { await viewModel.schedule() }
             }
             .buttonStyle(.borderedProminent)
@@ -189,7 +189,7 @@ struct ProductReminderView: View {
             .accessibilityIdentifier(AppAccessibilityIdentifier.action(.scheduleReminder))
 
             if canCancel {
-                Button(StoreServicesText.resource("Cancel reminder"), role: .destructive) {
+                Button(AppText.resource("Cancel reminder"), role: .destructive) {
                     Task { await viewModel.cancel() }
                 }
                 .disabled(isScheduling)
@@ -202,9 +202,9 @@ struct ProductReminderView: View {
     private var calendarResolution: some View {
         let presentation = viewModel.model.calendarPresentation(locale: locale)
         return VStack(alignment: .leading, spacing: 4) {
-            LabeledContent(StoreServicesText.resource("Resolved date"), value: presentation.date)
-            LabeledContent(StoreServicesText.resource("Resolved time"), value: presentation.time)
-            LabeledContent(StoreServicesText.resource("Resolved time zone"), value: presentation.timeZone)
+            LabeledContent(AppText.resource("Resolved date"), value: presentation.date)
+            LabeledContent(AppText.resource("Resolved time"), value: presentation.time)
+            LabeledContent(AppText.resource("Resolved time zone"), value: presentation.timeZone)
         }
     }
 
@@ -315,9 +315,9 @@ struct ProductReminderView: View {
         switch viewModel.state {
         case let .scheduled(result):
             if result == .scheduledWithWarning(.textOnlyAttachmentFallback) {
-                return StoreServicesText.string("Reminder scheduled without a product image.")
+                return AppText.string("Reminder scheduled without a product image.")
             }
-            return StoreServicesText.string("Reminder scheduled.")
+            return AppText.string("Reminder scheduled.")
         case let .failed(_, error):
             return errorMessage(error)
         case .editing, .scheduling:
@@ -328,13 +328,13 @@ struct ProductReminderView: View {
     private func errorMessage(_ error: ProductReminderViewError) -> String {
         switch error {
         case .invalid(.interval):
-            StoreServicesText.string("Enter a valid reminder interval.")
+            AppText.string("Enter a valid reminder interval.")
         case .invalid(.calendarDate):
-            StoreServicesText.string("Choose a future date within one year.")
+            AppText.string("Choose a future date within one year.")
         case .authorizationDenied:
-            StoreServicesText.string("Notifications are not allowed. You can enable them in system settings.")
+            AppText.string("Notifications are not allowed. You can enable them in system settings.")
         case .schedule:
-            StoreServicesText.string("The reminder could not be scheduled. Try again.")
+            AppText.string("The reminder could not be scheduled. Try again.")
         }
     }
 }
