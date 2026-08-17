@@ -121,10 +121,17 @@ if [[ ! -e "$container_tmp" ]]; then
   mkdir "$container_tmp"
 fi
 [[ -d "$container_tmp" && ! -L "$container_tmp" ]] || exit 72
-helper_run_root="$(mktemp -d "$container_tmp/AppTemplate-XCResultRequiredTestsVerifier.XXXXXX")"
-helper_run_root="$(cd "$helper_run_root" && pwd -P)"
+# The hosted suite resolves these binaries itself, and neither an environment
+# variable nor INFOPLIST_KEY_ survives the test-host launch, so both sides have
+# to agree on one path: this fixed name inside the app container's temporary
+# directory, which is what FileManager.temporaryDirectory maps to in the sandbox.
+# The lock above keeps the fixed name single-writer.
+helper_run_root="$container_tmp/AppTemplate-XCResultRequiredTestsVerifier"
+[[ ! -L "$helper_run_root" ]] || exit 72
+rm -rf -- "$helper_run_root"
+mkdir "$helper_run_root"
 [[ -d "$helper_run_root" && ! -L "$helper_run_root" ]] || exit 72
-[[ "$helper_run_root" == "$container_tmp/"AppTemplate-XCResultRequiredTestsVerifier.* ]] || exit 72
+[[ "${helper_run_root:t}" == AppTemplate-XCResultRequiredTestsVerifier ]] || exit 72
 verifier_executable="$helper_run_root/verifier"
 fixture_runner_executable="$helper_run_root/fixture-runner"
 [[ ! -L "$verifier_executable" && ! -L "$fixture_runner_executable" ]] || exit 72
@@ -147,7 +154,6 @@ XCRESULT_FIXTURE_RUNNER_TEST_EXECUTABLE="$fixture_runner_executable" xcodebuild 
   -destination 'platform=macOS,arch=arm64' -parallel-testing-enabled NO \
   -only-testing:AppTemplateTests \
   -derivedDataPath "$unit_derived_data" \
-  INFOPLIST_KEY_XCResultVerifierRoot="$helper_run_root" \
   SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
   -resultBundlePath "$result_root/unit.xcresult"
 env -u XCRESULT_REQUIRED_TESTS_RUNNER swift Scripts/verify-xcresult-required-tests.swift \
@@ -184,7 +190,7 @@ for index in {1..3}; do
 done
 
 [[ -d "$helper_run_root" && ! -L "$helper_run_root" ]] || exit 72
-[[ "$helper_run_root" == "$container_tmp/"AppTemplate-XCResultRequiredTestsVerifier.* ]] || exit 72
+[[ "${helper_run_root:t}" == AppTemplate-XCResultRequiredTestsVerifier ]] || exit 72
 [[ -f "$verifier_executable" && ! -L "$verifier_executable" ]] || exit 72
 [[ -f "$fixture_runner_executable" && ! -L "$fixture_runner_executable" ]] || exit 72
 chmod 700 "$helper_run_root" "$verifier_executable" "$fixture_runner_executable"

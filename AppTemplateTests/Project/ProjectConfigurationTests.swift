@@ -323,8 +323,12 @@ extension ProjectConfigurationTests {
         #expect(script.contains("[[ \"${manifest_hash%% *}\" == \"$expected_hash\" ]] || exit 66"))
         #expect(script.contains("Scripts/update-release-manifest-checksums.zsh"))
         #expect(!script.contains("connected-mini-store"))
-        #expect(script.contains("AppTemplate-XCResultRequiredTestsVerifier.XXXXXX"))
-        #expect(script.contains("INFOPLIST_KEY_XCResultVerifierRoot=\"$helper_run_root\""))
+        // The hosted verifier suite looks its binaries up under this exact name
+        // in the container's temporary directory; nothing else survives the
+        // test-host launch, so the script and the suite must agree on it.
+        #expect(script.contains(
+            "helper_run_root=\"$container_tmp/AppTemplate-XCResultRequiredTestsVerifier\""
+        ))
         #expect(script.contains("rmdir \"$helper_run_root\""))
         #expect(script.contains(
             "release_lock=\"/private/var/tmp/AppTemplate-release-gate.$release_account_uid.$release_bundle_id.lock\""
