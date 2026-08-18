@@ -9,6 +9,7 @@ actor CachingImageLoader: IImageLoader {
     private struct Flight {
         let task: Task<LoadedImage, Error>
         var waiters: Set<UInt64>
+        var didCache = false
     }
 
     private let base: any IImageLoader
@@ -69,8 +70,14 @@ actor CachingImageLoader: IImageLoader {
             do {
                 let image = try await task.value
                 // Cache before returning: a caller that got an image and then
-                // asks again must not race the bookkeeping and refetch.
-                cache(image, for: key.url)
+                // asks again must not race the bookkeeping and refetch. Only the
+                // first waiter of a flight writes, so a late one cannot revive an
+                // entry the cache has since evicted for something newer.
+                if var flight = flights[key], !flight.didCache {
+                    flight.didCache = true
+                    flights[key] = flight
+                    cache(image, for: key.url)
+                }
                 leave(key, waiter: waiter)
                 try Task.checkCancellation()
                 return image

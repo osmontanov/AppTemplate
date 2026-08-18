@@ -182,31 +182,32 @@ for index in {1..3}; do
   [[ -d "$ui_derived_data" && ! -L "$ui_derived_data" ]] || exit 72
   [[ -d "$build_derived_data" && ! -L "$build_derived_data" ]] || exit 72
   ui_log="$result_root/ui-$platform_name.log"
-  if xcodebuild test -project AppTemplate.xcodeproj -scheme AppTemplate \
+  set +e
+  xcodebuild test -project AppTemplate.xcodeproj -scheme AppTemplate \
     -destination "$destination" -parallel-testing-enabled NO \
     -only-testing:AppTemplateUITests SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
     -derivedDataPath "$ui_derived_data" \
-    -resultBundlePath "$result_root/ui-$platform_name.xcresult" 2>&1 | tee "$ui_log"; then
-    ui_tests_ran=1
-  else
-    ui_tests_ran=0
-  fi
+    -resultBundlePath "$result_root/ui-$platform_name.xcresult" 2>&1 | tee "$ui_log"
+  ui_status=${pipestatus[1]}
+  set -e
 
-  if (( ! ui_tests_ran )); then
+  if (( ui_status != 0 )); then
     # Driving the macOS UI needs a machine-level automation grant that a fresh
-    # checkout has no way to give itself. Tolerate exactly that condition — any
-    # other failure is a real one and still stops the gate — and say out loud
-    # which coverage the run is missing.
+    # checkout has no way to give itself. Tolerate exactly that: the runner must
+    # have failed to start at all, which xcodebuild reports as its own line — a
+    # test that ran and failed never produces it, so a real failure still stops
+    # the gate with xcodebuild's own status.
     if [[ "$platform_name" == macos ]] \
+      && grep -q "^	AppTemplateUITests-Runner .* failed to initialize for UI testing" "$ui_log" \
       && grep -q "Timed out while enabling automation mode" "$ui_log"; then
       skipped_macos_ui=1
-      print -u2 -- "warning: macOS UI tests skipped — this machine has not granted UI automation to the test runner, so their coverage is missing from this run."
+      print -u2 -- "warning: macOS UI tests skipped — this machine has not granted UI automation to the test runner. The $(LC_ALL=C grep -c $'^macos\t' "$ui_required") macos-scoped required UI tests were NOT verified in this run."
       xcodebuild build -project AppTemplate.xcodeproj -scheme AppTemplate \
         -destination "$destination" -derivedDataPath "$build_derived_data" \
         SWIFT_TREAT_WARNINGS_AS_ERRORS=YES
       continue
     fi
-    exit 74
+    exit "$ui_status"
   fi
 
   env -u XCRESULT_REQUIRED_TESTS_RUNNER swift Scripts/verify-xcresult-required-tests.swift \

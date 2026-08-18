@@ -20,7 +20,8 @@ The main source boundaries are:
 - `AppTemplate/Features/<Feature>` — feature dependencies, flow containers,
   and screen-owned Model, Navigation, State, View, and ViewModel files.
 - `AppTemplate/Utilities/UIComponents` — reusable screen-independent views.
-- `AppTemplate/Resources` — the property list, string catalog, and assets.
+- `AppTemplate/Resources` — the property list, the privacy manifest, the
+  `AppText` string catalog that every visible string resolves through, and assets.
 
 `AppTemplateTests` mirrors production ownership. `AppTemplateUITests` tests
 the launch roots and user-visible navigation.

@@ -53,7 +53,7 @@ Complete this checklist for the adopted product, not for the untouched sample.
   icon, including dark/tinted variants where applicable.
 - [ ] Replace and verify the accent color in light, dark, increased-contrast,
   and tinted appearances.
-- [ ] Complete the string catalog, display-name localization, screenshots, and
+- [ ] Complete `AppText.xcstrings`, display-name localization, screenshots, and
   accessibility labels for every supported locale.
 - [ ] Test layout, truncation, pluralization, right-to-left behavior, VoiceOver,
   keyboard navigation, and Dynamic Type where applicable.
@@ -95,6 +95,10 @@ Complete this checklist for the adopted product, not for the untouched sample.
   `zsh Scripts/verify-release.zsh`. Retain its unique
   result directory and confirm the required unit and UI manifests report no
   failures or unauthorized skips on macOS, iPhone, and iPad.
+- [ ] Confirm the run did **not** end with "Release gate passed WITHOUT macOS UI
+  coverage". That line means this machine denies UI automation to the test
+  runner, so the macos-scoped UI rows went unverified; grant it and rerun before
+  shipping.
 - [ ] For the active schema, confirm the production registry entity set and
   cardinality equal the active schema.
 - [ ] Verify schema-enforced unique business-ID behavior for every registered

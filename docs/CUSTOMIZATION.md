@@ -46,7 +46,12 @@ build/test commands, and run all destinations before deleting the old names.
 - Set the product accent in
   `AppTemplate/Resources/Assets.xcassets/AccentColor.colorset`.
 - Replace template copy and add supported locales in
-  `AppTemplate/Resources/Localizable.xcstrings`.
+  `AppTemplate/Resources/AppText.xcstrings`. Every visible string resolves
+  through `AppText` into that table; `Localizable.xcstrings` holds only the
+  launch-failure message and needs no attention. Xcode does not extract strings
+  into these catalogs (see `SWIFT_EMIT_LOC_STRINGS` in `Config/Template.xcconfig`),
+  so add each new key by hand — `AppTextLocalizationTests` fails when a producer
+  uses a key the catalog lacks.
 - Verify icons, tinting, high-contrast appearances, and localized layouts on
   both iOS/iPadOS and macOS.
 

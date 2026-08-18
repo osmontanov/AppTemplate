@@ -343,11 +343,65 @@ extension ProjectConfigurationTests {
         // Missing macOS UI automation is the one failure the gate may continue
         // past, and it has to announce the coverage it lost when it does.
         #expect(script.contains("Timed out while enabling automation mode"))
+        #expect(script.contains("failed to initialize for UI testing"))
         #expect(script.contains("Release gate passed WITHOUT macOS UI coverage"))
-        #expect(script.contains("exit 74"))
+        // Scoped to macOS, to a runner that never started, and reporting the
+        // rows it could not verify — without all three the tolerance turns into
+        // "ignore UI failures".
+        #expect(script.contains("[[ \"$platform_name\" == macos ]]"))
+        #expect(script.contains("were NOT verified in this run"))
+        #expect(script.contains("exit \"$ui_status\""))
+        #expect(!script.contains("exit 74"))
         #expect(script.contains("mkdir \"$app_container\""))
         #expect(script.contains("mkdir \"$container_data\""))
         #expect(script.contains("mkdir \"$container_tmp\""))
+    }
+
+    // Both of these live in one place on purpose and are invisible at runtime,
+    // so nothing but a test notices when they drift back.
+    @Test
+    func projectKeepsLocalizationAndPrivacyDeclarationsInOnePlace() throws {
+        let projectRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let project = try #require(String(
+            data: try Data(contentsOf: projectRoot.appending(
+                path: "AppTemplate.xcodeproj/project.pbxproj"
+            )),
+            encoding: .utf8
+        ))
+        let xcconfig = try #require(String(
+            data: try Data(contentsOf: projectRoot.appending(
+                path: "Config/Template.xcconfig"
+            )),
+            encoding: .utf8
+        ))
+
+        // A target-level value silently outranks the xcconfig, which is how the
+        // catalogs started duplicating themselves again.
+        #expect(!project.contains("SWIFT_EMIT_LOC_STRINGS"))
+        #expect(xcconfig.contains("SWIFT_EMIT_LOC_STRINGS = NO"))
+
+        let manifest = try Data(contentsOf: projectRoot.appending(
+            path: "AppTemplate/Resources/PrivacyInfo.xcprivacy"
+        ))
+        let declared = try #require(
+            try PropertyListSerialization.propertyList(
+                from: manifest,
+                format: nil
+            ) as? [String: Any]
+        )
+        #expect(declared["NSPrivacyTracking"] as? Bool == false)
+        #expect((declared["NSPrivacyTrackingDomains"] as? [Any])?.isEmpty == true)
+        let reasons = (declared["NSPrivacyAccessedAPITypes"] as? [[String: Any]] ?? [])
+            .reduce(into: [String: [String]]()) { result, entry in
+                if let type = entry["NSPrivacyAccessedAPIType"] as? String {
+                    result[type] = entry["NSPrivacyAccessedAPITypeReasons"] as? [String]
+                }
+            }
+        #expect(reasons["NSPrivacyAccessedAPICategoryUserDefaults"] == ["CA92.1"])
+        #expect(reasons["NSPrivacyAccessedAPICategoryFileTimestamp"] == ["C617.1"])
     }
 
     private static let criticalRequiredUnitTests = [
