@@ -340,6 +340,11 @@ extension ProjectConfigurationTests {
             "env -u XCRESULT_REQUIRED_TESTS_RUNNER swift Scripts/verify-xcresult-required-tests.swift"
         ))
         #expect(script.contains("SWIFT_TREAT_WARNINGS_AS_ERRORS=YES"))
+        // Missing macOS UI automation is the one failure the gate may continue
+        // past, and it has to announce the coverage it lost when it does.
+        #expect(script.contains("Timed out while enabling automation mode"))
+        #expect(script.contains("Release gate passed WITHOUT macOS UI coverage"))
+        #expect(script.contains("exit 74"))
         #expect(script.contains("mkdir \"$app_container\""))
         #expect(script.contains("mkdir \"$container_data\""))
         #expect(script.contains("mkdir \"$container_tmp\""))
