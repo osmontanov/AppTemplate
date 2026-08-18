@@ -360,7 +360,9 @@ In Xcode, select the `AppTemplate` project and then each app/test target:
 4. Configure Release signing and archive the Release configuration on a clean
    verification machine.
 
-> **App Store distribution is blocked until the adopter adds and validates the
-> correct `PrivacyInfo.xcprivacy` for the finished app and every included SDK.**
-> This template intentionally does not add one: required-reason APIs and data
-> declarations must describe the adopter's actual code and dependencies.
+> **Review `AppTemplate/Resources/PrivacyInfo.xcprivacy` before submitting.** It
+> ships filled in for the code that is here — no tracking, no collected data, and
+> required reasons for UserDefaults (CA92.1) and the file timestamps the
+> notification attachment stager reads (C617.1). Required-reason APIs and data
+> declarations must describe *your* code and dependencies, so re-derive every
+> entry once your product and its SDKs replace the example.

@@ -5,3 +5,10 @@ APP_DEVELOPMENT_TEAM = 33W8WHD42N
 // Applies to every target, so the app and its test bundles share one Team ID.
 // macOS refuses to load a test bundle whose team differs from the host app.
 DEVELOPMENT_TEAM = $(APP_DEVELOPMENT_TEAM)
+
+// Visible copy goes through AppText into the AppText catalog. Xcode's extractor
+// sees the literal at the call site but not the table the facade passes, so with
+// extraction on it refills Localizable.xcstrings with a duplicate of every key on
+// each build. The catalogs are maintained by hand and AppTextLocalizationTests
+// fails when a producer uses a key the catalog lacks.
+SWIFT_EMIT_LOC_STRINGS = NO

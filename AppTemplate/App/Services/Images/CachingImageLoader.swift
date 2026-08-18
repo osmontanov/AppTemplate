@@ -18,6 +18,7 @@ actor CachingImageLoader: IImageLoader {
     private var cachedTotalBytes = 0
     private var flights: [FlightKey: Flight] = [:]
     private var nextWaiterID: UInt64 = 0
+    private var memoryPressureSource: (any DispatchSourceMemoryPressure)?
 
     init(
         base: any IImageLoader = ProductImageLoader(),
@@ -25,6 +26,28 @@ actor CachingImageLoader: IImageLoader {
     ) {
         self.base = base
         self.maximumTotalBytes = max(0, maximumTotalBytes)
+        Task { await self.observeMemoryPressure() }
+    }
+
+    // Cached bytes are the first thing worth giving back when the system asks
+    // for memory; in-flight downloads keep running and repopulate on demand.
+    func evictAll() {
+        cachedImagesByURL.removeAll()
+        recentURLs.removeAll()
+        cachedTotalBytes = 0
+    }
+
+    private func observeMemoryPressure() {
+        let source = DispatchSource.makeMemoryPressureSource(
+            eventMask: [.warning, .critical],
+            queue: .global(qos: .utility)
+        )
+        source.setEventHandler { [weak self] in
+            guard let self else { return }
+            Task { await self.evictAll() }
+        }
+        source.activate()
+        memoryPressureSource = source
     }
 
     func load(_ url: URL, policy: ImageLoadPolicy) async throws -> LoadedImage {

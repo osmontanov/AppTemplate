@@ -113,8 +113,13 @@ rows kept `LC_ALL=C` sorted) to `Scripts/release-required-unit-tests.tsv` or
 
 ## Known intentional gaps
 
-- **No `PrivacyInfo.xcprivacy`** — a distribution blocker you must add before
-  shipping (see `docs/CUSTOMIZATION.md`).
+- `AppTemplate/Resources/PrivacyInfo.xcprivacy` declares what *this* code does:
+  no tracking, no collected data, and required-reason entries for UserDefaults
+  (CA92.1) and the file timestamps the attachment stager reads (C617.1). Revisit
+  every entry for your own product and its SDKs before submitting.
+- String extraction is off (`SWIFT_EMIT_LOC_STRINGS = NO`): the catalogs are
+  maintained by hand, because the extractor cannot see the table `AppText` passes
+  and would refill `Localizable.xcstrings` with a duplicate of every key.
 - The remote layer is pinned to `https://dummyjson.com` by design; swapping the
   backend means replacing `RemoteService`/`DummyJSONTarget`, not injecting a URL.
 - The image pipeline is deliberately fail-closed and memory-cache-only

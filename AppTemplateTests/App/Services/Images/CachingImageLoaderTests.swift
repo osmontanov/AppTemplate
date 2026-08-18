@@ -105,6 +105,23 @@ struct CachingImageLoaderTests {
         #expect(await base.loadCount == 3)
     }
 
+    @Test func evictAllDropsCachedBytesAndReloadsOnDemand() async throws {
+        let base = ControlledImageLoader(results: [
+            .success(Self.image(bytes: 8)),
+            .success(Self.image(bytes: 8))
+        ])
+        let loader = CachingImageLoader(base: base)
+
+        _ = try await loader.load(url, policy: policy)
+        _ = try await loader.load(url, policy: policy)
+        #expect(await base.loadCount == 1)
+
+        await loader.evictAll()
+        _ = try await loader.load(url, policy: policy)
+
+        #expect(await base.loadCount == 2)
+    }
+
     @Test func disallowedURLIsRejectedWithoutBaseCall() async {
         let base = ControlledImageLoader(results: [])
         let loader = CachingImageLoader(base: base)

@@ -26,11 +26,11 @@ subsystem. See [Architecture](docs/ARCHITECTURE.md),
    policy, navigation, persistence, or dependency ownership.
 5. Use the [release checklist](docs/RELEASE_CHECKLIST.md) before distribution.
 
-> **Distribution blocker:** App Store distribution remains blocked until the
-> adopter adds and validates the correct `PrivacyInfo.xcprivacy` for the final
-> app and all included SDKs. The template intentionally does not include a
-> privacy manifest because the required declarations depend on the adopter's
-> product.
+> **Before you submit:** `AppTemplate/Resources/PrivacyInfo.xcprivacy` declares
+> what this code actually does — no tracking, no collected data, and required
+> reasons for UserDefaults (CA92.1) and the file timestamps the notification
+> attachment stager reads (C617.1). Your product and the SDKs you add will change
+> those declarations, so review every entry before submitting.
 
 ## Scope
 

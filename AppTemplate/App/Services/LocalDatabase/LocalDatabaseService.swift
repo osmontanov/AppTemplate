@@ -52,6 +52,12 @@ actor LocalDatabaseService: ILocalDatabaseService {
     ) async throws -> Set<Model.ID> {
         try Task.checkCancellation()
         try mapValidation(Model.self) {
+            guard ids.count <= LocalDatabaseValidator.maximumBatchSize else {
+                throw LocalDatabaseValidationError.batchTooLarge(
+                    actual: ids.count,
+                    maximum: LocalDatabaseValidator.maximumBatchSize
+                )
+            }
             for id in ids {
                 try Model.Persistence.validate(id: id)
             }

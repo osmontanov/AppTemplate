@@ -2,11 +2,13 @@
 
 Complete this checklist for the adopted product, not for the untouched sample.
 
-> **BLOCKER — DO NOT DISTRIBUTE THROUGH THE APP STORE:** App Store distribution
-> remains blocked until the adopter adds and validates the correct
-> `PrivacyInfo.xcprivacy` for the final app and every included SDK. This task
-> intentionally does not add a privacy manifest because the declarations must
-> match the adopter's actual APIs, data collection, tracking, and dependencies.
+> **Re-derive the privacy manifest for your product.**
+> `AppTemplate/Resources/PrivacyInfo.xcprivacy` ships filled in for the code in
+> this repository: no tracking, no collected data, and required reasons for
+> UserDefaults (CA92.1) and the file timestamps the notification attachment
+> stager reads (C617.1). Those declarations must match *your* APIs, data
+> collection, and the manifests of every SDK you add, so review and update the
+> file before you submit.
 
 ## Identity and signing
 
@@ -130,8 +132,8 @@ Complete this checklist for the adopted product, not for the untouched sample.
 
 ## Privacy, permissions, and security
 
-- [ ] Add and validate the product-specific `PrivacyInfo.xcprivacy`, including
-  required-reason API declarations and the manifests of included SDKs.
+- [ ] Re-derive `PrivacyInfo.xcprivacy` for the shipped product: required-reason
+  API declarations, collected data types, and the manifests of included SDKs.
 - [ ] Review `NSPrivacyAccessedAPICategoryUserDefaults` against the shipped app
   and every included SDK. Use `CA92.1` only when the final behavior remains
   app-private standard-defaults access and revalidate the approved reason at
