@@ -20,9 +20,18 @@ infrastructure service. Read `docs/ARCHITECTURE.md` for the layer map and
 
 - **DI:** constructor injection only, no container. `AppDependencies` is the single
   composition root with four factories (`live` / `uiTesting` / `preview` / `test`).
-  Protocols are prefixed `I*`; production impl has no suffix; doubles are
-  `InMemory*` / `FailClosed*` / `Scripted*`; UI-test decorators are `UITest*`.
-- **Screen module:** `Screens/<Name>/{Model,State,ViewModel,View,Navigation}`.
+  Production impl has no suffix; doubles are `InMemory*` / `FailClosed*` /
+  `Scripted*`; UI-test decorators are `UITest*`.
+- **Protocol names:** `I*` marks a contract handed through a dependency container
+  (`IKeychainService`, `ICartRepository`, `ISessionActions`). Everything else keeps
+  its bare name: conformance contracts a value type adopts (`LocalDatabaseModel`,
+  `NavigationRoute`, `NetworkTarget`) and seams internal to one subsystem
+  (`NetworkTransport`, `ImageHTTPTransport`, `LocalNotificationCenterClient`).
+  Within either group, follow Swift's own rule — a noun for what a thing *is*
+  (`IProductRepository`), `-ing`/`-able` for a capability (`IAppStateInspecting`,
+  `KeychainSecItemExecuting`).
+- **Screen module:** `Screens/<Name>/{Model,State,ViewModel,View,Navigation}` —
+  every screen in `Features/**`, labs included, no flat files beside the folders.
   `Model` — `Equatable Sendable` value; `State` — finite-state enum;
   `ViewModel` — `@MainActor @Observable final class` with `private(set)` state;
   `View` creates its VM in `init` via `_vm = State(initialValue:)`. Create a
@@ -120,7 +129,9 @@ rows kept `LC_ALL=C` sorted) to `Scripts/release-required-unit-tests.tsv` or
 - String extraction is off (`SWIFT_EMIT_LOC_STRINGS = NO`): the catalogs are
   maintained by hand, because the extractor cannot see the table `AppText` passes
   and would refill `Localizable.xcstrings` with a duplicate of every key.
-- The remote layer is pinned to `https://dummyjson.com` by design; swapping the
-  backend means replacing `RemoteService`/`DummyJSONTarget`, not injecting a URL.
+- The remote layer names its backend in exactly one value, `RemoteOrigin.dummyJSON`,
+  and `RemoteService` rejects any base URL that origin does not permit. Pointing at
+  another host is an injected `RemoteOrigin`; the paths and payloads still belong to
+  `DummyJSONTarget`, so a real backend swap replaces that target.
 - The image pipeline is deliberately fail-closed and memory-cache-only
   (`CachingImageLoader` over `ProductImageLoader`); add disk caching consciously.

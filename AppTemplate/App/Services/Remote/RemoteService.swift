@@ -1,22 +1,25 @@
 import Foundation
 
 actor RemoteService: IRemoteService {
-    nonisolated static let defaultDummyJSONBaseURL = URL(
-        string: "https://dummyjson.com"
-    )!
+    nonisolated static let defaultDummyJSONBaseURL = RemoteOrigin.dummyJSON.baseURL!
 
+    private let origin: RemoteOrigin
     private let dummyJSONBaseURL: URL
     private let dummyJSONProvider: NetworkProvider<DummyJSONTarget>
     private let authenticationProvider: NetworkProvider<DummyJSONTarget>
     nonisolated let diagnosticRecorder: NetworkDiagnosticRecorder?
 
     init(
-        dummyJSONBaseURL: URL = RemoteService.defaultDummyJSONBaseURL,
+        origin: RemoteOrigin = .dummyJSON,
+        dummyJSONBaseURL: URL? = nil,
         dummyJSONProvider: NetworkProvider<DummyJSONTarget>? = nil,
         authenticationProvider: NetworkProvider<DummyJSONTarget>? = nil,
         diagnosticRecorder: NetworkDiagnosticRecorder? = nil
     ) {
+        self.origin = origin
         self.dummyJSONBaseURL = dummyJSONBaseURL
+            ?? origin.baseURL
+            ?? RemoteService.defaultDummyJSONBaseURL
         self.diagnosticRecorder = diagnosticRecorder
         self.dummyJSONProvider = dummyJSONProvider ?? NetworkProvider(
             transport: URLSessionTransport.ephemeral(timeout: 15),
@@ -156,20 +159,7 @@ actor RemoteService: IRemoteService {
     }
 
     private func trustedDummyJSONBaseURL() throws -> URL {
-        guard
-            let components = URLComponents(
-                url: dummyJSONBaseURL,
-                resolvingAgainstBaseURL: false
-            ),
-            components.scheme?.lowercased() == "https",
-            components.host?.lowercased() == "dummyjson.com",
-            (components.port ?? 443) == 443,
-            components.user == nil,
-            components.password == nil,
-            components.query == nil,
-            components.fragment == nil,
-            components.path.isEmpty || components.path == "/"
-        else {
+        guard origin.permits(dummyJSONBaseURL) else {
             throw RemoteServiceError.invalidResponse
         }
         return dummyJSONBaseURL

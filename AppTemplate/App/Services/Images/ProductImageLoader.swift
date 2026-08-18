@@ -8,11 +8,11 @@ struct ProductImageLoader: IImageLoader {
         case timeout
     }
 
-    private let transport: any IImageHTTPTransport
+    private let transport: any ImageHTTPTransport
     private let clock: AppClock
 
     init(
-        transport: any IImageHTTPTransport = URLSessionImageHTTPTransport(),
+        transport: any ImageHTTPTransport = URLSessionImageHTTPTransport(),
         clock: AppClock = .live
     ) {
         self.transport = transport

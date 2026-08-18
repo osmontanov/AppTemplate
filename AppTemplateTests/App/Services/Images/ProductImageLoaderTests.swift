@@ -193,7 +193,7 @@ struct ProductImageLoaderTests {
     }
 }
 
-private actor ImageTransportSpy: IImageHTTPTransport {
+private actor ImageTransportSpy: ImageHTTPTransport {
     private(set) var callCount = 0
     private let response: ImageHTTPResponse
 
@@ -209,7 +209,7 @@ private actor ImageTransportSpy: IImageHTTPTransport {
     }
 }
 
-private actor CancellationCooperativeImageTransport: IImageHTTPTransport {
+private actor CancellationCooperativeImageTransport: ImageHTTPTransport {
     private var started = false
     private var startWaiters: [CheckedContinuation<Void, Never>] = []
     private(set) var wasCancelled = false

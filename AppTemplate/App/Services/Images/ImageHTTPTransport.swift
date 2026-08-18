@@ -9,6 +9,6 @@ struct ImageHTTPResponse: Sendable {
 }
 
 nonisolated
-protocol IImageHTTPTransport: Sendable {
+protocol ImageHTTPTransport: Sendable {
     func fetch(_ url: URL, policy: ImageLoadPolicy) async throws -> ImageHTTPResponse
 }

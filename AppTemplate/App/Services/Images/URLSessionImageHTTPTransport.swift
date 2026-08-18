@@ -1,7 +1,7 @@
 import Foundation
 
 nonisolated
-struct URLSessionImageHTTPTransport: IImageHTTPTransport {
+struct URLSessionImageHTTPTransport: ImageHTTPTransport {
     // One session per transport so connections are reused across image loads;
     // per-request deadlines still come from the policy via the URLRequest.
     private let session: URLSession
