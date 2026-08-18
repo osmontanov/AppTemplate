@@ -14,6 +14,7 @@ infrastructure service. Read `docs/ARCHITECTURE.md` for the layer map and
 | `AppTemplate/Features/Store/**`, `App/Repositories/{Products,Store}`, `App/Models/{Domain,Remote,Store}`, `App/Services/Remote` (DummyJSON) | **Example — replace** with your product's features; copy the patterns, not the store |
 | `AppTemplate/Features/Services/**` (labs) | **Optional teaching content — delete or keep** |
 | `Features/Onboarding`, `Features/Maintenance`, `Features/Authentication` | Framework skeletons — adapt content, keep the flow wiring |
+| `AppTemplate/App/Services/Images/**` | **Framework — keep.** Only `ImagePolicy.product` is example-shaped: its hosts derive from `RemoteOrigin`, so point it at your own CDN |
 | `AppTemplateTests/Project/*`, `Scripts/*` | **Framework — keep.** The gate itself is product-agnostic; only the rows inside `Scripts/release-required-*.tsv` name this example's tests, so swap those rows (and rerun the checksum script) as your suites replace them |
 
 ## Non-negotiable conventions
@@ -26,7 +27,8 @@ infrastructure service. Read `docs/ARCHITECTURE.md` for the layer map and
   (`IKeychainService`, `ICartRepository`, `ISessionActions`). Everything else keeps
   its bare name: conformance contracts a value type adopts (`LocalDatabaseModel`,
   `NavigationRoute`, `NetworkTarget`) and seams internal to one subsystem
-  (`NetworkTransport`, `ImageHTTPTransport`, `LocalNotificationCenterClient`).
+  (`NetworkTransport`, `LocalNotificationCenterClient`, and the Nuke seams
+  `DataLoading`/`ImageDecoding` that `ImageDataLoader` and `ImageDecoder` adopt).
   Within either group, follow Swift's own rule — a noun for what a thing *is*
   (`IProductRepository`), `-ing`/`-able` for a capability (`IAppStateInspecting`,
   `KeychainSecItemExecuting`).
@@ -124,8 +126,11 @@ rows kept `LC_ALL=C` sorted) to `Scripts/release-required-unit-tests.tsv` or
 
 - `AppTemplate/Resources/PrivacyInfo.xcprivacy` declares what *this* code does:
   no tracking, no collected data, and required-reason entries for UserDefaults
-  (CA92.1) and the file timestamps the attachment stager reads (C617.1). Revisit
-  every entry for your own product and its SDKs before submitting.
+  (CA92.1) and the file timestamps read inside the app container (C617.1) — by the
+  notification attachment stager and by Nuke's `DataCache`, which stamps
+  `contentAccessDate` on every image it caches and reads it back when it sweeps.
+  Nuke ships no privacy manifest of its own, so that entry has to cover it.
+  Revisit every entry for your own product and its SDKs before submitting.
 - String extraction is off (`SWIFT_EMIT_LOC_STRINGS = NO`): the catalogs are
   maintained by hand, because the extractor cannot see the table `AppText` passes
   and would refill `Localizable.xcstrings` with a duplicate of every key.
@@ -133,5 +138,23 @@ rows kept `LC_ALL=C` sorted) to `Scripts/release-required-unit-tests.tsv` or
   and `RemoteService` rejects any base URL that origin does not permit. Pointing at
   another host is an injected `RemoteOrigin`; the paths and payloads still belong to
   `DummyJSONTarget`, so a real backend swap replaces that target.
-- The image pipeline is deliberately fail-closed and memory-cache-only
-  (`CachingImageLoader` over `ProductImageLoader`); add disk caching consciously.
+- The image pipeline is the one place this template takes a third-party
+  dependency: **kean/Nuke 13.2.0**, pinned by `exactVersion` and linked onto the
+  app target alone. Nuke supplies coalescing, the memory/disk caches and decoding;
+  it supplies none of the safety, so every guarantee lives in code we own at the
+  two boundaries bytes can enter by — `ImageDataLoader` (the `DataLoading`
+  conformer: origin allowlist, redirect re-check, status and `Content-Type` checks,
+  the encoded-byte cap enforced *as bytes arrive*, and the deadline raced through
+  the injected `AppClock`) and `ImageBytes.validated`, the single function that
+  turns raw bytes into a value with proven invariants. `ImageDecoder` re-runs that
+  validator because a disk-cache hit never passes through `DataLoading`.
+  The on-disk cache is on for `live` only, under
+  `Caches/AppTemplate/Images` with `.completeUntilFirstUserAuthentication`;
+  `preview`, `test` and `uiTesting` get memory-only pipelines. Do not read
+  `configuration.imageCache` without assigning it — assigning is what stops Nuke
+  handing back the process-wide `ImageCache.shared`.
+- Under UI test the image script is installed at the `DataLoading` layer
+  (`ScriptedImageDataLoader`), not above the seam, so the app under test runs the
+  real view, the real policy check, the real validator and the real decoder over
+  seeded bytes. A replay of an already-served URL deliberately does not consume a
+  second step: the reminder path re-requests what the detail view already showed.

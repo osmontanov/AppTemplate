@@ -6,7 +6,7 @@ Complete this checklist for the adopted product, not for the untouched sample.
 > `AppTemplate/Resources/PrivacyInfo.xcprivacy` ships filled in for the code in
 > this repository: no tracking, no collected data, and required reasons for
 > UserDefaults (CA92.1) and the file timestamps the notification attachment
-> stager reads (C617.1). Those declarations must match *your* APIs, data
+> stager and Nuke's image disk cache read (C617.1). Those declarations must match *your* APIs, data
 > collection, and the manifests of every SDK you add, so review and update the
 > file before you submit.
 

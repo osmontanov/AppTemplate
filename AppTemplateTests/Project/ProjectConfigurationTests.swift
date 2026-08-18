@@ -15,7 +15,7 @@ struct ProjectConfigurationTests {
             sleep: { _ in }
         )
         let remote = ProjectRemoteService()
-        let imageLoader = ProjectImageLoader()
+        let probe = ImageServiceProbe()
         let appInfo = AppInfoService(displayName: "AppTemplate", version: "1.0")
         let live = AppDependencies.live(
             localDatabaseService: LocalDatabaseService(configuration: .inMemory()),
@@ -27,28 +27,28 @@ struct ProjectConfigurationTests {
             servicesLabKeychainService: InMemoryKeychainService(),
             remoteService: remote,
             appInfoService: appInfo,
-            imageLoader: imageLoader,
+            images: probe.service,
             clock: fixedClock,
             sessionStartupValidationPolicy: .disabled,
             sessionRefreshSchedulePolicy: .disabled,
-            notificationGraph: .inMemory(imageLoader: imageLoader, clock: fixedClock)
+            notificationGraph: .inMemory(images: probe.service, clock: fixedClock)
         )
         let preview = AppDependencies.preview(
             appInfo: appInfo,
             remoteService: remote,
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: imageLoader,
-            notificationGraph: .inMemory(imageLoader: imageLoader, clock: fixedClock)
+            images: probe.service,
+            notificationGraph: .inMemory(images: probe.service, clock: fixedClock)
         )
         let unitTest = AppDependencies.test(
             localDatabaseService: LocalDatabaseService(configuration: .inMemory()),
             remoteService: remote,
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: imageLoader,
+            images: probe.service,
             appStateStorage: InMemoryAppStateStorage(),
             keychainService: InMemoryKeychainService(),
             appInfo: appInfo,
-            notificationGraph: .inMemory(imageLoader: imageLoader, clock: fixedClock)
+            notificationGraph: .inMemory(images: probe.service, clock: fixedClock)
         )
         let uiTest = AppDependencies.uiTesting(
             initialState: AppState(
@@ -57,8 +57,8 @@ struct ProjectConfigurationTests {
             ),
             remoteService: remote,
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: imageLoader,
-            notificationGraph: .inMemory(imageLoader: imageLoader, clock: fixedClock)
+            images: probe.service,
+            notificationGraph: .inMemory(images: probe.service, clock: fixedClock)
         )
         let scriptedUITest = AppDependencies.uiTesting(
             scenario: try UITestScenario.named("services-basic")
@@ -200,7 +200,7 @@ struct ProjectConfigurationTests {
         _ = MaintenanceView(router: maintenanceRouter)
 
         #expect(await remote.callCount == 0)
-        #expect(imageLoader.loadCount == 0)
+        #expect(probe.requestedURLs.isEmpty)
     }
 }
 
@@ -339,7 +339,17 @@ extension ProjectConfigurationTests {
         #expect(script.contains(
             "env -u XCRESULT_REQUIRED_TESTS_RUNNER swift Scripts/verify-xcresult-required-tests.swift"
         ))
-        #expect(script.contains("SWIFT_TREAT_WARNINGS_AS_ERRORS=YES"))
+        // Passing this on the xcodebuild command line reaches the synthesized
+        // package project too, which Xcode builds with -suppress-warnings;
+        // swiftc rejects that pair, so the setting has to reach first-party
+        // targets through the project-level xcconfig instead.
+        #expect(!script.contains("SWIFT_TREAT_WARNINGS_AS_ERRORS"))
+        // One clone, reused by every destination, with resolution disabled so
+        // Package.resolved is the only thing that picks a dependency version.
+        #expect(script.contains("-resolvePackageDependencies"))
+        #expect(script.contains(
+            "-clonedSourcePackagesDirPath \"$spm_clone_root\" -disableAutomaticPackageResolution"
+        ))
         // Missing macOS UI automation is the one failure the gate may continue
         // past, and it has to announce the coverage it lost when it does.
         #expect(script.contains("Timed out while enabling automation mode"))
@@ -382,6 +392,16 @@ extension ProjectConfigurationTests {
         // catalogs started duplicating themselves again.
         #expect(!project.contains("SWIFT_EMIT_LOC_STRINGS"))
         #expect(xcconfig.contains("SWIFT_EMIT_LOC_STRINGS = NO"))
+        #expect(!project.contains("SWIFT_TREAT_WARNINGS_AS_ERRORS"))
+        #expect(xcconfig.contains("SWIFT_TREAT_WARNINGS_AS_ERRORS = YES"))
+
+        // The one dependency this template ships, pinned exactly, linked onto
+        // the app target alone so the app-hosted test bundle resolves its
+        // symbols against the host instead of embedding a second copy.
+        #expect(project.contains("repositoryURL = \"https://github.com/kean/Nuke.git\""))
+        #expect(project.contains("kind = exactVersion;"))
+        #expect(project.range(of: "productName = Nuke;") != nil)
+        #expect(project.components(separatedBy: "isa = XCSwiftPackageProductDependency;").count == 2)
 
         let manifest = try Data(contentsOf: projectRoot.appending(
             path: "AppTemplate/Resources/PrivacyInfo.xcprivacy"
@@ -464,17 +484,6 @@ private actor ProjectRemoteService: IRemoteService {
     }
 }
 
-private final class ProjectImageLoader: IImageLoader, @unchecked Sendable {
-    private let lock = NSLock()
-    private var storedLoadCount = 0
-
-    var loadCount: Int { lock.withLock { storedLoadCount } }
-
-    func load(_ url: URL, policy: ImageLoadPolicy) async throws -> LoadedImage {
-        lock.withLock { storedLoadCount += 1 }
-        throw ProjectConfigurationFailure.unexpectedExternalCall
-    }
-}
 
 private enum ProjectConfigurationFailure: Error {
     case unexpectedExternalCall

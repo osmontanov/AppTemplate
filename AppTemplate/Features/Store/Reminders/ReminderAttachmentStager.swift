@@ -38,7 +38,7 @@ actor ReminderAttachmentStager {
     }
 
     func stage(
-        _ image: LoadedImage,
+        _ image: ImageBytes,
         productID: Product.ID
     ) async throws -> StagedReminderAttachment {
         guard productID > 0 else { throw ProductReminderError.invalidProductID }
@@ -102,7 +102,7 @@ actor ReminderAttachmentStager {
     }
 
     private nonisolated static func representation(
-        for image: LoadedImage
+        for image: ImageBytes
     ) throws -> Representation {
         guard !image.data.isEmpty,
               image.pixelWidth > 0,

@@ -36,14 +36,14 @@ struct AppNotificationGraphTests {
     func graphExposesOneServiceCatalogHistoryAndReminderIdentity() async throws {
         let graph = AppNotificationGraph.inMemory(
             settings: .productReminderFixture(status: .authorized),
-            imageLoader: FailClosedImageLoader(),
+            images: ImageService.failClosed(),
             clock: ProductReminderFixtures.clock
         )
         let app = AppDependencies.preview(
             appInfo: AppInfoService(displayName: "Graph", version: "1"),
             remoteService: FailClosedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: FailClosedImageLoader(),
+            images: ImageService.failClosed(),
             notificationGraph: graph
         )
         let session = GraphSessionActions()

@@ -89,6 +89,15 @@ done
 # The gate must require the test that keeps this manifest honest.
 LC_ALL=C grep -Fqx $'all\tProjectConfigurationTests/releaseGateFreezesRequiredManifestsThroughOneChecksumSource()' "$unit_required" || exit 66
 
+# Packages are cloned once into a persistent cache and every xcodebuild below
+# runs with resolution disabled, so Package.resolved is the only thing that can
+# decide a dependency version and a re-run needs no network.
+spm_clone_root="${APPTEMPLATE_SPM_CLONE_ROOT:-$HOME/Library/Caches/AppTemplate/SourcePackages}"
+mkdir -p "$spm_clone_root"
+[[ -d "$spm_clone_root" && ! -L "$spm_clone_root" ]] || exit 72
+xcodebuild -resolvePackageDependencies -project AppTemplate.xcodeproj -scheme AppTemplate \
+  -clonedSourcePackagesDirPath "$spm_clone_root"
+
 result_root="$(mktemp -d "${TMPDIR:-/tmp}/AppTemplate-release-results.XXXXXX")"
 [[ -d "$result_root" && ! -L "$result_root" ]] || exit 72
 unit_derived_data="$result_root/DerivedData-unit"
@@ -159,7 +168,7 @@ XCRESULT_FIXTURE_RUNNER_TEST_EXECUTABLE="$fixture_runner_executable" xcodebuild 
   -destination 'platform=macOS,arch=arm64' -parallel-testing-enabled NO \
   -only-testing:AppTemplateTests \
   -derivedDataPath "$unit_derived_data" \
-  SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
+  -clonedSourcePackagesDirPath "$spm_clone_root" -disableAutomaticPackageResolution \
   -resultBundlePath "$result_root/unit.xcresult"
 env -u XCRESULT_REQUIRED_TESTS_RUNNER swift Scripts/verify-xcresult-required-tests.swift \
   --result "$result_root/unit.xcresult" \
@@ -185,8 +194,9 @@ for index in {1..3}; do
   set +e
   xcodebuild test -project AppTemplate.xcodeproj -scheme AppTemplate \
     -destination "$destination" -parallel-testing-enabled NO \
-    -only-testing:AppTemplateUITests SWIFT_TREAT_WARNINGS_AS_ERRORS=YES \
+    -only-testing:AppTemplateUITests \
     -derivedDataPath "$ui_derived_data" \
+    -clonedSourcePackagesDirPath "$spm_clone_root" -disableAutomaticPackageResolution \
     -resultBundlePath "$result_root/ui-$platform_name.xcresult" 2>&1 | tee "$ui_log"
   ui_status=${pipestatus[1]}
   set -e
@@ -204,7 +214,7 @@ for index in {1..3}; do
       print -u2 -- "warning: macOS UI tests skipped — this machine has not granted UI automation to the test runner. The $(LC_ALL=C grep -c $'^macos\t' "$ui_required") macos-scoped required UI tests were NOT verified in this run."
       xcodebuild build -project AppTemplate.xcodeproj -scheme AppTemplate \
         -destination "$destination" -derivedDataPath "$build_derived_data" \
-        SWIFT_TREAT_WARNINGS_AS_ERRORS=YES
+        -clonedSourcePackagesDirPath "$spm_clone_root" -disableAutomaticPackageResolution
       continue
     fi
     exit "$ui_status"
@@ -216,7 +226,7 @@ for index in {1..3}; do
     --platform "$platform_name" --reject-any-skips
   xcodebuild build -project AppTemplate.xcodeproj -scheme AppTemplate \
     -destination "$destination" -derivedDataPath "$build_derived_data" \
-    SWIFT_TREAT_WARNINGS_AS_ERRORS=YES
+    -clonedSourcePackagesDirPath "$spm_clone_root" -disableAutomaticPackageResolution
 done
 
 [[ -d "$helper_run_root" && ! -L "$helper_run_root" ]] || exit 72

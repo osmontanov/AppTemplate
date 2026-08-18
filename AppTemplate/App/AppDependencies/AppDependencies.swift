@@ -22,7 +22,7 @@ struct AppDependencies: Sendable {
     let sessionRefreshSchedulePolicy: SessionRefreshSchedulePolicy
     let notificationGraph: AppNotificationGraph
     let diagnostics: NetworkDiagnosticRecorder
-    let imageLoader: any IImageLoader
+    let images: ImageService
     let uiTestScriptTracker: UITestScriptConsumptionTracker?
     let uiTestNotificationLabSteps: [UITestNotificationLabStep]?
     let bootstrap: @Sendable () async throws -> Void
@@ -38,7 +38,7 @@ struct AppDependencies: Sendable {
     private static func compose(
         database: any ILocalDatabaseService,
         remote: any IRemoteService,
-        imageLoader: any IImageLoader,
+        images: ImageService,
         clock: AppClock,
         keychain: any IKeychainService,
         storePreferencesService: any IUserDefaultsService,
@@ -65,7 +65,7 @@ struct AppDependencies: Sendable {
             ),
             products: ProductRepository(remote: remote),
             appInfo: appInfo,
-            storeUISupport: StoreUISupport(images: imageLoader, clock: clock),
+            storeUISupport: StoreUISupport(images: images, clock: clock),
             remote: remote,
             remoteAPILab: RemoteAPILabService(remote: remote),
             appStateStorage: appStateStorage,
@@ -82,7 +82,7 @@ struct AppDependencies: Sendable {
             sessionRefreshSchedulePolicy: sessionRefreshSchedulePolicy,
             notificationGraph: notificationGraph,
             diagnostics: diagnostics,
-            imageLoader: imageLoader,
+            images: images,
             uiTestScriptTracker: uiTestScriptTracker,
             uiTestNotificationLabSteps: uiTestNotificationLabSteps,
             bootstrap: bootstrap
@@ -104,7 +104,7 @@ struct AppDependencies: Sendable {
         servicesLabKeychainService: (any IKeychainService)? = nil,
         remoteService: (any IRemoteService)? = nil,
         appInfoService: any IAppInfoService = AppInfoService(),
-        imageLoader: any IImageLoader = CachingImageLoader(),
+        images: ImageService = .live(),
         clock: AppClock? = nil,
         sessionStartupValidationPolicy: SessionStartupValidationPolicy = .automatic,
         sessionRefreshSchedulePolicy: SessionRefreshSchedulePolicy = .automatic,
@@ -121,14 +121,14 @@ struct AppDependencies: Sendable {
             ?? RemoteService(diagnosticRecorder: diagnostics)
         let resolvedClock = clock ?? .live
         let resolvedNotificationGraph = notificationGraph ?? .live(
-            imageLoader: imageLoader,
+            images: images,
             clock: resolvedClock,
             runtimeResolver: localNotificationRuntimeResolver
         )
         return compose(
             database: database,
             remote: remote,
-            imageLoader: imageLoader,
+            images: images,
             clock: resolvedClock,
             keychain: keychainService,
             storePreferencesService: userDefaultsService,
@@ -185,7 +185,7 @@ struct AppDependencies: Sendable {
             authenticationProvider: authenticationProvider,
             diagnosticRecorder: diagnostics
         )
-        let imageLoader = ScriptedImageLoader(
+        let images = ImageService.scripted(
             steps: scenario.imageSeed.steps,
             tracker: tracker
         )
@@ -215,7 +215,7 @@ struct AppDependencies: Sendable {
             ),
             authorizationResult: [.authorized, .provisional, .ephemeral]
                 .contains(scenario.notificationSeed.authorizationStatus),
-            imageLoader: imageLoader,
+            images: images,
             clock: fixedClock
         )
         let notifications = notificationGraph.dependencies
@@ -226,7 +226,7 @@ struct AppDependencies: Sendable {
         return compose(
             database: database,
             remote: remote,
-            imageLoader: imageLoader,
+            images: images,
             clock: fixedClock,
             keychain: keychain,
             storePreferencesService: preferencesService,
@@ -265,7 +265,7 @@ struct AppDependencies: Sendable {
         initialState: AppState,
         remoteService: any IRemoteService,
         diagnostics: NetworkDiagnosticRecorder,
-        imageLoader: any IImageLoader,
+        images: ImageService,
         notificationGraph: AppNotificationGraph? = nil
     ) -> AppDependencies {
         let database = LocalDatabaseService(configuration: .inMemory())
@@ -276,13 +276,13 @@ struct AppDependencies: Sendable {
             version: "1.0"
         )
         let resolvedNotificationGraph = notificationGraph ?? .inMemory(
-            imageLoader: imageLoader,
+            images: images,
             clock: clock
         )
         return compose(
             database: database,
             remote: remoteService,
-            imageLoader: imageLoader,
+            images: images,
             clock: clock,
             keychain: keychain,
             storePreferencesService: InMemoryUserDefaultsService(
@@ -306,7 +306,7 @@ struct AppDependencies: Sendable {
         appInfo: any IAppInfoService,
         remoteService: any IRemoteService,
         diagnostics: NetworkDiagnosticRecorder,
-        imageLoader: any IImageLoader,
+        images: ImageService,
         appStateStorage: any IAppStateStorage = InMemoryAppStateStorage(),
         localDatabaseService: any ILocalDatabaseService = LocalDatabaseService(
             configuration: .inMemory()
@@ -319,13 +319,13 @@ struct AppDependencies: Sendable {
     ) -> AppDependencies {
         let clock = AppClock.live
         let resolvedNotificationGraph = notificationGraph ?? .inMemory(
-            imageLoader: imageLoader,
+            images: images,
             clock: clock
         )
         return compose(
             database: localDatabaseService,
             remote: remoteService,
-            imageLoader: imageLoader,
+            images: images,
             clock: clock,
             keychain: keychainService,
             storePreferencesService: storePreferencesService,
@@ -347,7 +347,7 @@ struct AppDependencies: Sendable {
         localDatabaseService: any ILocalDatabaseService,
         remoteService: any IRemoteService,
         diagnostics: NetworkDiagnosticRecorder,
-        imageLoader: any IImageLoader,
+        images: ImageService,
         appStateStorage: any IAppStateStorage,
         keychainService: any IKeychainService,
         appInfo: any IAppInfoService,
@@ -359,7 +359,7 @@ struct AppDependencies: Sendable {
         compose(
             database: localDatabaseService,
             remote: remoteService,
-            imageLoader: imageLoader,
+            images: images,
             clock: .live,
             keychain: keychainService,
             storePreferencesService: storePreferencesService,
@@ -435,15 +435,6 @@ struct AppDependencies: Sendable {
             notificationHistory: notificationGraph.dependencies.eventReader,
             notificationAssets: LocalNotificationLabAssetProvider(bundle: .main)
         )
-    }
-}
-
-nonisolated
-struct FailClosedImageLoader: IImageLoader {
-    func load(_ url: URL, policy: ImageLoadPolicy) async throws -> LoadedImage {
-        _ = url
-        _ = policy
-        throw ImageLoaderError.transport
     }
 }
 

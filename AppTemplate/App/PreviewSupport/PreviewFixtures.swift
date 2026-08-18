@@ -64,7 +64,7 @@ enum PreviewFixtures {
             ),
             remoteService: FailClosedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: FailClosedImageLoader()
+            images: ImageService.failClosed()
         )
     }
 

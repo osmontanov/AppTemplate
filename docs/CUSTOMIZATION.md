@@ -368,6 +368,6 @@ In Xcode, select the `AppTemplate` project and then each app/test target:
 > **Review `AppTemplate/Resources/PrivacyInfo.xcprivacy` before submitting.** It
 > ships filled in for the code that is here — no tracking, no collected data, and
 > required reasons for UserDefaults (CA92.1) and the file timestamps the
-> notification attachment stager reads (C617.1). Required-reason APIs and data
+> notification attachment stager and Nuke's image disk cache read (C617.1). Required-reason APIs and data
 > declarations must describe *your* code and dependencies, so re-derive every
 > entry once your product and its SDKs replace the example.

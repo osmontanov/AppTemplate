@@ -3,20 +3,20 @@ import Foundation
 actor ProductReminderRepository: IProductReminderRepository {
 
     private let service: any ILocalNotificationService
-    private let imageLoader: any IImageLoader
+    private let images: any IImageBytesLoading
     private let attachmentStager: ReminderAttachmentStager
     private let categoryCatalog: any IAppNotificationCategoryCatalog
     private let clock: AppClock
 
     init(
         service: any ILocalNotificationService,
-        imageLoader: any IImageLoader,
+        images: any IImageBytesLoading,
         attachmentStager: ReminderAttachmentStager,
         categoryCatalog: any IAppNotificationCategoryCatalog,
         clock: AppClock
     ) {
         self.service = service
-        self.imageLoader = imageLoader
+        self.images = images
         self.attachmentStager = attachmentStager
         self.categoryCatalog = categoryCatalog
         self.clock = clock
@@ -58,12 +58,12 @@ actor ProductReminderRepository: IProductReminderRepository {
         var usesTextOnlyFallback = product.thumbnailURL == nil
         if let thumbnailURL = product.thumbnailURL {
             do {
-                let image = try await imageLoader.load(thumbnailURL, policy: .product)
+                let image = try await images.bytes(for: thumbnailURL)
                 stagedAttachment = try await attachmentStager.stage(
                     image,
                     productID: product.id
                 )
-            } catch ImageLoaderError.cancelled {
+            } catch ImageServiceError.cancelled {
                 throw CancellationError()
             } catch is CancellationError {
                 throw CancellationError()

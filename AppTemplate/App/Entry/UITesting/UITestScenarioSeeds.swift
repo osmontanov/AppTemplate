@@ -434,16 +434,11 @@ private nonisolated enum ProductReminderUITestFixture {
     }
 
     private static var imageStep: ScriptedImageStep {
-        ScriptedImageStep(
-            url: URL(string: "https://dummyjson.com/image/reminder-phone.png")!,
-            result: .success(LoadedImage(
-                data: Data(base64Encoded:
-                    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
-                )!,
-                mimeType: "image/png",
-                pixelWidth: 1,
-                pixelHeight: 1
-            ))
+        .png(
+            URL(string: "https://dummyjson.com/image/reminder-phone.png")!,
+            body: Data(base64Encoded:
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+            )!
         )
     }
 
@@ -646,16 +641,11 @@ private nonisolated enum GuestStoreUITestFixture {
     }
 
     private static var imageStep: ScriptedImageStep {
-        ScriptedImageStep(
-            url: URL(string: "https://dummyjson.com/image/phone-one.png")!,
-            result: .success(LoadedImage(
-                data: Data(base64Encoded:
-                    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
-                )!,
-                mimeType: "image/png",
-                pixelWidth: 1,
-                pixelHeight: 1
-            ))
+        .png(
+            URL(string: "https://dummyjson.com/image/phone-one.png")!,
+            body: Data(base64Encoded:
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+            )!
         )
     }
 

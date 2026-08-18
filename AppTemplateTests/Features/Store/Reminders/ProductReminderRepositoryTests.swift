@@ -46,7 +46,7 @@ struct ProductReminderRepositoryTests {
             .settings,
             .authorization([.alert, .sound]),
             .categoryBootstrap,
-            .imageLoad(URL(string: "https://cdn.dummyjson.com/product.png")!, .product),
+            .imageLoad(URL(string: "https://cdn.dummyjson.com/product.png")!),
             .schedule
         ])
     }
@@ -61,7 +61,7 @@ struct ProductReminderRepositoryTests {
         #expect(await fixture.trace.values == [
             .settings,
             .categoryBootstrap,
-            .imageLoad(URL(string: "https://cdn.dummyjson.com/product.png")!, .product),
+            .imageLoad(URL(string: "https://cdn.dummyjson.com/product.png")!),
             .schedule
         ])
     }
@@ -75,7 +75,7 @@ struct ProductReminderRepositoryTests {
         let catalog = RetryableProductReminderCatalog(trace: trace)
         let repository = ProductReminderRepository(
             service: service,
-            imageLoader: ProductReminderImageLoaderSpy(trace: trace),
+            images: ProductReminderImageBytesSpy(trace: trace),
             attachmentStager: ReminderAttachmentStager(directory: directory),
             categoryCatalog: catalog,
             clock: ProductReminderFixtures.clock
@@ -93,7 +93,7 @@ struct ProductReminderRepositoryTests {
             .categoryBootstrap,
             .settings,
             .categoryBootstrap,
-            .imageLoad(URL(string: "https://cdn.dummyjson.com/product.png")!, .product),
+            .imageLoad(URL(string: "https://cdn.dummyjson.com/product.png")!),
             .schedule
         ])
     }
@@ -114,7 +114,7 @@ struct ProductReminderRepositoryTests {
         )
         let repository = ProductReminderRepository(
             service: service,
-            imageLoader: ProductReminderImageLoaderSpy(),
+            images: ProductReminderImageBytesSpy(),
             attachmentStager: ReminderAttachmentStager(directory: directory),
             categoryCatalog: catalog,
             clock: ProductReminderFixtures.clock
@@ -166,7 +166,7 @@ struct ProductReminderRepositoryTests {
 
     @Test
     func intervalAndCalendarBoundariesProduceExactSafeTriggers() async throws {
-        let fixture = try makeFixture(imageResult: .failure(ProductReminderTestFailure.image))
+        let fixture = try makeFixture(imageResult: .failure(ImageServiceError.transport))
         defer { fixture.cleanup() }
         let calendarDate = ProductReminderFixtures.now.addingTimeInterval(3_600)
 
@@ -232,16 +232,16 @@ struct ProductReminderRepositoryTests {
     @Test
     func imageAndStagingFailuresScheduleTextOnlyWithWarning() async throws {
         let imageFailure = try makeFixture(
-            imageResult: .failure(ProductReminderTestFailure.image)
+            imageResult: .failure(ImageServiceError.transport)
         )
         defer { imageFailure.cleanup() }
         let invalidDirectory = imageFailure.directory.appendingPathComponent("not-a-directory")
         try Data("file".utf8).write(to: invalidDirectory)
         let stageFailureService = ProductReminderNotificationServiceSpy()
-        let stageFailureImage = ProductReminderImageLoaderSpy()
+        let stageFailureImage = ProductReminderImageBytesSpy()
         let stageFailure = ProductReminderRepository(
             service: stageFailureService,
-            imageLoader: stageFailureImage,
+            images: stageFailureImage,
             attachmentStager: ReminderAttachmentStager(directory: invalidDirectory),
             categoryCatalog: ProductReminderCategoryCatalogSpy(),
             clock: ProductReminderFixtures.clock
@@ -333,25 +333,15 @@ struct ProductReminderRepositoryTests {
     @Test
     func cancellationPropagatesAndScheduleFailureStillCleansAttachment() async throws {
         let imageCancellation = try makeFixture(
-            imageResult: .failure(CancellationError())
+            imageResult: .failure(ImageServiceError.cancelled)
         )
         defer { imageCancellation.cleanup() }
-        let loaderCancellation = try makeFixture(
-            imageResult: .failure(ImageLoaderError.cancelled)
-        )
-        defer { loaderCancellation.cleanup() }
         let scheduleCancellation = try makeFixture(scheduleFailure: CancellationError())
         defer { scheduleCancellation.cleanup() }
 
         await #expect(throws: CancellationError.self) {
             try await imageCancellation.repository.schedule(
                 product: .fixture(id: 7),
-                selection: .quickTest
-            )
-        }
-        await #expect(throws: CancellationError.self) {
-            try await loaderCancellation.repository.schedule(
-                product: .fixture(id: 8),
                 selection: .quickTest
             )
         }
@@ -363,7 +353,6 @@ struct ProductReminderRepositoryTests {
         }
 
         #expect(await imageCancellation.service.requests.isEmpty)
-        #expect(await loaderCancellation.service.requests.isEmpty)
         let request = try #require(await scheduleCancellation.service.requests.first)
         let attachment = try #require(request.content.attachments.first)
         #expect(await scheduleCancellation.service.attachmentExistence == [true])
@@ -454,7 +443,7 @@ struct ProductReminderRepositoryTests {
 
         await #expect(throws: (any Error).self) {
             _ = try await stager.stage(
-                LoadedImage(data: Data("html".utf8), mimeType: "text/html", pixelWidth: 1, pixelHeight: 1),
+                ImageBytes(data: Data("html".utf8), mimeType: "text/html", pixelWidth: 1, pixelHeight: 1),
                 productID: 7
             )
         }
@@ -528,7 +517,7 @@ private extension ProductReminderRepositoryTests {
         authorizationResult: Bool = true,
         pending: [LocalNotificationPendingSnapshot] = [],
         scheduleFailure: (any Error & Sendable)? = nil,
-        imageResult: Result<LoadedImage, any Error & Sendable> = .success(.productReminderPNG),
+        imageResult: Result<ImageBytes, ImageServiceError> = .success(.productReminderPNG),
         trace: ProductReminderOperationTrace = ProductReminderOperationTrace()
     ) throws -> Fixture {
         let directory = try ProductReminderFixtures.temporaryDirectory()
@@ -539,11 +528,11 @@ private extension ProductReminderRepositoryTests {
             scheduleFailure: scheduleFailure,
             trace: trace
         )
-        let imageLoader = ProductReminderImageLoaderSpy(result: imageResult, trace: trace)
+        let images = ProductReminderImageBytesSpy(result: imageResult, trace: trace)
         return Fixture(
             repository: ProductReminderFixtures.repository(
                 service: service,
-                imageLoader: imageLoader,
+                images: images,
                 directory: directory,
                 trace: trace
             ),

@@ -230,7 +230,7 @@ struct AppLaunchConfigurationTests {
         #expect(try await dependencies.remote.product(id: 1).reviews.count == 1)
 
         for step in scenario.imageSeed.steps {
-            _ = try await dependencies.imageLoader.load(step.url, policy: .product)
+            _ = try await dependencies.images.image(for: step.url)
         }
 
         let tracker = try #require(dependencies.uiTestScriptTracker)
@@ -365,7 +365,7 @@ struct AppLaunchConfigurationTests {
         let reminderProduct = try await dependencies.products.product(id: 7)
 
         for step in scenario.imageSeed.steps.prefix(2) {
-            _ = try await dependencies.imageLoader.load(step.url, policy: .product)
+            _ = try await dependencies.images.image(for: step.url)
         }
         _ = try await dependencies.notificationGraph.reminders.schedule(
             product: reminderProduct,

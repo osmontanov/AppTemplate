@@ -114,7 +114,7 @@ struct ServicesLabIsolationTests {
             appInfo: AppInfoService(displayName: "Storage Lab", version: "1"),
             remoteService: IsolationRemoteStub(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: IsolationImageLoaderStub()
+            images: ImageService.failClosed()
         )
     }
 
@@ -176,10 +176,6 @@ private actor IsolationRemoteStub: IRemoteService {
     func me(accessToken: String) async throws -> UserProfileDTO { throw RemoteServiceError.invalidResponse }
     func refresh(_ request: RefreshRequestDTO) async throws -> AuthTokensDTO { throw RemoteServiceError.invalidResponse }
     func diagnostic(_ request: HTTPDiagnosticRequest) async throws -> HTTPDiagnosticDTO { throw RemoteServiceError.invalidResponse }
-}
-
-private struct IsolationImageLoaderStub: IImageLoader {
-    func load(_ url: URL, policy: ImageLoadPolicy) async throws -> LoadedImage { throw ImageLoaderError.transport }
 }
 
 @MainActor

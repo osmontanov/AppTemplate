@@ -7,7 +7,7 @@ struct AppNotificationGraph: Sendable {
 
     @MainActor
     static func live(
-        imageLoader: any IImageLoader,
+        images: any IImageBytesLoading,
         clock: AppClock,
         runtimeResolver: @MainActor () -> UserNotificationCenterRuntime =
             UserNotificationCenterRuntimeFactory.live
@@ -44,7 +44,7 @@ struct AppNotificationGraph: Sendable {
         let reminders = makeReminderRepository(
             service: service,
             catalog: catalog,
-            imageLoader: imageLoader,
+            images: images,
             clock: clock
         )
         let dispatcher = StoreNotificationActionDispatcher(
@@ -80,7 +80,7 @@ struct AppNotificationGraph: Sendable {
     static func inMemory(
         settings: LocalNotificationSettings = .inMemoryDefault,
         authorizationResult: Bool = true,
-        imageLoader: any IImageLoader = FailClosedImageLoader(),
+        images: any IImageBytesLoading = ImageService.failClosed(),
         clock: AppClock = .live
     ) -> AppNotificationGraph {
         let namespace = try! LocalNotificationNamespace()
@@ -110,7 +110,7 @@ struct AppNotificationGraph: Sendable {
         let reminders = makeReminderRepository(
             service: service,
             catalog: catalog,
-            imageLoader: imageLoader,
+            images: images,
             clock: clock
         )
         let dispatcher = StoreNotificationActionDispatcher(
@@ -153,12 +153,12 @@ struct AppNotificationGraph: Sendable {
     private static func makeReminderRepository(
         service: any ILocalNotificationService,
         catalog: any IAppNotificationCategoryCatalog,
-        imageLoader: any IImageLoader,
+        images: any IImageBytesLoading,
         clock: AppClock
     ) -> ProductReminderRepository {
         ProductReminderRepository(
             service: service,
-            imageLoader: imageLoader,
+            images: images,
             attachmentStager: ReminderAttachmentStager(
                 directory: liveReminderAttachmentDirectory()
             ),

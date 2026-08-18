@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		E10000033013314400D3C89C /* Nuke in Frameworks */ = {isa = PBXBuildFile; productRef = E10000023013314400D3C89C /* Nuke */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		A100000A3013314400D3C89C /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -80,6 +84,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E10000033013314400D3C89C /* Nuke in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -181,6 +186,7 @@
 			);
 			name = AppTemplate;
 			packageProductDependencies = (
+				E10000023013314400D3C89C /* Nuke */,
 			);
 			productName = AppTemplate;
 			productReference = D05680133013314400D3C89C /* AppTemplate.app */;
@@ -216,6 +222,9 @@
 			);
 			mainGroup = D056800A3013314400D3C89C;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				E10000013013314400D3C89C /* XCRemoteSwiftPackageReference "Nuke" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = D05680143013314400D3C89C /* Products */;
 			projectDirPath = "";
@@ -636,6 +645,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		E10000013013314400D3C89C /* XCRemoteSwiftPackageReference "Nuke" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kean/Nuke.git";
+			requirement = {
+				kind = exactVersion;
+				version = 13.2.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E10000023013314400D3C89C /* Nuke */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E10000013013314400D3C89C /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = Nuke;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = D056800B3013314400D3C89C /* Project object */;
 }

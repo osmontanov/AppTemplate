@@ -2,7 +2,7 @@ import SwiftUI
 
 struct CatalogView: View {
     @Bindable var router: StoreRouter
-    let images: any IImageLoader
+    let images: ImageService
     @State private var viewModel: CatalogViewModel
     @FocusState private var searchIsFocused: Bool
     @AccessibilityFocusState private var resultIsFocused: Bool
@@ -11,7 +11,7 @@ struct CatalogView: View {
     init(
         router: StoreRouter,
         viewModel: CatalogViewModel,
-        images: any IImageLoader,
+        images: ImageService,
         searchRequestID: Int = 0
     ) {
         self.router = router
@@ -152,13 +152,13 @@ struct CatalogView: View {
 
 private struct ProductCatalogRow: View {
     let product: Product
-    let images: any IImageLoader
+    let images: ImageService
     @Environment(\.locale) private var locale
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let url = product.thumbnailURL {
-                RemoteProductImage(url: url, imageLoader: images)
+                RemoteImage(url: url, images: images)
                     .frame(minHeight: 100, maxHeight: 150)
             }
             Text(verbatim: product.title).font(.headline)

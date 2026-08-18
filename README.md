@@ -29,7 +29,7 @@ subsystem. See [Architecture](docs/ARCHITECTURE.md),
 > **Before you submit:** `AppTemplate/Resources/PrivacyInfo.xcprivacy` declares
 > what this code actually does — no tracking, no collected data, and required
 > reasons for UserDefaults (CA92.1) and the file timestamps the notification
-> attachment stager reads (C617.1). Your product and the SDKs you add will change
+> attachment stager and Nuke's image disk cache read (C617.1). Your product and the SDKs you add will change
 > those declarations, so review every entry before submitting.
 
 ## Scope

@@ -1,19 +1,20 @@
 import Foundation
 
 nonisolated
-struct ImageLoadPolicy: Hashable, Sendable {
+struct ImagePolicy: Hashable, Sendable {
     let allowedHosts: Set<String>
     let timeout: Duration
     let maximumEncodedBytes: Int
-    let maximumPixelWidth: Int
-    let maximumPixelHeight: Int
+    let maximumPixelSide: Int
 
-    static let product = ImageLoadPolicy(
-        allowedHosts: ["dummyjson.com", "cdn.dummyjson.com"],
+    static let product = ImagePolicy(
+        allowedHosts: [
+            RemoteOrigin.dummyJSON.host,
+            "cdn." + RemoteOrigin.dummyJSON.host
+        ],
         timeout: .seconds(15),
         maximumEncodedBytes: 5 * 1_024 * 1_024,
-        maximumPixelWidth: 4_096,
-        maximumPixelHeight: 4_096
+        maximumPixelSide: 4_096
     )
 
     func permits(_ url: URL) -> Bool {

@@ -14,7 +14,7 @@ struct AppDependenciesTests {
         let second = AppDependencies.uiTesting(scenario: scenario)
 
         #expect(first.remote as AnyObject !== second.remote as AnyObject)
-        #expect(first.imageLoader as AnyObject !== second.imageLoader as AnyObject)
+        #expect(first.images !== second.images)
         #expect(first.appStateStorage as AnyObject !== second.appStateStorage as AnyObject)
         #expect(first.sessionRepository !== second.sessionRepository)
         #expect(first.sessionStartupValidationPolicy == .disabled)
@@ -23,16 +23,15 @@ struct AppDependenciesTests {
         #expect(first.localDatabase as AnyObject !== second.localDatabase as AnyObject)
         #expect(first.diagnostics !== second.diagnostics)
         #expect(first.uiTestScriptTracker !== second.uiTestScriptTracker)
-        #expect(first.imageLoader is ScriptedImageLoader)
+        #expect(first.images.kind == .scripted)
         #expect(
             first.localNotifications.categoryCatalog as AnyObject
                 !== second.localNotifications.categoryCatalog as AnyObject
         )
 
-        await #expect(throws: ScriptedImageLoaderError.unexpectedURL) {
-            _ = try await first.imageLoader.load(
-                URL(string: "https://cdn.dummyjson.com/unplanned.png")!,
-                policy: .product
+        await #expect(throws: ImageServiceError.transport) {
+            _ = try await first.images.image(
+                for: URL(string: "https://cdn.dummyjson.com/unplanned.png")!
             )
         }
         await #expect(throws: RemoteServiceError.self) {
@@ -41,24 +40,22 @@ struct AppDependenciesTests {
     }
 
     @Test
-    func appDependencyFactoriesKeepExactInjectedImageLoaderWithoutLoading() throws {
-        let imageLoader = InjectedImageLoader()
+    func appDependencyFactoriesKeepExactInjectedImageServiceWithoutLoading() throws {
+        let probe = ImageServiceProbe()
         let preview = AppDependencies.preview(
             appInfo: AppInfoService(displayName: "Preview", version: "1"),
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: imageLoader
+            images: probe.service
         )
         let live = AppDependencies.live(
-            imageLoader: imageLoader,
+            images: probe.service,
             notificationGraph: .inMemory()
         )
 
-        let resolvedPreview = try #require(preview.imageLoader as? InjectedImageLoader)
-        let resolvedLive = try #require(live.imageLoader as? InjectedImageLoader)
-        #expect(resolvedPreview === imageLoader)
-        #expect(resolvedLive === imageLoader)
-        #expect(imageLoader.loadCount == 0)
+        #expect(preview.images === probe.service)
+        #expect(live.images === probe.service)
+        #expect(probe.requestedURLs.isEmpty)
     }
 
     @Test
@@ -67,26 +64,26 @@ struct AppDependenciesTests {
             hasCompletedOnboarding: false,
             isMaintenanceEnabled: false
         )
-        let firstLoader = InjectedImageLoader()
-        let secondLoader = InjectedImageLoader()
+        let firstProbe = ImageServiceProbe()
+        let secondProbe = ImageServiceProbe()
         let first = AppDependencies.uiTesting(
             initialState: state,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: firstLoader
+            images: firstProbe.service
         )
         let second = AppDependencies.uiTesting(
             initialState: state,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: secondLoader
+            images: secondProbe.service
         )
 
-        #expect(first.imageLoader as AnyObject === firstLoader)
-        #expect(second.imageLoader as AnyObject === secondLoader)
-        #expect(first.imageLoader as AnyObject !== second.imageLoader as AnyObject)
-        #expect(firstLoader.loadCount == 0)
-        #expect(secondLoader.loadCount == 0)
+        #expect(first.images === firstProbe.service)
+        #expect(second.images === secondProbe.service)
+        #expect(first.images !== second.images)
+        #expect(firstProbe.requestedURLs.isEmpty)
+        #expect(secondProbe.requestedURLs.isEmpty)
     }
 
     @MainActor
@@ -97,13 +94,13 @@ struct AppDependenciesTests {
             appInfo: appInfo,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: InjectedImageLoader()
+            images: ImageServiceProbe().service
         )
         let second = AppDependencies.preview(
             appInfo: appInfo,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: InjectedImageLoader()
+            images: ImageServiceProbe().service
         )
 
         try await first.localNotifications.service.schedule(
@@ -120,7 +117,7 @@ struct AppDependenciesTests {
         let runtime = makeRuntime(api: api, recorder: recorder)
 
         let dependencies = AppNotificationGraph.live(
-            imageLoader: FailClosedImageLoader(),
+            images: ImageService.failClosed(),
             clock: .live,
             runtimeResolver: {
                 recorder.record("resolve")
@@ -164,7 +161,7 @@ struct AppDependenciesTests {
         )
         let runtime = makeRuntime(api: api, recorder: recorder)
         let dependencies = AppNotificationGraph.live(
-            imageLoader: FailClosedImageLoader(),
+            images: ImageService.failClosed(),
             clock: .live,
             runtimeResolver: { runtime }
         ).dependencies
@@ -199,7 +196,7 @@ struct AppDependenciesTests {
             installDelegate: { weakInstaller.install($0) }
         )
         var graph: AppNotificationGraph? = .live(
-            imageLoader: FailClosedImageLoader(),
+            images: ImageService.failClosed(),
             clock: .live,
             runtimeResolver: { runtime }
         )
@@ -223,13 +220,13 @@ struct AppDependenciesTests {
             appInfo: AppInfoService(displayName: "Preview", version: "1"),
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: InjectedImageLoader()
+            images: ImageServiceProbe().service
         )
         let uiTest = AppDependencies.uiTesting(
             initialState: state,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: InjectedImageLoader()
+            images: ImageServiceProbe().service
         )
         let direct = AppNotificationGraph.inMemory().dependencies
 
@@ -355,7 +352,7 @@ struct AppDependenciesTests {
             appInfo: AppInfoService(displayName: "Injected", version: "1"),
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: InjectedImageLoader(),
+            images: ImageServiceProbe().service,
             notificationGraph: notifications
         )
 
@@ -431,7 +428,7 @@ struct AppDependenciesTests {
         #expect(dependencies.appStateStorage is UserDefaultsAppStateStorage)
         #expect(dependencies.keychain is KeychainService)
         #expect(dependencies.appInfo is AppInfoService)
-        #expect(dependencies.imageLoader is CachingImageLoader)
+        #expect(dependencies.images.kind == .live)
     }
 
     @Test
@@ -507,13 +504,13 @@ struct AppDependenciesTests {
             appInfo: appInfo,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: InjectedImageLoader()
+            images: ImageServiceProbe().service
         )
         let secondPreview = AppDependencies.preview(
             appInfo: appInfo,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: InjectedImageLoader()
+            images: ImageServiceProbe().service
         )
         try await firstPreview.localDatabase.upsert(
             ExampleRecord(id: "preview", payload: "first")
@@ -534,13 +531,13 @@ struct AppDependenciesTests {
             initialState: state,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: InjectedImageLoader()
+            images: ImageServiceProbe().service
         )
         let secondUI = AppDependencies.uiTesting(
             initialState: state,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: InjectedImageLoader()
+            images: ImageServiceProbe().service
         )
         try await firstUI.localDatabase.upsert(
             ExampleRecord(id: "ui", payload: "first")
@@ -560,13 +557,13 @@ struct AppDependenciesTests {
             appInfo: appInfo,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: InjectedImageLoader()
+            images: ImageServiceProbe().service
         )
         let preview2 = AppDependencies.preview(
             appInfo: appInfo,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: InjectedImageLoader()
+            images: ImageServiceProbe().service
         )
         try await preview1.keychain.set(Data([1]), for: .data("Isolation"))
         #expect(try await preview2.keychain.data(for: .data("Isolation")) == nil)
@@ -579,13 +576,13 @@ struct AppDependenciesTests {
             initialState: state,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: InjectedImageLoader()
+            images: ImageServiceProbe().service
         )
         let ui2 = AppDependencies.uiTesting(
             initialState: state,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: InjectedImageLoader()
+            images: ImageServiceProbe().service
         )
         try await ui1.keychain.set(Data([1]), for: .data("Isolation"))
         #expect(try await ui2.keychain.data(for: .data("Isolation")) == nil)
@@ -597,7 +594,7 @@ struct AppDependenciesTests {
             appInfo: AppInfoService(displayName: "Preview", version: "1"),
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: InjectedImageLoader()
+            images: ImageServiceProbe().service
         )
         let uiTesting = AppDependencies.uiTesting(
             initialState: AppState(
@@ -606,7 +603,7 @@ struct AppDependenciesTests {
             ),
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: InjectedImageLoader()
+            images: ImageServiceProbe().service
         )
 
         await expectUnregisteredTestModel(preview.localDatabase)
@@ -622,7 +619,7 @@ struct AppDependenciesTests {
             ),
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: InjectedImageLoader()
+            images: ImageServiceProbe().service
         )
 
         #expect(dependencies.appStateStorage is InMemoryAppStateStorage)
@@ -638,13 +635,13 @@ struct AppDependenciesTests {
             initialState: initialState,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: InjectedImageLoader()
+            images: ImageServiceProbe().service
         )
         let secondDependencies = AppDependencies.uiTesting(
             initialState: initialState,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: InjectedImageLoader()
+            images: ImageServiceProbe().service
         )
         let firstStorage = try #require(
             firstDependencies.appStateStorage as? InMemoryAppStateStorage
@@ -670,7 +667,7 @@ struct AppDependenciesTests {
         let remoteService = InjectedRemoteService()
         let appStateStorage = InjectedAppStateStorage()
         let keychainService = KeychainServiceSpy()
-        let imageLoader = InjectedImageLoader()
+        let probe = ImageServiceProbe()
         let diagnostics = NetworkDiagnosticRecorder()
         let appInfo = AppInfoService(
             displayName: "Preview App",
@@ -680,7 +677,7 @@ struct AppDependenciesTests {
             appInfo: appInfo,
             remoteService: remoteService,
             diagnostics: diagnostics,
-            imageLoader: imageLoader,
+            images: probe.service,
             appStateStorage: appStateStorage,
             localDatabaseService: localDatabaseService,
             keychainService: keychainService
@@ -702,7 +699,7 @@ struct AppDependenciesTests {
         #expect(resolvedRemoteService === remoteService)
         #expect(resolvedAppStateStorage === appStateStorage)
         #expect(resolvedKeychainService === keychainService)
-        #expect(dependencies.imageLoader as AnyObject === imageLoader)
+        #expect(dependencies.images === probe.service)
         #expect(dependencies.diagnostics === diagnostics)
         #expect(dependencies.appInfo.displayName == "Preview App")
         #expect(dependencies.appInfo.version == "9.8.7")
@@ -714,7 +711,7 @@ struct AppDependenciesTests {
         let remoteService = InjectedRemoteService()
         let appStateStorage = InjectedAppStateStorage()
         let keychainService = KeychainServiceSpy()
-        let imageLoader = InjectedImageLoader()
+        let probe = ImageServiceProbe()
         let diagnostics = NetworkDiagnosticRecorder()
         let appInfo = AppInfoService(
             displayName: "Test App",
@@ -724,7 +721,7 @@ struct AppDependenciesTests {
             localDatabaseService: localDatabaseService,
             remoteService: remoteService,
             diagnostics: diagnostics,
-            imageLoader: imageLoader,
+            images: probe.service,
             appStateStorage: appStateStorage,
             keychainService: keychainService,
             appInfo: appInfo,
@@ -747,7 +744,7 @@ struct AppDependenciesTests {
         #expect(resolvedRemoteService === remoteService)
         #expect(resolvedAppStateStorage === appStateStorage)
         #expect(resolvedKeychainService === keychainService)
-        #expect(dependencies.imageLoader as AnyObject === imageLoader)
+        #expect(dependencies.images === probe.service)
         #expect(dependencies.diagnostics === diagnostics)
         #expect(dependencies.appInfo.displayName == "Test App")
         #expect(dependencies.appInfo.version == "3.2.1")
@@ -759,7 +756,7 @@ struct AppDependenciesTests {
             appInfo: AppInfoService(displayName: "Preview", version: "1"),
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: InjectedImageLoader()
+            images: ImageServiceProbe().service
         )
 
         #expect(dependencies.favorites as AnyObject === dependencies.favorites as AnyObject)
@@ -770,13 +767,13 @@ struct AppDependenciesTests {
     @Test
     func storeFactoryReusesInjectedSessionProductsCartPreferencesAppInfoAndUISupport() async {
         let remote = InjectedRemoteService()
-        let imageLoader = InjectedImageLoader()
+        let probe = ImageServiceProbe()
         let appInfo = AppInfoService(displayName: "Shared", version: "4.2")
         let dependencies = AppDependencies.preview(
             appInfo: appInfo,
             remoteService: remote,
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: imageLoader
+            images: probe.service
         )
 
         let session = CompositionSessionActionsSpy()
@@ -792,7 +789,7 @@ struct AppDependenciesTests {
         #expect(first.cart as AnyObject === dependencies.cart as AnyObject)
         #expect(first.preferences as AnyObject === dependencies.storePreferences as AnyObject)
         #expect(first.appInfo as AnyObject === dependencies.appInfo as AnyObject)
-        #expect(dependencies.storeUISupport.images as AnyObject === imageLoader)
+        #expect(dependencies.storeUISupport.images === probe.service)
 
         _ = await first.session.login(username: "emilys", password: "emilyspass")
         #expect(session.loginCalls == 1)
@@ -805,7 +802,7 @@ struct AppDependenciesTests {
             appInfo: AppInfoService(displayName: "Preview", version: "1"),
             remoteService: remote,
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: InjectedImageLoader()
+            images: ImageServiceProbe().service
         )
 
         await #expect(throws: RemoteServiceError.self) {
@@ -820,13 +817,13 @@ struct AppDependenciesTests {
             appInfo: appInfo,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: InjectedImageLoader()
+            images: ImageServiceProbe().service
         )
         let second = AppDependencies.preview(
             appInfo: appInfo,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: InjectedImageLoader()
+            images: ImageServiceProbe().service
         )
         let product = ProductSnapshot(
             id: 41,
@@ -862,7 +859,7 @@ struct ServicesDependenciesCompositionTests {
             appInfo: appInfo,
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: InjectedImageLoader()
+            images: ImageServiceProbe().service
         )
         let store = AppStateStore(storage: InMemoryAppStateStorage())
         let router = AppFlowRouter(flow: .main)
@@ -910,7 +907,7 @@ struct ServicesDependenciesCompositionTests {
             appInfo: AppInfoService(displayName: "Task 3", version: "1"),
             remoteService: remote,
             diagnostics: diagnostics,
-            imageLoader: InjectedImageLoader(),
+            images: ImageServiceProbe().service,
             localDatabaseService: database
         )
         let store = AppStateStore(storage: InMemoryAppStateStorage())
@@ -966,7 +963,7 @@ struct AppDependenciesTask3Tests {
             appInfo: AppInfoService(displayName: "Task 3", version: "1"),
             remoteService: InjectedRemoteService(),
             diagnostics: NetworkDiagnosticRecorder(),
-            imageLoader: InjectedImageLoader()
+            images: ImageServiceProbe().service
         )
         let session = CompositionSessionActionsSpy()
 
@@ -1218,21 +1215,6 @@ private actor InjectedRemoteService: IRemoteService {
     ) async throws -> HTTPDiagnosticDTO {
         _ = request
         throw RemoteServiceError.invalidResponse
-    }
-}
-
-nonisolated
-private final class InjectedImageLoader: IImageLoader, @unchecked Sendable {
-    private let lock = NSLock()
-    private var storedLoadCount = 0
-
-    var loadCount: Int { lock.withLock { storedLoadCount } }
-
-    func load(_ url: URL, policy: ImageLoadPolicy) async throws -> LoadedImage {
-        _ = url
-        _ = policy
-        lock.withLock { storedLoadCount += 1 }
-        throw ImageLoaderError.transport
     }
 }
 

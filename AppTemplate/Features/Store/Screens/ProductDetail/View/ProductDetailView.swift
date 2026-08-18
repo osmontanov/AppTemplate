@@ -3,7 +3,7 @@ import SwiftUI
 struct ProductDetailView: View {
     @Bindable var router: StoreRouter
     let productID: Product.ID
-    let images: any IImageLoader
+    let images: ImageService
     @State private var viewModel: ProductDetailViewModel
     @Environment(\.locale) private var locale
     @AccessibilityFocusState private var resultIsFocused: Bool
@@ -13,7 +13,7 @@ struct ProductDetailView: View {
         router: StoreRouter,
         products: any IProductRepository,
         cart: any ICartRepository,
-        images: any IImageLoader
+        images: ImageService
     ) {
         self.productID = productID
         self.router = router
@@ -29,7 +29,7 @@ struct ProductDetailView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         if let url = model.product.thumbnailURL {
-                            RemoteProductImage(url: url, imageLoader: images)
+                            RemoteImage(url: url, images: images)
                                 .frame(maxWidth: .infinity, minHeight: 180, maxHeight: 320)
                         }
                         Text(verbatim: model.product.title).font(.largeTitle.bold())

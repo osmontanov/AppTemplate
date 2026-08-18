@@ -11,6 +11,6 @@ struct StoreDependencies: Sendable {
 
 nonisolated
 struct StoreUISupport: Sendable {
-    let images: any IImageLoader
+    let images: ImageService
     let clock: AppClock
 }

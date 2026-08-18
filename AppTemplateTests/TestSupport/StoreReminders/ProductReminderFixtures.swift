@@ -3,7 +3,6 @@ import Foundation
 
 nonisolated
 enum ProductReminderTestFailure: Error, Equatable, Sendable {
-    case image
     case schedule
 }
 
@@ -12,7 +11,7 @@ enum ProductReminderOperation: Equatable, Sendable {
     case settings
     case authorization(LocalNotificationAuthorizationOptions)
     case categoryBootstrap
-    case imageLoad(URL, ImageLoadPolicy)
+    case imageLoad(URL)
     case schedule
     case pending
     case removePending(Set<LocalNotificationID>)
@@ -142,26 +141,29 @@ actor ProductReminderNotificationServiceSpy: ILocalNotificationService {
     var attachmentExistence: [Bool] { stagedFilesExistedDuringSchedule }
 }
 
-actor ProductReminderImageLoaderSpy: IImageLoader {
-    private let result: Result<LoadedImage, any Error & Sendable>
+actor ProductReminderImageBytesSpy: IImageBytesLoading {
+    private let result: Result<ImageBytes, ImageServiceError>
     private let trace: ProductReminderOperationTrace
 
     init(
-        result: Result<LoadedImage, any Error & Sendable> = .success(.productReminderPNG),
+        result: Result<ImageBytes, ImageServiceError> = .success(.productReminderPNG),
         trace: ProductReminderOperationTrace = ProductReminderOperationTrace()
     ) {
         self.result = result
         self.trace = trace
     }
 
-    func load(_ url: URL, policy: ImageLoadPolicy) async throws -> LoadedImage {
-        await trace.append(.imageLoad(url, policy))
-        return try result.get()
+    func bytes(for url: URL) async throws(ImageServiceError) -> ImageBytes {
+        await trace.append(.imageLoad(url))
+        switch result {
+        case let .success(bytes): return bytes
+        case let .failure(error): throw error
+        }
     }
 }
 
-nonisolated extension LoadedImage {
-    static let productReminderPNG = LoadedImage(
+nonisolated extension ImageBytes {
+    static let productReminderPNG = ImageBytes(
         data: Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")!,
         mimeType: "image/png",
         pixelWidth: 1,
@@ -208,13 +210,13 @@ enum ProductReminderFixtures {
 
     static func repository(
         service: ProductReminderNotificationServiceSpy,
-        imageLoader: ProductReminderImageLoaderSpy,
+        images: ProductReminderImageBytesSpy,
         directory: URL,
         trace: ProductReminderOperationTrace
     ) -> ProductReminderRepository {
         ProductReminderRepository(
             service: service,
-            imageLoader: imageLoader,
+            images: images,
             attachmentStager: ReminderAttachmentStager(directory: directory),
             categoryCatalog: ProductReminderCategoryCatalogSpy(trace: trace),
             clock: clock

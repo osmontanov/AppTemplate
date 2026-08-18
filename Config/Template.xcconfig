@@ -12,3 +12,11 @@ DEVELOPMENT_TEAM = $(APP_DEVELOPMENT_TEAM)
 // each build. The catalogs are maintained by hand and AppTextLocalizationTests
 // fails when a producer uses a key the catalog lacks.
 SWIFT_EMIT_LOC_STRINGS = NO
+
+// Warnings are errors for first-party code only. Passing this on the xcodebuild
+// command line also reaches SPM package targets, which Xcode builds with
+// -suppress-warnings; swiftc rejects that pair outright, so the release gate
+// would fail inside Nuke on every run. This xcconfig is the project-level
+// baseConfigurationReference, so it reaches all three first-party targets and
+// never reaches the synthesized package project.
+SWIFT_TREAT_WARNINGS_AS_ERRORS = YES
