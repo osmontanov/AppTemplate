@@ -128,7 +128,12 @@ fi
 # The lock above keeps the fixed name single-writer.
 helper_run_root="$container_tmp/AppTemplate-XCResultRequiredTestsVerifier"
 [[ ! -L "$helper_run_root" ]] || exit 72
-rm -rf -- "$helper_run_root"
+if [[ -e "$helper_run_root" ]]; then
+  # A run that died before its cleanup leaves this tree read-only, so restore
+  # write permission before removing it or the next run cannot start.
+  chmod -R u+rwX "$helper_run_root"
+  rm -rf -- "$helper_run_root"
+fi
 mkdir "$helper_run_root"
 [[ -d "$helper_run_root" && ! -L "$helper_run_root" ]] || exit 72
 [[ "${helper_run_root:t}" == AppTemplate-XCResultRequiredTestsVerifier ]] || exit 72
