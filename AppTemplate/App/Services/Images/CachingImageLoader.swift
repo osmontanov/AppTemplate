@@ -68,6 +68,9 @@ actor CachingImageLoader: IImageLoader {
         return try await withTaskCancellationHandler {
             do {
                 let image = try await task.value
+                // Cache before returning: a caller that got an image and then
+                // asks again must not race the bookkeeping and refetch.
+                cache(image, for: key.url)
                 leave(key, waiter: waiter)
                 try Task.checkCancellation()
                 return image
@@ -92,7 +95,6 @@ actor CachingImageLoader: IImageLoader {
         let base = base
         let task = Task { try await base.load(key.url, policy: key.policy) }
         flights[key] = Flight(task: task, waiters: [waiter])
-        Task { self.finish(await task.result, for: key) }
         return (task, waiter)
     }
 
@@ -105,12 +107,6 @@ actor CachingImageLoader: IImageLoader {
         } else {
             flights[key] = flight
         }
-    }
-
-    private func finish(_ result: Result<LoadedImage, Error>, for key: FlightKey) {
-        flights[key] = nil
-        guard case let .success(image) = result else { return }
-        cache(image, for: key.url)
     }
 
     private func satisfies(
