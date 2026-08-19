@@ -70,6 +70,14 @@ final class ImageService: IImageBytesLoading, Sendable {
         return configuration
     }
 
+    // Synchronous, so a view that already has the image can render it on its
+    // first frame instead of blanking and awaiting an actor hop. A miss is
+    // silent: the caller falls back to image(for:).
+    func cachedImage(for url: URL) -> AppImage? {
+        guard policy.permits(url) else { return nil }
+        return pipeline.cache[ImageRequest(url: url)]?.image
+    }
+
     func image(for url: URL) async throws(ImageServiceError) -> AppImage {
         guard policy.permits(url) else { throw .disallowedOrigin }
         do {

@@ -139,6 +139,37 @@ struct ImageServiceTests {
     }
 
     @Test
+    func aLoadedImageIsAvailableSynchronouslyAfterwards() async throws {
+        let images = service(steps: [.png(ImageFixtures.allowedURL, body: ImageFixtures.png)])
+
+        // Nothing is cached before the first load.
+        #expect(images.cachedImage(for: ImageFixtures.allowedURL) == nil)
+        _ = try await images.image(for: ImageFixtures.allowedURL)
+
+        // A view rebuilt after this point renders on its first frame instead of
+        // blanking and awaiting the pipeline again.
+        #expect(images.cachedImage(for: ImageFixtures.allowedURL) != nil)
+    }
+
+    @Test
+    func theSynchronousCacheReadHonoursTheOriginAllowlist() {
+        let images = service(steps: [])
+
+        #expect(images.cachedImage(for: ImageFixtures.foreignURL) == nil)
+    }
+
+    @Test
+    func bytesDoNotPopulateTheDecodedImageCache() async throws {
+        let images = service(steps: [.png(ImageFixtures.allowedURL, body: ImageFixtures.png)])
+
+        _ = try await images.bytes(for: ImageFixtures.allowedURL)
+
+        // The reminder path decodes nothing, so it must not pretend a decoded
+        // image is available to the views.
+        #expect(images.cachedImage(for: ImageFixtures.allowedURL) == nil)
+    }
+
+    @Test
     func liveIsReachableWithoutADiskCacheAndReportsItsKind() {
         let images = ImageService.live(diskCache: nil)
 

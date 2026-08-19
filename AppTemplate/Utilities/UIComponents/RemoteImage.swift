@@ -9,6 +9,10 @@ struct RemoteImage: View {
     init(url: URL, images: ImageService) {
         self.url = url
         self.images = images
+        // A recycled row in a lazy container is a fresh view identity, so this
+        // is what keeps an already-cached image on screen through a scroll
+        // instead of blanking it once per pass.
+        _loaded = State(initialValue: images.cachedImage(for: url))
     }
 
     var body: some View {
@@ -22,6 +26,10 @@ struct RemoteImage: View {
             }
         }
         .task(id: url) {
+            if let cached = images.cachedImage(for: url) {
+                loaded = cached
+                return
+            }
             loaded = nil
             do {
                 let image = try await images.image(for: url)
